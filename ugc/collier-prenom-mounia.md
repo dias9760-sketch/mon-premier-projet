@@ -71,3 +71,37 @@
 | 0–13 s | jusqu'à « …ça m'a suivie longtemps. » | absent / hors champ |
 | **13–18 s** | « **Alors cette année**, je me suis enfin fait le cadeau… » | **en main → @image2** |
 | 18–27 s | « Un collier avec mon prénom à moi… » → fin | porté au cou → @image2 |
+
+---
+
+## 4. Prompts prêts à coller dans Seedance 2.0
+
+Réglages pour chaque génération : **9:16 · 1080p · durée 10 s · audio natif activé**. Charge @image1 (Mounia) et @image2 (collier) comme références dans chaque génération.
+Les prompts sont en anglais (le modèle les suit mieux), mais le dialogue reste en français entre guillemets.
+
+### Prompt scène 1 (0–9 s)
+```
+Vertical 9:16 handheld smartphone UGC video, natural and authentic, not an ad. The woman from @image1: same face, same curly dark hair, same cream linen shirt, same bright Parisian apartment with balcony window and green plants, warm morning sunlight from the left. Necklace NOT visible: framing cut just below the collarbones, anything below is out of frame or soft blur.
+Shot 1 (0-4s): medium close-up, selfie-style handheld at eye level, subtle natural camera shake. She holds her coffee mug with both hands, knowing smile, raises one eyebrow, speaks to camera in French with a warm, calm, steady voice: "Ce que personne ne vous dit quand on a un prénom un peu rare, c'est qu'on ne le trouve jamais nulle part."
+Shot 2 (4-9s): jump cut to a tighter close-up on her face, slow push-in. She glances toward the window as if remembering, then back to camera: "Petite, à chaque vacances, je fouillais les présentoirs de porte-clés dans les boutiques souvenirs..."
+Shallow depth of field (f/1.8 portrait look), face sharp, background in soft bokeh. Accurate lip-sync, natural pauses, no music, no on-screen text, light room ambience.
+```
+
+### Prompt scène 2 (9–18 s) — produit en main
+```
+Vertical 9:16 handheld smartphone UGC video, natural and authentic. Same woman from @image1, same outfit, same apartment, same warm morning light, continuity with previous shot. The coffee mug has been put down out of frame.
+Shot 1 (0-4s): medium shot, chest up, camera resting with slight breathing movement. She counts names on her fingers and lets out a small laugh, speaking French: "...et il y avait des Léa, des Sarah, des Julie... mais jamais de Mounia. Ça a l'air bête, mais ça m'a suivie longtemps."
+Shot 2 (4-9s): cut. She raises toward the lens the gold "Mounia" script name necklace from @image2, holding the chain between thumb and index finger of her right hand, the pendant swinging gently at chest height, sunlight glinting on the polished gold letters. The pendant must match @image2 exactly: cursive "Mounia" lettering, polished yellow gold, small jump rings at each end, fine cable chain. Rack focus from the sharp pendant in the foreground to her face, then slow push-in. She says: "Alors cette année, je me suis enfin fait le cadeau que j'attendais depuis toute petite."
+Medium-to-shallow depth of field. Accurate lip-sync, steady natural pace, no music, no on-screen text.
+```
+
+### Prompt scène 3 (18–27 s) — produit porté + appel à l'action
+```
+Vertical 9:16 handheld smartphone UGC video, natural and authentic. Same woman from @image1, same outfit, same apartment, same warm light, continuity with previous shot. She now wears the gold "Mounia" name necklace from @image2 around her neck, identical lettering and chain.
+Shot 1 (0-3s): macro close-up insert of her fingers adjusting the "Mounia" pendant on her neck, golden grazing light, very shallow depth of field, only the letters in focus. Voice continues in French: "Un collier avec mon prénom à moi, en plaqué or, écrit exactement comme il faut."
+Shot 2 (3-7s): cut back to medium close-up, handheld. She rests her hand on the pendant, moved expression, then smiles: "Quand j'ai ouvert la boîte, j'avoue, j'ai eu un petit pincement au cœur."
+Shot 3 (7-9s): slow pull-out to a waist-up shot, she points down toward the bottom of the screen with a warm final smile: "Il vient de chez Zarahissi, je vous mets le lien juste en dessous."
+Shallow then medium depth of field, background soft but readable. Accurate lip-sync, steady natural pace, no music, no on-screen text.
+```
+
+**Montage** : enchaîne les 3 clips en coupe franche dans CapCut, coupe les éventuels silences en début/fin de clip, ajoute les sous-titres automatiques en dernier.
