@@ -105,3 +105,15 @@ Shallow then medium depth of field, background soft but readable. Accurate lip-s
 ```
 
 **Montage** : enchaîne les 3 clips en coupe franche dans CapCut, coupe les éventuels silences en début/fin de clip, ajoute les sous-titres automatiques en dernier.
+
+---
+
+## 5. Vidéo générée (Creatify Ad Agent, version 20 s)
+
+Budget de 10 crédits → script resserré en 2 scènes de 10 s, 768p, modèle Boreal-H3 (référence image → vidéo, audio natif).
+
+- **Scène 1 (0–10 s, pas de produit)** : « Ce que personne ne vous dit quand on a un prénom rare, c'est qu'on ne le trouve jamais. Petite, je cherchais Mounia sur tous les porte-clés souvenirs… il n'y était jamais. »
+- **Scène 2 (10–20 s, collier en main → porté, @collier)** : « Alors cette année, je me suis offert un collier avec mon prénom, en plaqué or, écrit exactement comme il faut. C'est chez Zarahissi, le lien est juste en dessous. »
+
+Vidéo finale (filigrane, plan gratuit) : https://cdn.creatify.ai/admax_chat/composer_wm/20261010/3f461413644745d8bbd34b5be057744c.mp4
+Projet Creatify : https://app.creatify.ai/projects/detail?mediaJobId=901fa07f-03ef-4b03-8630-e226af40d7fa
