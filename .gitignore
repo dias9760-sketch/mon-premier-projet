@@ -1,0 +1,5 @@
+node_modules/
+# Local secrets (Higgsfield credentials) — never commit
+.env
+.env.local
+.env.*.local
