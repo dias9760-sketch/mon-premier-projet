@@ -40,3 +40,10 @@ accessoires Zarahissi.
 - Imani : https://d8j0ntlcm91z4.cloudfront.net/user_3KViSTlmVjujrQsgUSoKurKeoeU/hf_20261013_192444_51817b9c-0a60-478d-a038-b28bd8f93c65.png
 
 (Également disponibles dans votre bibliothèque Higgsfield.)
+
+## Planches multi-vues (références pour les vidéos)
+Chaque planche montre 4 vues en pied (face, 3/4, profil, dos) + 4 gros plans du visage.
+- Nayla : https://d8j0ntlcm91z4.cloudfront.net/user_3KViSTlmVjujrQsgUSoKurKeoeU/hf_20261013_193320_a2a97438-a18b-47ac-b4d1-f68b65154fd5.png
+- Imani (salouva noir à fleurs jaunes) : https://d8j0ntlcm91z4.cloudfront.net/user_3KViSTlmVjujrQsgUSoKurKeoeU/hf_20261013_193047_1f89c1ac-6e74-4c60-98da-de22f4504374.png
+
+Prompt réutilisable : [prompts/higgsfield-planche-multivues.md](prompts/higgsfield-planche-multivues.md)

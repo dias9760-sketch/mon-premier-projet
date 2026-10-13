@@ -12,11 +12,16 @@
 ## Apparence (référence Higgsfield — à ne jamais modifier)
 - Peau ébène, afro naturel, grands yeux marron, fossettes, grain de beauté
 - Plusieurs piercings d'oreilles, silhouette ronde
-- Accessoires statement : grosses chaînes dorées, bracelets de perles colorées,
-  détails en cauris, mini-sac
-- Streetwear coloré, ambiance marchés et rues des îles
+- **Tenue signature : le salouva mahorais** noir imprimé de petites fleurs jaunes à
+  six pétales (fleur « soleil » emblématique de Mayotte), large bordure rouge à grandes
+  fleurs jaunes, chiromani assorti sur l'épaule gauche, haut en dentelle rouge à manches longues
+- Bijoux : créoles dorées, colliers fins superposés, joncs dorés, un bracelet de perles colorées
+- En contenu « lifestyle », elle peut aussi porter du streetwear coloré (même visage, mêmes bijoux)
 
-**Higgsfield** — fiche personnage : job `51817b9c-0a60-478d-a038-b28bd8f93c65`
+**Higgsfield**
+- Fiche personnage initiale : job `51817b9c-0a60-478d-a038-b28bd8f93c65`
+- **Planche multi-vues en salouva (référence pour les vidéos)** : job `1f89c1ac-6e74-4c60-98da-de22f4504374`
+  — 4 vues en pied (face, 3/4, profil, dos) + 4 gros plans visage (face, 3/4, profil, sourire)
 Paramètres : tier `normal`, female, adult, african, st_deep, body_curvy, hair_afro, hc_black,
 streetstyle, h_average, es_large, eye_brown, fn_dimples + fn_mole, df_ears, acc_jewelry + acc_bag.
 

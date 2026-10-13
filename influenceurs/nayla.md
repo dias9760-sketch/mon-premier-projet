@@ -16,7 +16,10 @@
 - Version moderne du **chiromani** (pagne traditionnel) : terracotta, safran, vert profond
 - Lumière du lagon, maquillage naturel, parfois masque **msindzano** (bois de santal)
 
-**Higgsfield** — fiche personnage : job `cc1c1317-64e1-457f-b620-aed2379f39af`
+**Higgsfield**
+- Fiche personnage initiale : job `cc1c1317-64e1-457f-b620-aed2379f39af`
+- **Planche multi-vues (référence pour les vidéos)** : job `a2a97438-a18b-47ac-b4d1-f68b65154fd5`
+  — 4 vues en pied (face, 3/4, profil, dos) + 4 gros plans visage (face, 3/4, profil, sourire)
 Paramètres : tier `normal`, female, adult, african, st_brown, body_slim, hair_braids, hc_black,
 casual, h_tall, es_almond, eye_brown, fn_cheekbones + fn_fulllips, acc_jewelry.
 
