@@ -77,6 +77,19 @@ Puis ajouter : la tenue, le lieu, l'action, le cadrage, la lumière et l'objecti
 
 ## 8. Modèles et méthode Higgsfield
 
+**Image de référence sur Higgsfield** : media_id `f1f59d14-4eea-4752-adab-9e5a34bb2fab` (à passer en `image_references`).
+
+**Planche de référence validée (14/10/2026, Nano Banana Pro)** : ces images peuvent servir de références supplémentaires et de base pour le Soul ID.
+
+| Plan | job_id Higgsfield |
+|---|---|
+| Face, habillé (lin beige, plage) | `4d36bd61-602d-4212-a185-3f07776f6f2d` |
+| Face, torse nu (lagon) | `62bafb19-f13a-4243-89f3-bf03bf227c00` |
+| Profil, habillé (ponton de Mamoudzou) | `bc9a3393-26a0-4c20-8fc3-ce250f4e0e0c` |
+| Profil, torse nu (lagon) | `8c3a6a52-e83d-46dd-b3ec-3f1100259e9c` |
+| Dos, torse nu (plage au coucher du soleil) | `c5a5d9d3-1724-4fa7-b470-cf02bb092d21` |
+| Dos, habillé (baobab) | `f31a6cf8-6458-4fe3-8914-2155aebde46e` |
+
 | Usage | Modèle recommandé |
 |---|---|
 | Nouvelles photos du personnage | **Nano Banana Pro** avec l'image de référence (`image_references`). Ne pas utiliser Soul 2.0 avec référence : il réécrit le prompt. |
