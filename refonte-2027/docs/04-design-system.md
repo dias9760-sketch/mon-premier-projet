@@ -15,7 +15,7 @@ Les valeurs exactes sont dans `prototype/src/tokens.css`.
 | Promo | Terracotta | `#A0442E` | Bons plans, prix promo (avec parcimonie) |
 | Texte secondaire | Gris encre | `#4E596B` | Descriptions, aides |
 
-**Contrastes WCAG AA vérifiés** : marine sur ivoire 13,6:1 · gris encre sur ivoire 6,7:1 · ardoise foncée sur ivoire 5,2:1 · terracotta sur ivoire 5,9:1 · sable sur marine 10,9:1 · or foncé sur crème 5,4:1. L'or clair et l'ardoise clair servent **uniquement de décor**, jamais pour du texte sur fond clair.
+**Contrastes WCAG AA vérifiés** : marine sur ivoire 13,6:1 · gris encre sur ivoire 6,7:1 · ardoise foncée sur ivoire 5,2:1 · terracotta sur ivoire 5,9:1 · sable sur marine 10,9:1 · or foncé sur crème 5,2:1. L'or clair et l'ardoise clair servent **uniquement de décor**, jamais pour du texte sur fond clair.
 
 ## Typographies (2 familles)
 
