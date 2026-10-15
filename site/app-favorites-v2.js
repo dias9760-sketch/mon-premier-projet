@@ -162,21 +162,26 @@ async function finishLogin(sessionToken){
     // Secours : passage par la page Wix puis retour sur le site (?code=…&state=…).
     console.warn('Connexion par iframe impossible, redirection',e);
     const s=await authSession(sessionToken,'query',{redirectUri:RETURN_URI});
-    try{ sessionStorage.setItem('bonszahe:pkce',JSON.stringify({verifier:s.verifier,state:s.state,back:location.hash})); }catch(_){}
+    try{ localStorage.setItem('bonszahe:pkce',JSON.stringify({verifier:s.verifier,state:s.state,back:location.hash})); }catch(_){}
     location.href=s.url;
     await new Promise(()=>{});
   }
   await completeLogin(got.code,got.verifier);
 }
 // Retour de la page Wix : échange du code contre les jetons membre.
+let loginNotice='';
 async function resumeRedirectLogin(){
-  const q=new URLSearchParams(location.search); const code=q.get('code'), state=q.get('state');
-  if(!code&&!q.get('error')) return;
-  let saved=null; try{ saved=JSON.parse(sessionStorage.getItem('bonszahe:pkce')||'null'); sessionStorage.removeItem('bonszahe:pkce'); }catch(_){}
-  history.replaceState(null,'',RETURN_URI+((saved&&saved.back)||'#/profil'));
-  if(!code||!saved||saved.state!==state){ toast('Connexion interrompue. Réessayez.'); return; }
-  try{ await completeLogin(code,saved.verifier,RETURN_URI); toast(`Bienvenue ${me().name} !`); }
-  catch(e){ console.warn(e); toast('Connexion impossible pour le moment. Réessayez.'); }
+  const h=location.hash.startsWith('#/')?'':location.hash.slice(1);
+  const q=new URLSearchParams(location.search+(h?'&'+h:''));
+  const code=q.get('code'), state=q.get('state'), error=q.get('error');
+  if(!code&&!error) return;
+  let saved=null; try{ saved=JSON.parse(localStorage.getItem('bonszahe:pkce')||'null'); localStorage.removeItem('bonszahe:pkce'); }catch(_){}
+  history.replaceState(null,'',RETURN_URI+((saved&&saved.back&&saved.back.startsWith('#/'))?saved.back:'#/profil'));
+  if(error){ loginNotice=`Wix a refusé la connexion (${error}${q.get('error_description')?' : '+q.get('error_description'):''}). Réessayez ou envoyez une capture à Bonszahé.`; return; }
+  if(!saved){ loginNotice='Connexion interrompue (session de connexion introuvable). Réessayez.'; return; }
+  if(saved.state!==state){ loginNotice='Connexion interrompue (vérification de sécurité différente). Réessayez.'; return; }
+  try{ await completeLogin(code,saved.verifier,RETURN_URI); loginNotice=''; setTimeout(()=>toast(`Bienvenue ${me().name} !`),300); }
+  catch(e){ console.warn(e); loginNotice=`Connexion impossible (${(e.data&&(e.data.error||e.data.message))||e.status||e.message}). Réessayez.`; }
 }
 async function completeLogin(code,verifier,redirectUri){
   const t=await call('POST','/oauth2/token',Object.assign({clientId:WIX_CLIENT_ID,grantType:'authorization_code',code,codeVerifier:verifier},redirectUri?{redirectUri}:{}),await getVisitorToken());
@@ -738,6 +743,7 @@ function badgeGrid(s){
 /* ---------- Connexion / inscription ---------- */
 let authMode='login', afterLogin=null;
 function authBox(msg=''){
+  if(!msg&&loginNotice){ msg=esc(loginNotice); loginNotice=''; }
   if(pendingState) return `<div class="card form authcard">
     <h3>Vérifiez votre e-mail</h3>
     <p class="muted">Nous venons de vous envoyer un code à 6 chiffres. Saisissez-le pour activer votre compte.</p>
