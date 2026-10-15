@@ -1,0 +1,5 @@
+# Données clients : ne jamais versionner
+*.xlsx
+*.xls
+*.json
+__pycache__/
