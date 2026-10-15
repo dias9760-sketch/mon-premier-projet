@@ -470,3 +470,31 @@ a.chip{text-decoration:none}
 .seg a{text-decoration:none;border-radius:10px;padding:8px 12px;font-weight:600;color:var(--muted);white-space:nowrap}
 .seg a[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
 .mainnav a{white-space:nowrap}
+
+/* ---------- Page bon plan et commentaires ---------- */
+.clink{display:inline-flex;align-items:center;gap:6px;font-size:.88rem;font-weight:600;color:var(--link);text-decoration:none;margin-top:4px}
+.clink:hover{text-decoration:underline}
+.dealpage{display:grid;gap:22px}
+@media (min-width:900px){.dealpage{grid-template-columns:minmax(0,1fr) 300px;align-items:start}}
+.coupons.one{grid-template-columns:1fr}
+.share{display:flex;flex-wrap:wrap;gap:10px}
+.btn-wa{background:#25D366;color:#073B1C;border:0}
+.btn-wa:hover{background:#1EBE5A}
+.comments{display:grid;gap:14px}
+.comments .head{flex-wrap:wrap;gap:10px}
+.cmlist{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.cm{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 14px;display:grid;gap:6px}
+.cm.reply{background:var(--soft);border-radius:14px}
+.cm .cmlist{margin-top:6px;padding-left:14px;border-left:3px solid var(--line)}
+.cmhead{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.cmtext{white-space:pre-line;overflow-wrap:anywhere}
+.cmacts{display:flex;flex-wrap:wrap;gap:4px}
+.cmbtn{border:0;background:transparent;color:var(--muted);font-weight:600;font-size:.85rem;padding:6px 8px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.cmbtn svg{width:14px;height:14px}
+.cmbtn:hover{background:var(--soft);color:var(--ink)}
+.cmbtn[aria-pressed="true"]{color:var(--corail)}
+.cmbtn[disabled]{opacity:.6;cursor:default}
+.cmform{display:grid;gap:8px}
+.cmform textarea{width:100%;border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--surface);resize:vertical;min-height:70px}
+.cmformacts{display:flex;justify-content:flex-end;gap:8px}
+.radio{display:flex;align-items:center;gap:8px;font-weight:600}

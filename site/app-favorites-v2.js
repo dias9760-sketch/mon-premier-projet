@@ -115,6 +115,7 @@ let bizId={};
 let EVENTS=[];
 let VOTES=[];
 let MOROS=[];
+let COMMENTS=[], LIKES=[], REPORTS=[], MODERATION={};
 let dataSource='snapshot';
 let tokenPromise=null;
 function getVisitorToken(){
@@ -310,9 +311,10 @@ const refId=v=>typeof v==='object'&&v?v._id:v;
 // Date et heure complètes d'un champ système Wix ({$date:…}), pour le classement Tendance.
 const stamp=v=>{ const d=new Date(typeof v==='object'&&v?v.$date:v); return isNaN(d)?new Date(TODAY):d; };
 async function loadData(){
-  const [ents,codes,votes,events,moros]=await Promise.all([
+  const [ents,codes,votes,events,moros,comms,likes,reports,moder]=await Promise.all([
     queryAll('Entreprises'),queryAll('CodesPromo'),
-    queryAll('Votes').catch(()=>[]),queryAll('Evenements').catch(()=>[]),queryAll('Moro').catch(()=>[])
+    queryAll('Votes').catch(()=>[]),queryAll('Evenements').catch(()=>[]),queryAll('Moro').catch(()=>[]),
+    queryAll('Commentaires').catch(()=>[]),queryAll('JaimeCommentaires').catch(()=>[]),queryAll('Signalements').catch(()=>[]),queryAll('Moderation').catch(()=>[])
   ]);
   const idToSlug={}; const used=new Set();
   const list=ents.filter(e=>e.publiee!==false&&e.nom).map(e=>{
@@ -324,6 +326,10 @@ async function loadData(){
   }).sort((a,b)=>a.name.localeCompare(b.name,'fr'));
   B=list; bizId={}; Object.keys(idToSlug).forEach(id=>bizId[idToSlug[id]]=id);
   VOTES=votes.filter(v=>v.code&&(v.sens==='up'||v.sens==='down')).map(v=>({id:v._id,code:v.code,dir:v.sens,owner:v._owner,at:dateFrom(v._updatedDate||v._createdDate)||TODAY}));
+  COMMENTS=comms.filter(x=>x.code&&x.texte).map(x=>({id:x._id,code:x.code,text:String(x.texte).slice(0,500),parent:x.parent||'',name:x.pseudo||'',owner:x._owner,at:stamp(x._createdDate)}));
+  LIKES=likes.filter(x=>x.commentaire).map(x=>({id:x._id,comment:x.commentaire,owner:x._owner}));
+  REPORTS=reports.filter(x=>x.commentaire).map(x=>({id:x._id,comment:x.commentaire,owner:x._owner}));
+  MODERATION={}; moder.forEach(x=>{ if(x.commentaire) MODERATION[x.commentaire]=String(x.decision||'').toLowerCase().includes('masq')?'masque':'approuve'; });
   MOROS=moros.filter(v=>v.code&&(v.sens==='moro'||v.sens==='maji')).map(v=>({id:v._id,code:v.code,dir:v.sens,owner:v._owner,at:stamp(v._updatedDate||v._createdDate)}));
   baseCodes=codes.filter(c=>c.code&&idToSlug[refId(c.entreprise)]).map(c=>{
     const exp=dateFrom(c.dateExpiration);
@@ -400,7 +406,7 @@ function logo(b,size=''){
 }
 const coverStyle = b => { const c=catBy(b.cat).c; return `--c1:${c[0]};--c2:${c[1]};--c3:${c[2]}`; };
 
-function coupon(c,{showBiz=true}={}){
+function coupon(c,{showBiz=true,noLink=false}={}){
   const b=bizBy(c.biz); const left=daysLeft(c); const mv=myVote(c.id); const v=mv&&mv.dir;
   const mm=myMoro(c.id); const hv=mm&&mm.dir; const lv=heatLevel(c.heat||0);
   const soon = !c.noExp && left<=7;
@@ -423,6 +429,7 @@ function coupon(c,{showBiz=true}={}){
         ${isNew(c)?`<span class="pill wait">Nouveau</span>`:''}
       </div>
       ${c.byName&&!official?`<p class="by">${ic('heart')}Partagé par <strong>${esc(c.byName)}</strong>, merci !</p>`:''}
+      ${noLink?'':`<a class="clink" href="#/bon-plan/${encodeURIComponent(c.id)}">💬 ${countComments(c.id)?countComments(c.id)+' commentaire'+(countComments(c.id)>1?'s':''):'Commenter'} · Partager</a>`}
     </div>
     <div class="perf" aria-hidden="true"></div>
     <div class="stub">
@@ -704,6 +711,96 @@ function drawCodes(){
     `<div class="u5">${empty('Aucun code ne correspond','Changez de filtre ou proposez un code que vous connaissez.',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}</div>`;
 }
 
+/* ---------- Commentaires ---------- */
+const MASK_AT=3; // signalements de membres différents avant masquage automatique
+const ago=d=>{ const s=Math.max(0,(Date.now()-d)/1000);
+  if(s<60) return 'à l’instant'; if(s<3600) return 'il y a '+Math.floor(s/60)+' min'; if(s<86400) return 'il y a '+Math.floor(s/3600)+' h';
+  if(s<86400*7) return 'il y a '+Math.floor(s/86400)+' j'; return fmt(d); };
+const commentsOf=codeId=>COMMENTS.filter(x=>x.code===codeId);
+const likesOf=cid=>new Set(LIKES.filter(l=>l.comment===cid).map(l=>l.owner)).size;
+const myLike=cid=>me()&&LIKES.find(l=>l.comment===cid&&l.owner===me().id);
+const myReport=cid=>me()&&REPORTS.find(r=>r.comment===cid&&r.owner===me().id);
+function isHidden(cm){
+  const d=MODERATION[cm.id];
+  if(d==='approuve') return false;
+  if(d==='masque') return true;
+  return new Set(REPORTS.filter(r=>r.comment===cm.id).map(r=>r.owner)).size>=MASK_AT;
+}
+const countComments=codeId=>commentsOf(codeId).filter(cm=>!isHidden(cm)).length;
+let commentSort='anciens', replyTo='';
+function commentItem(cm,c,isReply){
+  const b=bizBy(c.biz); const pro=b.owners&&b.owners.includes(cm.owner); const mine=me()&&cm.owner===me().id;
+  const replies=isReply?[]:commentsOf(c.id).filter(r=>r.parent===cm.id).sort((a,z)=>a.at-z.at);
+  const hidden=isHidden(cm); const n=likesOf(cm.id);
+  const lvl=levelOf(statsFor(cm.owner).points).name;
+  return `<li class="cm${isReply?' reply':''}" id="cm-${esc(cm.id)}">
+    <div class="cmhead"><strong>${esc(cm.name||'Membre')}</strong>${pro?`<span class="pill ok">${ic('store')}Entreprise</span>`:`<small class="muted">${esc(lvl)}</small>`}<small class="muted">· ${ago(cm.at)}</small></div>
+    ${hidden?`<p class="cmtext muted"><em>Commentaire masqué suite à des signalements.</em></p>`:`<p class="cmtext">${esc(cm.text)}</p>
+    <div class="cmacts">
+      <button class="cmbtn" data-like="${esc(cm.id)}" aria-pressed="${!!myLike(cm.id)}">👍 J’aime${n?' ('+n+')':''}</button>
+      ${isReply?'':`<button class="cmbtn" data-reply="${esc(cm.id)}">${ic('left')}Répondre</button>`}
+      ${mine?`<button class="cmbtn" data-delcomment="${esc(cm.id)}">Supprimer</button>`:`<button class="cmbtn" data-report="${esc(cm.id)}"${myReport(cm.id)?' disabled':''}>${myReport(cm.id)?'Signalé':'Signaler'}</button>`}
+    </div>`}
+    ${!isReply&&replyTo===cm.id?commentForm(c.id,cm.id):''}
+    ${replies.length?`<ul class="cmlist">${replies.map(r=>commentItem(r,c,true)).join('')}</ul>`:''}
+  </li>`;
+}
+function commentForm(codeId,parent=''){
+  if(!me()) return `<div class="cmform"><button class="btn btn-ghost" data-needlogin="comment">${ic('plus')}Connectez-vous pour commenter</button></div>`;
+  return `<form class="cmform" data-commentform="${esc(codeId)}" data-parent="${esc(parent)}">
+    <label class="sr" for="ta-${esc(parent||'new')}">${parent?'Votre réponse':'Votre commentaire'}</label>
+    <textarea id="ta-${esc(parent||'new')}" name="text" required maxlength="500" rows="${parent?2:3}" placeholder="${parent?'Votre réponse…':'Votre commentaire… (500 caractères max.)'}"></textarea>
+    <div class="cmformacts">${parent?`<button type="button" class="btn btn-ghost btn-sm" data-reply="">Annuler</button>`:''}<button class="btn btn-primary btn-sm" type="submit">${parent?'Répondre':'Publier'}</button></div>
+  </form>`;
+}
+function commentsBlock(c){
+  const top=commentsOf(c.id).filter(cm=>!cm.parent).sort((a,z)=>commentSort==='recents'?z.at-a.at:a.at-z.at);
+  const n=countComments(c.id);
+  return `<section class="comments" id="comments">
+    <div class="head"><h2>${n} commentaire${n>1?'s':''}</h2>
+      <div class="seg" role="group" aria-label="Trier les commentaires"><button data-csort="anciens" aria-pressed="${commentSort==='anciens'}">Plus anciens</button><button data-csort="recents" aria-pressed="${commentSort==='recents'}">Plus récents</button></div></div>
+    ${replyTo?'':commentForm(c.id)}
+    ${top.length?`<ul class="cmlist">${top.map(cm=>commentItem(cm,c,false)).join('')}</ul>`:`<p class="muted">Aucun commentaire pour l’instant. Donnez votre avis sur ce bon plan !</p>`}
+  </section>`;
+}
+const dealUrl=c=>location.origin+'/#/bon-plan/'+encodeURIComponent(c.id);
+function pageDeal(id){
+  const c=allCodes().find(x=>x.id===id);
+  if(!c) return `<div class="u20 wrap">${empty('Ce bon plan n’existe plus','Il a peut-être expiré ou été retiré.','<a class="btn btn-primary" href="#/tendances">Voir les tendances</a>')}</div>`;
+  const b=bizBy(c.biz);
+  const msg=`${c.deal} chez ${b.name} avec le code ${c.code} 👉 ${dealUrl(c)}`;
+  const off=c.status!=='valide'||daysLeft(c)<0;
+  return `<div class="wrap">
+    <a class="back" href="#/tendances">${ic('left')}Retour aux tendances</a>
+    <div class="dealpage">
+      <div class="stack">
+        ${off?`<p class="authmsg">Ce bon plan a expiré ou n’est plus actif.</p>`:''}
+        <div class="coupons one">${coupon(c,{showBiz:true,noLink:true})}</div>
+        <div class="share">
+          <a class="btn btn-wa" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">Partager sur WhatsApp</a>
+          <button class="btn btn-ghost" data-copylink="${esc(dealUrl(c))}">${ic('copy')}Copier le lien</button>
+        </div>
+        ${commentsBlock(c)}
+      </div>
+      <aside class="aside"><div class="card">${logo(b,'md')}<h3>${esc(b.name)}</h3><p class="muted">${esc(b.desc)}</p><a class="btn btn-ghost btn-sm" href="#/entreprises/${b.slug}">Voir l’entreprise</a></div></aside>
+    </div>
+    <div class="u7"></div>
+  </div>`;
+}
+async function toggleLike(cid){
+  const l=myLike(cid);
+  if(l){ await call('DELETE',`/wix-data/v2/items/${encodeURIComponent(l.id)}?dataCollectionId=JaimeCommentaires`); LIKES=LIKES.filter(x=>x.id!==l.id); return false; }
+  const r=await sendToWix('JaimeCommentaires',{commentaire:cid});
+  LIKES.push({id:r.dataItem&&r.dataItem.id,comment:cid,owner:me().id}); return true;
+}
+function reportDialog(cid){
+  openDialog(`<header><div><h2 id="dlgTitle">Signaler ce commentaire</h2><p class="u14 note">Au bout de ${MASK_AT} signalements, le commentaire est masqué automatiquement.</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+  <form class="form" id="reportForm" data-cid="${esc(cid)}">
+    ${['Spam ou publicité','Insultes ou propos déplacés','Faux code ou arnaque','Autre'].map((m,i)=>`<label class="radio"><input type="radio" name="motif" value="${m}"${i===0?' checked':''}> ${m}</label>`).join('')}
+    <button class="btn btn-primary" type="submit">Signaler</button>
+  </form>`);
+}
+
 /* ---------- Tendances (Moro / Maji) ---------- */
 function pageTrends(params){
   const f=params.get('f')||'tendance';
@@ -767,10 +864,15 @@ function statsFor(memberId){
   const upReceived=codes.reduce((s,c)=>s+c.up,0);
   const moroReceived=codes.reduce((s,c)=>s+c.moro,0);
   const bestHeat=codes.reduce((m,c)=>Math.max(m,c.heat),0);
+  const myComments=COMMENTS.filter(x=>x.owner===memberId&&!isHidden(x));
+  const perDay={}; myComments.forEach(x=>{ const k=x.at.toISOString().slice(0,10); perDay[k]=Math.min(5,(perDay[k]||0)+1); });
+  const commentPts=Object.values(perDay).reduce((a,b)=>a+b,0);
+  const likesReceived=myComments.reduce((s,x)=>s+likesOf(x.id),0);
+  const bestComment=myComments.reduce((m,x)=>Math.max(m,likesOf(x.id)),0);
   const votesGiven=new Set(VOTES.filter(v=>v.owner===memberId).map(v=>v.code)).size+new Set(MOROS.filter(v=>v.owner===memberId).map(v=>v.code)).size;
   const cats=new Set(codes.map(c=>bizBy(c.biz).cat)).size;
   const best=codes.reduce((m,c)=>Math.max(m,c.up),0);
-  return {codes,upReceived,moroReceived,bestHeat,votesGiven,cats,best,points:codes.length*10+moroReceived*2+upReceived+votesGiven};
+  return {codes,upReceived,moroReceived,bestHeat,votesGiven,cats,best,comments:myComments.length,likesReceived,bestComment,points:codes.length*10+moroReceived*2+upReceived+votesGiven+commentPts+likesReceived};
 }
 const BADGES=[
   {name:'Premier bon plan',desc:'Partager 1 code',icon:'plus',val:s=>[s.codes.length,1]},
@@ -780,12 +882,14 @@ const BADGES=[
   {name:'Voix de la communauté',desc:'Donner 10 avis',icon:'check',val:s=>[s.votesGiven,10]},
   {name:'Pilier Bonszahé',desc:'Donner 50 avis',icon:'heart',val:s=>[s.votesGiven,50]},
   {name:'Explorateur',desc:'Des codes dans 3 catégories',icon:'grid',val:s=>[s.cats,3]},
-  {name:'Volcan',desc:'Un de vos bons plans atteint '+VOLCAN+' de chaleur',icon:'sun',val:s=>[s.bestHeat,VOLCAN]}
+  {name:'Volcan',desc:'Un de vos bons plans atteint '+VOLCAN+' de chaleur',icon:'sun',val:s=>[s.bestHeat,VOLCAN]},
+  {name:'Bavard',desc:'Écrire 20 commentaires',icon:'mail',val:s=>[s.comments,20]},
+  {name:'Bon conseil',desc:'Un commentaire aimé 10 fois',icon:'up',val:s=>[s.bestComment,10]}
 ];
 function levelOf(p){ let i=0; LEVELS.forEach((l,j)=>{ if(p>=l[0]) i=j; }); return {name:LEVELS[i][1],next:LEVELS[i+1]}; }
 function leaderboard(){
-  const ids=[...new Set(baseCodes.filter(c=>c.by).map(c=>c.by))];
-  return ids.map(id=>{ const s=statsFor(id); const name=(baseCodes.find(c=>c.by===id&&c.byName)||{}).byName||'Membre'; return Object.assign({id,name},s); })
+  const ids=[...new Set([...baseCodes.filter(c=>c.by).map(c=>c.by),...COMMENTS.map(x=>x.owner)])];
+  return ids.map(id=>{ const s=statsFor(id); const name=(baseCodes.find(c=>c.by===id&&c.byName)||{}).byName||(COMMENTS.find(x=>x.owner===id&&x.name)||{}).name||'Membre'; return Object.assign({id,name},s); })
     .filter(x=>x.points>0).sort((a,b)=>b.points-a.points);
 }
 function badgeGrid(s){
@@ -851,7 +955,7 @@ function pageProfile(){
     <div class="card level">
       <div class="lvhead"><span class="lvic">${ic('badge')}</span><div><small class="muted">Votre niveau</small><strong>${esc(lv.name)}</strong></div><b class="pts">${s.points} pts</b></div>
       <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></div>
-      <p class="note">${lv.next?`Encore ${lv.next[0]-s.points} points pour devenir « ${esc(lv.next[1])} ».`:'Niveau maximum atteint, bravo !'} 10 pts par code publié, 2 pts par Moro 🔥 reçu, 1 pt par « fonctionne » reçu, 1 pt par avis donné.</p>
+      <p class="note">${lv.next?`Encore ${lv.next[0]-s.points} points pour devenir « ${esc(lv.next[1])} ».`:'Niveau maximum atteint, bravo !'} 10 pts par code publié, 2 pts par Moro 🔥 reçu, 1 pt par « fonctionne » reçu, 1 pt par avis donné, 1 pt par commentaire (5 par jour max.) et par « j’aime » reçu.</p>
     </div>
     <div class="stats four">
       <div class="stat"><b>${s.codes.length}</b><span>Codes partagés</span></div>
@@ -904,7 +1008,7 @@ function pageRanking(){
   const lb=leaderboard().slice(0,50);
   const mine=me()&&lb.findIndex(x=>x.id===me().id);
   return `<div class="wrap">
-    <div class="pagehead"><h1>Classement de la communauté</h1><p class="muted">Merci à celles et ceux qui partagent leurs bons plans ! 10 pts par code publié, 2 pts par Moro 🔥 reçu, 1 pt par « fonctionne » reçu, 1 pt par avis donné.</p></div>
+    <div class="pagehead"><h1>Classement de la communauté</h1><p class="muted">Merci à celles et ceux qui partagent leurs bons plans ! 10 pts par code publié, 2 pts par Moro 🔥 reçu, 1 pt par « fonctionne » reçu, 1 pt par avis donné, 1 pt par commentaire (5 par jour max.) et par « j’aime » reçu.</p></div>
     <div class="u13">${lb.length?`<ol class="ranking">${lb.map((x,i)=>`<li class="${me()&&x.id===me().id?'me':''}"><span class="rk">${i+1}</span><div class="grow"><strong>${esc(x.name)}</strong><small>${esc(levelOf(x.points).name)} · ${x.codes.length} code${x.codes.length>1?'s':''} partagé${x.codes.length>1?'s':''}</small></div><b>${x.points} pts</b></li>`).join('')}</ol>`:
       empty('Le classement attend ses premiers chasseurs de bons plans','Partagez un code pour y apparaître.',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}
     ${me()&&mine<0?`<p class="note">Vous n’apparaissez pas encore : partagez votre premier code !</p>`:''}</div>
@@ -994,6 +1098,7 @@ function pageMap(params){
 
 /* ---------- Routeur ---------- */
 const app=document.getElementById('app');
+let lastDeal='';
 function route(){
   const h=location.hash.slice(1)||'/';
   const [path,qs]=h.split('?');
@@ -1003,6 +1108,7 @@ function route(){
   let html='', nav=p, title='Bonszahé — Acheter malin à Mayotte';
   if(p==='home') html=pageHome();
   else if(p==='entreprises' && parts[1]){ html=pageBusiness(parts[1]); nav='entreprises'; const b=bizBy(parts[1]); if(b) title=`${b.name} : codes promo et bons plans | Bonszahé`; track('vue',parts[1]); }
+  else if(p==='bon-plan'&&parts[1]){ const id=decodeURIComponent(parts[1]); if(id!==lastDeal){ lastDeal=id; replyTo=''; } html=pageDeal(id); nav='tendances'; const c=baseCodes.find(x=>x.id===id); if(c) title=`${c.deal} chez ${bizBy(c.biz).name} | Bonszahé`; }
   else if(p==='tendances'){ html=pageTrends(params); title='Tendances : les bons plans qui chauffent | Bonszahé'; }
   else if(p==='evenements'){ html=pageEvents(params); title='Événements à Mayotte | Bonszahé'; }
   else if(p==='classement'){ html=pageRanking(); nav='profil'; title='Classement de la communauté | Bonszahé'; }
@@ -1132,6 +1238,28 @@ document.addEventListener('click',async e=>{
       toast(res==='moro'?'🔥 Moro ! Le bon plan chauffe.':res==='maji'?'💧 Maji, le bon plan refroidit.':'Avis retiré');
     }catch(err){ console.warn(err); t.disabled=false; toast('Avis non enregistré. Réessayez dans un instant.'); }
   }
+  else if(t.dataset.like){
+    if(!requireLogin('Connectez-vous pour aimer les commentaires.',()=>refresh())) return;
+    t.disabled=true;
+    try{ await toggleLike(t.dataset.like); refresh(); }catch(err){ console.warn(err); t.disabled=false; toast('Action impossible. Réessayez.'); }
+  }
+  else if(t.dataset.reply!==undefined){
+    if(t.dataset.reply&&!requireLogin('Connectez-vous pour répondre.',()=>refresh())) return;
+    replyTo=t.dataset.reply; refresh();
+    const ta=replyTo&&document.querySelector(`#cm-${CSS.escape(replyTo)} textarea`); if(ta) ta.focus();
+  }
+  else if(t.dataset.delcomment){
+    if(!confirm('Supprimer ce commentaire ?')) return;
+    try{ await call('DELETE',`/wix-data/v2/items/${encodeURIComponent(t.dataset.delcomment)}?dataCollectionId=Commentaires`); COMMENTS=COMMENTS.filter(x=>x.id!==t.dataset.delcomment); refresh(); toast('Commentaire supprimé'); }
+    catch(err){ console.warn(err); toast('Suppression impossible. Réessayez.'); }
+  }
+  else if(t.dataset.report){
+    if(!requireLogin('Connectez-vous pour signaler un commentaire.',()=>reportDialog(t.dataset.report))) return;
+    reportDialog(t.dataset.report);
+  }
+  else if(t.dataset.csort){ commentSort=t.dataset.csort; refresh(); }
+  else if(t.dataset.needlogin){ requireLogin('Connectez-vous pour commenter : chaque commentaire vous rapporte 1 point.',()=>refresh()); }
+  else if(t.dataset.copylink){ const ok=await copy(t.dataset.copylink); toast(ok?'Lien copié : collez-le où vous voulez !':'Copiez le lien : '+t.dataset.copylink); }
   else if(t.dataset.fav){
     e.preventDefault();
     const s=t.dataset.fav; const i=S.favs.indexOf(s);
@@ -1221,6 +1349,23 @@ document.addEventListener('submit',async e=>{
     sendToWix('PropositionsCodes',{code:p.code,entreprise:bizId[p.biz]||p.biz,avantage:p.deal,detail:p.detail,conditions:p.cond,dateExpiration:p.exp,lienOffre:p.link,statut:'En attente',contributeurId:me().id,contributeurNom:me().name})
       .then(()=>{ dlg.close(); toast('Merci ! Votre code est publié dans quelques secondes.'); setTimeout(reloadAll,5000); })
       .catch(err=>{ console.warn(err); btn.disabled=false; btn.textContent='Publier le code'; toast(err.status===401||err.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'); });
+  }
+  else if(f.dataset.commentform){
+    e.preventDefault(); if(!me()) return;
+    const text=(new FormData(f).get('text')||'').toString().trim().slice(0,500); if(!text) return;
+    const parent=f.dataset.parent||'';
+    const btn=f.querySelector('button[type=submit]'); btn.disabled=true;
+    try{
+      const r=await sendToWix('Commentaires',Object.assign({code:f.dataset.commentform,texte:text,pseudo:me().name},parent?{parent}:{}));
+      COMMENTS.push({id:r.dataItem&&r.dataItem.id,code:f.dataset.commentform,text,parent,name:me().name,owner:me().id,at:new Date()});
+      replyTo=''; refresh(); toast(parent?'Réponse publiée':'Commentaire publié, merci !');
+    }catch(err){ console.warn(err); btn.disabled=false; toast(err.status===401||err.status===403?'Session expirée : reconnectez-vous.':'Publication impossible. Réessayez.'); }
+  }
+  else if(f.id==='reportForm'){
+    e.preventDefault(); const cid=f.dataset.cid; const motif=(new FormData(f).get('motif')||'Autre').toString();
+    const btn=f.querySelector('button[type=submit]'); btn.disabled=true;
+    try{ const r=await sendToWix('Signalements',{commentaire:cid,motif}); REPORTS.push({id:r.dataItem&&r.dataItem.id,comment:cid,owner:me().id}); dlg.close(); refresh(); toast('Merci, le commentaire est signalé.'); }
+    catch(err){ console.warn(err); btn.disabled=false; toast('Signalement impossible. Réessayez.'); }
   }
   else if(f.id==='claimForm'){
     e.preventDefault(); const d=Object.fromEntries(new FormData(f));
