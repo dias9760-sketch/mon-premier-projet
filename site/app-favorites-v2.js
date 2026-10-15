@@ -201,7 +201,7 @@ async function completeLogin(code,verifier,redirectUri){
   AUTH={access:t.access_token,refresh:t.refresh_token,exp:Date.now()+(t.expires_in||14400)*1000,member:null};
   const m=(await call('GET','/members/v1/members/my',undefined,t.access_token)).member||{};
   const p=m.profile||{};
-  AUTH.member={id:m.id,name:p.nickname||[p.firstName,p.lastName].filter(Boolean).join(' ')||(m.loginEmail||'').split('@')[0]||'Membre',email:m.loginEmail||''};
+  AUTH.member={id:m.id,name:p.nickname||[p.firstName,p.lastName].filter(Boolean).join(' ')||(m.loginEmail||'').split('@')[0]||'Membre',email:m.loginEmail||'',verified:!!m.loginEmailVerified};
   saveAuth();
   await loadMine();
 }
@@ -229,7 +229,7 @@ async function handleAuthState(res){
   return 'error';
 }
 let pendingState=null;
-function logout(){ AUTH=null; saveAuth(); MINE={proposals:[]}; }
+function logout(){ AUTH=null; saveAuth(); MINE={proposals:[],claims:[]}; }
 
 // reCAPTCHA exigé par Wix pour l'inscription et la connexion (clés Wix, script « enterprise »).
 const RC_INVISIBLE='6LdoPaUfAAAAAJphvHoUoOob7mx0KDlXyXlgrx5v', RC_VISIBLE='6Ld0J8IcAAAAANyrnxzrRlX1xrrdXsOmsepUYosy';
@@ -345,13 +345,17 @@ async function sendToWix(collection,data){
 }
 
 /* ---------- Données du membre connecté ---------- */
-let MINE={proposals:[]};
+let MINE={proposals:[],claims:[]};
 async function loadMine(){
-  if(!me()){ MINE={proposals:[]}; return; }
+  if(!me()){ MINE={proposals:[],claims:[]}; return; }
   try{
     const items=await queryAll('PropositionsCodes');
     MINE.proposals=items.map(p=>({id:p._id,biz:B.find(b=>b.id===refId(p.entreprise))?.slug||'',code:p.code,deal:p.avantage||'',exp:p.dateExpiration||'',status:statutFrom(p.statut==='Traité'?'valide':p.statut),created:dateFrom(p._createdDate)||TODAY})).sort((a,b)=>b.created-a.created);
   }catch(e){ console.warn('Propositions indisponibles',e); }
+  try{
+    const cl=await queryAll('DemandesEntreprises');
+    MINE.claims=cl.map(c=>({id:c._id,name:c.nomEntreprise||'',entreprise:refId(c.entreprise)||'',status:c.statut||'Nouvelle',at:stamp(c._createdDate)})).sort((a,b)=>b.at-a.at);
+  }catch(e){ console.warn('Demandes indisponibles',e); }
 }
 
 /* ---------- Statistiques pour l'espace pro ---------- */
@@ -974,6 +978,7 @@ function pageProfile(){
       `<div class="card">
         <h3>Espace professionnel</h3>
         <p class="muted">Vous gérez une entreprise ? Revendiquez sa fiche pour publier vos offres officielles et voir vos statistiques : vues de la page, codes copiés, clics vers votre site et appels.</p>
+        ${MINE.claims.length?`<div class="list">${MINE.claims.map(c=>`<div class="li"><div class="grow"><strong>${esc(c.name)}</strong><small>Demande du ${fmt(c.at)}</small></div><span class="pill ${c.status==='Validée'?'ok':c.status==='Refusée'||c.status==='Retirée'?'no':'wait'}">${c.status==='Nouvelle'?'En cours de vérification':esc(c.status)}</span></div>`).join('')}</div>`:''}
         <button class="u10 btn btn-ghost" data-claim="">Revendiquer mon entreprise</button>
       </div>`}
       <button class="u9 btn btn-ghost" id="logout">Se déconnecter</button>
@@ -1166,15 +1171,38 @@ function proposeDialog(slug){
     <button class="btn btn-primary" type="submit">Publier le code</button>
   </form>`);
 }
+/* ---------- Revendication d'une fiche entreprise ---------- */
+// Fournisseurs d'e-mail grand public : jamais considérés comme « domaine officiel ».
+const GENERIC_MAIL=/^(gmail|googlemail|hotmail|outlook|live|msn|yahoo|ymail|icloud|me|mac|aol|orange|wanadoo|sfr|neuf|free|laposte|bbox|gmx|proton|protonmail)\./;
+const hostOf=u=>{ try{ return new URL(/^https?:/i.test(u)?u:'https://'+u).hostname.replace(/^www\./,'').toLowerCase(); }catch(e){ return ''; } };
+const rootOf=h=>h.split('.').slice(-2).join('.');
+function emailMatchesBiz(email,b){
+  const d=(String(email).split('@')[1]||'').toLowerCase(); if(!d||GENERIC_MAIL.test(d)) return false;
+  const official=[hostOf(b.web||''),(String(b.email||'').split('@')[1]||'').toLowerCase()].filter(x=>x&&!GENERIC_MAIL.test(x));
+  return official.some(o=>rootOf(o)===rootOf(d));
+}
+// SIRET : 14 chiffres + clé de Luhn (exception La Poste : somme des chiffres multiple de 5).
+function siretValid(v){
+  const s=String(v).replace(/\s/g,''); if(!/^\d{14}$/.test(s)) return false;
+  if(s.startsWith('356000000')) return [...s].reduce((a,c)=>a+ +c,0)%5===0;
+  let sum=0; for(let i=0;i<14;i++){ let n=+s[13-i]; if(i%2){ n*=2; if(n>9) n-=9; } sum+=n; } return sum%10===0;
+}
 function claimDialog(slug){
-  const b=slug&&bizBy(slug);
-  openDialog(`<header><div><h2 id="dlgTitle">${b?'Revendiquer '+esc(b.name):'Ajouter ou revendiquer mon entreprise'}</h2><p class="u14 note">Nous vérifions que vous représentez bien l’entreprise, puis nous vous donnons accès à la fiche.</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+  if(!requireLogin('Connectez-vous (ou créez un compte avec l’e-mail de votre entreprise) pour revendiquer une fiche.',()=>claimDialog(slug))) return;
+  const b=slug&&bizBy(slug); const u=me();
+  if(b&&b.owners.includes(u.id)){ toast('Vous gérez déjà cette fiche : retrouvez-la dans Mon espace.'); return; }
+  const pending=MINE.claims.find(c=>c.status==='Nouvelle'&&(!b||c.entreprise===b.id));
+  openDialog(`<header><div><h2 id="dlgTitle">${b?'Revendiquer '+esc(b.name):'Ajouter ou revendiquer mon entreprise'}</h2><p class="u14 note">Nous vérifions que vous représentez bien l’entreprise avant d’ouvrir votre espace pro.</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+  ${pending?`<p class="authmsg">Vous avez déjà une demande en cours${b?' pour cette entreprise':''}. Vous pouvez en envoyer une nouvelle si besoin.</p>`:''}
   <form class="form" id="claimForm">
-    <label>Nom de l’entreprise<input name="name" required value="${b?esc(b.name):''}"></label>
-    <div class="two"><label>Votre nom<input name="contact" required autocomplete="name"></label><label>Téléphone<input name="phone" type="tel" autocomplete="tel"></label></div>
-    <label>E-mail professionnel<input name="email" type="email" required autocomplete="email" value="${me()?esc(me().email):''}"></label>
-    ${me()?'':`<p class="note">Astuce : connectez-vous d’abord à votre compte Bonszahé, votre espace pro y sera rattaché.</p>`}
-    <label>Message <span class="opt">(facultatif)</span><textarea name="msg" placeholder="Votre activité, votre site, vos promotions…"></textarea></label>
+    ${b?`<input type="hidden" name="biz" value="${b.slug}">`:
+      `<label>Entreprise<select name="biz" required><option value="">Choisir votre entreprise</option>${[...B].sort((x,z)=>x.name.localeCompare(z.name,'fr')).map(x=>`<option value="${x.slug}">${esc(x.name)}</option>`).join('')}<option value="__new__">Mon entreprise n’est pas dans la liste</option></select></label>
+      <label class="newbiz" hidden>Nom de l’entreprise<input name="name" maxlength="80"></label>`}
+    <div class="two"><label>Votre nom<input name="contact" required autocomplete="name" maxlength="80"></label><label>Téléphone<input name="phone" type="tel" autocomplete="tel" maxlength="30"></label></div>
+    <label>Numéro SIRET <span class="opt">(14 chiffres)</span><input name="siret" required inputmode="numeric" maxlength="17" placeholder="123 456 789 00012"></label>
+    <p class="note">Compte utilisé : <strong>${esc(u.email)}</strong>. Si cet e-mail utilise le domaine de votre entreprise (ex. contact@votre-site.yt), la vérification est plus rapide.</p>
+    <label>Message <span class="opt">(facultatif)</span><textarea name="msg" maxlength="500" placeholder="Votre rôle dans l’entreprise, vos promotions…"></textarea></label>
+    <p class="note err" id="claimErr" role="alert"></p>
     <button class="btn btn-primary" type="submit">Envoyer la demande</button>
   </form>`);
 }
@@ -1287,6 +1315,9 @@ document.addEventListener('click',async e=>{
 });
 dlg.addEventListener('click',e=>{ if(e.target===dlg) dlg.close(); });
 
+document.addEventListener('change',e=>{
+  if(e.target.name==='biz'&&e.target.closest('#claimForm')){ const nb=document.querySelector('#claimForm .newbiz'); if(nb){ nb.hidden=e.target.value!=='__new__'; nb.querySelector('input').required=!nb.hidden; } }
+});
 document.addEventListener('input',e=>{
   if(e.target.id==='dirQ'){ dirState.q=e.target.value; drawDirectory(); }
   if(e.target.id==='codeQ'){ codeState.q=e.target.value; drawCodes(); }
@@ -1368,12 +1399,19 @@ document.addEventListener('submit',async e=>{
     catch(err){ console.warn(err); btn.disabled=false; toast('Signalement impossible. Réessayez.'); }
   }
   else if(f.id==='claimForm'){
-    e.preventDefault(); const d=Object.fromEntries(new FormData(f));
+    e.preventDefault(); if(!me()) return;
+    const d=Object.fromEntries(new FormData(f)); const err=document.getElementById('claimErr');
+    const isNew=d.biz==='__new__'; const b=isNew?null:B.find(x=>x.slug===d.biz);
+    const name=isNew?(d.name||'').trim():(b&&b.name);
+    if(!name){ err.textContent='Indiquez le nom de votre entreprise.'; return; }
+    const siret=String(d.siret||'').replace(/\s/g,'');
+    if(!siretValid(siret)){ err.textContent='Ce numéro SIRET n’est pas valide : vérifiez les 14 chiffres.'; return; }
+    const u=me(); const domaine=!!b&&emailMatchesBiz(u.email,b); const dejaGeree=!!b&&b.owners.length>0&&!b.owners.includes(u.id);
+    const indices=[domaine?'✅ E-mail du domaine officiel':'— E-mail hors domaine officiel',u.verified?'✅ E-mail du compte vérifié':'— E-mail du compte non vérifié',dejaGeree?'⚠️ Fiche déjà gérée par un autre compte':'',isNew?'🆕 Entreprise absente de Bonszahé : fiche à créer':''].filter(Boolean).join(' · ');
     const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Envoi…';
-    const account=me()?`\n\nCompte Bonszahé : ${me().name} (${me().email})\nID membre : ${me().id}`:'';
-    sendToWix('DemandesEntreprises',{nomEntreprise:d.name,contact:d.contact,telephone:d.phone,email:d.email,message:(d.msg||'')+account,statut:'Nouvelle'})
-      .then(()=>{ dlg.close(); toast('Demande envoyée. Nous revenons vers vous rapidement.'); })
-      .catch(()=>{ btn.disabled=false; btn.textContent='Envoyer la demande'; toast('Envoi impossible pour le moment. Réessayez dans un instant.'); });
+    sendToWix('DemandesEntreprises',Object.assign({nomEntreprise:name,contact:d.contact,telephone:d.phone,email:u.email,siret,message:d.msg||'',membreId:u.id,emailDomaine:domaine,emailVerifie:!!u.verified,dejaGeree,indices,statut:'Nouvelle'},b?{entreprise:b.id}:{}))
+      .then(()=>{ dlg.close(); toast('Demande envoyée. Votre espace pro s’ouvrira dès sa validation.'); loadMine().then(()=>{ if(location.hash.startsWith('#/profil')) refresh(); }); })
+      .catch(ex=>{ console.warn(ex); btn.disabled=false; btn.textContent='Envoyer la demande'; err.textContent=ex.status===401||ex.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'; });
   }
 });
 

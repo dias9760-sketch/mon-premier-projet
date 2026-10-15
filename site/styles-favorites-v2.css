@@ -501,3 +501,4 @@ a.chip{text-decoration:none}
 a.deallink{text-decoration:none;color:inherit}
 a.deallink:hover{text-decoration:underline}
 .cbtn{width:100%;justify-content:center;margin-top:10px}
+.newbiz[hidden]{display:none}
