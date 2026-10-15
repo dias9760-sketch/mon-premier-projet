@@ -6,6 +6,7 @@ Trois solutions pour gagner du temps sur le suivi des commandes personnalisées.
 |---|---|---|
 | 1 | **Nouveau tableau Excel** (`excel/`) | Vous voulez garder Excel, avec vos couleurs, mais sans la double saisie ni les fautes de frappe. |
 | 2 | **Plateforme interne hors ligne** (`plateforme/ZARAHISSI-Commandes.html`) | Un vrai logiciel de commandes sur votre MacBook, sans internet, sans abonnement. |
+| ★ | **Version simple** (`simple/ZARAHISSI-Simple.html`) | Le plus simple : une seule page « À faire », gravure par les fournisseurs, délais 15-35 j / 5 j. |
 | 3 | **Mode atelier « zéro erreur » + messages clients** (onglet *Atelier* de la plateforme) | Supprimer les erreurs de gravure et prévenir les clients en un clic (WhatsApp / SMS). |
 
 ---
@@ -55,3 +56,22 @@ Votre fichier a un statut « ERREUR ÉCRITURE » : une gravure ratée, c'est une
 - **Fiche atelier imprimable** : toutes les pièces à produire, regroupées par produit et par couleur, avec une case à cocher.
 - **Étiquettes d'envoi imprimables** pour les colis prêts, et un bouton « tout marquer envoyé » qui choisit le bon statut (FR, YT, RE…) selon la destination.
 - **Messages clients prêts à l'emploi** (en production, prête, expédiée, demande d'avis), modifiables dans *Modèles de messages*.
+
+## Version simple (recommandée) : `simple/ZARAHISSI-Simple.html`
+
+Un seul fichier, sans internet, pensé pour une boutique **sans atelier** : la gravure est faite par les fournisseurs.
+
+- **À faire** : tout le travail du jour, en 3 listes et un bouton par étape.
+  - 🛒 **À commander au fournisseur** : cochez les articles, choisissez le fournisseur, « Copier la liste » (texte prêt à envoyer avec les textes à graver), puis « Marquer commandé ».
+  - ⏳ **Chez le fournisseur** : « Reçu » quand le colis arrive, « Erreur » si la gravure est fausse (l'article repasse à commander, l'erreur est notée pour ce fournisseur).
+  - 📦 **À envoyer / à remettre** : « Envoyé » (le statut FR / YT / RE… est choisi selon la livraison) ou « Remis au client » pour un retrait en boutique. « Rupture » renvoie un produit en stock vers la liste « À commander ».
+- **Délais** (modifiables dans *Fichier & réglages*) :
+  - produit **personnalisé** : prêt **15 à 35 jours** après le paiement, et en retard après 35 jours ; à commander au fournisseur dans les 2 jours ;
+  - produit **en stock** (montres, collier Mayotte, drapeaux…) : **envoi sous 5 jours** ;
+  - produit en stock mais en **rupture** : même délai que chez le fournisseur.
+- Le type (personnalisé ou stock) est deviné tout seul : un texte à graver signifie « personnalisé ». Vous pouvez le changer d'un clic.
+- **Message WhatsApp** au client (💬) : confirmation avec la date prévue, retard, colis reçu, commande prête, commande expédiée.
+- **Fournisseurs** : ce qui est en cours chez chacun, leur délai moyen réel, leurs erreurs, et un message de relance tout prêt.
+- **Commandes** : recherche instantanée et fiche commande. **Fichier** : import de votre Excel, export Excel (avec les colonnes fournisseur), sauvegarde.
+
+Reconstruire le fichier : `python3 simple/construire.py`.

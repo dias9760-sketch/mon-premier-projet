@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZARAHISSI Simple</title>
+<style>
+:root {
+  --bleu-fonce: #203864; --bleu: #2F5597; --bleu-pale: #DAE3F3; --vert-clair: #C5E0B4;
+  --fond: #F4F6FA; --texte: #1B1F2A; --gris: #6B7280; --ligne: #E3E7EF;
+  --rouge: #E00000; --orange: #E67700; --vert: #00B050;
+  --ombre: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { font: 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Arial, sans-serif; background: var(--fond); color: var(--texte); }
+button, input, select, textarea { font: inherit; color: inherit; }
+header { background: var(--bleu-fonce); color: #fff; position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 18px; padding: 0 20px; min-height: 58px; flex-wrap: wrap; }
+.logo { font-weight: 800; letter-spacing: .12em; font-size: 17px; }
+nav { display: flex; gap: 2px; flex: 1; overflow-x: auto; }
+nav button { background: none; border: 0; color: #C9D6EE; padding: 9px 14px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+nav button:hover { background: rgba(255,255,255,.08); color: #fff; }
+nav button.actif { background: rgba(255,255,255,.16); color: #fff; font-weight: 600; }
+.pastille { background: var(--rouge); color: #fff; border-radius: 10px; padding: 0 7px; font-size: 11px; margin-left: 5px; }
+main { padding: 20px; max-width: 1200px; margin: 0 auto; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 17px; margin: 0; }
+.sous { color: var(--gris); margin: 0 0 16px; font-size: 14px; }
+.carte { background: #fff; border-radius: 14px; box-shadow: var(--ombre); padding: 16px; margin-bottom: 16px; }
+.btn { border: 1px solid #CDD5E3; background: #fff; border-radius: 9px; padding: 7px 14px; cursor: pointer; white-space: nowrap; }
+.btn:hover { background: #F0F3F9; }
+.btn.bleu { background: var(--bleu); border-color: var(--bleu); color: #fff; font-weight: 600; }
+.btn.vert { background: var(--vert); border-color: var(--vert); color: #fff; font-weight: 600; }
+.btn.wa { background: #25D366; border-color: #25D366; color: #fff; }
+.btn.rouge { color: var(--rouge); }
+.btn.petit { padding: 4px 10px; font-size: 13px; }
+header .btn.bleu { background: #fff; color: var(--bleu-fonce); border-color: #fff; }
+input, select, textarea { border: 1px solid #CDD5E3; border-radius: 9px; padding: 7px 10px; background: #fff; }
+input:focus, select:focus, textarea:focus { outline: 2px solid #B4C7E7; border-color: var(--bleu); }
+.resume { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.resume a { background: #fff; border-radius: 14px; box-shadow: var(--ombre); padding: 14px 16px; text-decoration: none; color: inherit; display: block; }
+.resume .n { font-size: 30px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.resume .l { color: var(--gris); font-size: 13px; }
+.resume a.alerte .n { color: var(--rouge); }
+.section-tete { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.section-tete .aide { color: var(--gris); font-size: 13px; flex-basis: 100%; }
+.compte { background: var(--bleu-pale); color: var(--bleu-fonce); border-radius: 10px; padding: 0 9px; font-weight: 700; font-size: 13px; }
+.ligne { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 4px; border-top: 1px solid var(--ligne); }
+.ligne.sans-case { grid-template-columns: minmax(0, 1fr) auto; }
+.ligne:hover { background: #F8FAFD; }
+.ligne .qui { font-weight: 600; }
+.ligne .quoi { font-size: 14px; }
+.ligne .meta { font-size: 13px; color: var(--gris); }
+.ligne .actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.texte-perso { display: inline-block; background: #FFF4D6; border-radius: 6px; padding: 1px 8px; font-weight: 700; font-size: 15px; margin: 2px 0; }
+.badge { display: inline-block; border-radius: 6px; padding: 1px 7px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.b-perso { background: #EDE3FA; color: #5B2A9E; }
+.b-stock { background: #DDF5E6; color: #0F6B33; }
+.b-retard { background: var(--rouge); color: #fff; }
+.b-bientot { background: #FFE8C2; color: #8A4B00; }
+.b-ok { background: #EEF1F6; color: var(--gris); }
+.chip { display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; white-space: nowrap; border: 1px solid rgba(0,0,0,.08); }
+.vide { color: var(--gris); text-align: center; padding: 18px; }
+details > summary { cursor: pointer; list-style: none; }
+details > summary::-webkit-details-marker { display: none; }
+.outils { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.outils input[type=search] { flex: 1; min-width: 220px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; color: var(--gris); font-weight: 600; font-size: 12px; text-transform: uppercase; padding: 8px; border-bottom: 2px solid var(--ligne); }
+td { padding: 8px; border-bottom: 1px solid var(--ligne); vertical-align: top; }
+tbody tr { cursor: pointer; }
+tbody tr:hover td { background: #F8FAFD; }
+.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* Fenêtre */
+.voile { position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 50; display: none; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 30px 12px; }
+.voile.ouvert { display: flex; }
+.fenetre { background: #fff; border-radius: 16px; width: min(720px, 100%); box-shadow: 0 20px 50px rgba(0,0,0,.25); }
+.fenetre .tete { padding: 14px 20px; border-bottom: 1px solid var(--ligne); display: flex; justify-content: space-between; align-items: center; }
+.fenetre .corps { padding: 16px 20px; }
+.fenetre .pied { padding: 12px 20px; border-top: 1px solid var(--ligne); display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.champs { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px 12px; }
+.champs label { display: flex; flex-direction: column; font-size: 13px; color: var(--gris); gap: 4px; }
+.champs label.large { grid-column: 1 / -1; }
+.champs input, .champs select, .champs textarea { width: 100%; color: var(--texte); }
+.bloc { border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+.bloc.client { background: var(--bleu-pale); }
+.bloc.livraison { background: var(--vert-clair); }
+.article { border: 1px solid var(--ligne); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+.article .haut { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.type-choix { display: inline-flex; border: 1px solid #CDD5E3; border-radius: 9px; overflow: hidden; }
+.type-choix label { padding: 5px 12px; cursor: pointer; font-size: 13px; }
+.type-choix input { display: none; }
+.type-choix label:has(input:checked) { background: var(--bleu); color: #fff; font-weight: 600; }
+.info-delai { font-size: 13px; color: var(--bleu-fonce); background: #EEF3FB; border-radius: 8px; padding: 6px 10px; margin-top: 8px; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--bleu-fonce); color: #fff; padding: 10px 18px; border-radius: 10px; z-index: 100; }
+.bandeau { background: #FFF4D6; border: 1px solid #FFD966; color: #7A5300; padding: 10px 14px; border-radius: 12px; margin-bottom: 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.grille2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+@media (max-width: 700px) {
+  header { padding: 8px 12px; gap: 6px 12px; }
+  nav { order: 3; flex-basis: 100%; }
+  main { padding: 14px; }
+  .ligne { grid-template-columns: 26px minmax(0, 1fr); }
+  .ligne.sans-case { grid-template-columns: minmax(0, 1fr); }
+  .ligne .actions { grid-column: 1 / -1; justify-content: flex-start; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">ZARAHISSI</div>
+  <nav>
+    <button data-vue="afaire" class="actif">À faire<span class="pastille" id="pastille"></span></button>
+    <button data-vue="commandes">Commandes</button>
+    <button data-vue="fournisseurs">Fournisseurs</button>
+    <button data-vue="reglages">Fichier & réglages</button>
+  </nav>
+  <button class="btn bleu" onclick="nouvelleCommande()">+ Nouvelle commande</button>
+</header>
+<main></main>
+<div class="voile" id="voile"><div class="fenetre" id="fenetre"></div></div>
+<script>
+/*SHEETJS*/
+</script>
+<script>
+/*APP*/
+</script>
+</body>
+</html>
