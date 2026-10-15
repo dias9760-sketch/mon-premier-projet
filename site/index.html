@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bonszahé — Acheter malin à Mayotte</title>
+<link rel="icon" type="image/png" href="icon.png">
+<meta name="theme-color" content="#FFE9CC">
+<meta name="color-scheme" content="light">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles-favorites-v2.css">
+<script id="wix-site-script" src="https://manage.wix.com/_api/headless-business-setup/v1/headless-business/site-script.js" data-client-id="5ead703b-03d1-45f5-8049-74802f2b86f2" async></script></head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#/" aria-label="Bonszahé, accueil"><img src="logo.webp" alt="Bonszahé, achetez malin à Mayotte" width="461" height="150"></a>
+    <nav class="mainnav" aria-label="Navigation principale">
+      <a href="#/" data-nav="home">Accueil</a>
+      <a href="#/entreprises" data-nav="entreprises">Entreprises</a>
+      <a href="#/codes" data-nav="codes">Codes promo</a>
+      <a href="#/categories" data-nav="categories">Catégories</a>
+      <a href="#/carte" data-nav="carte">Carte</a>
+    </nav>
+    <div class="actions">
+      <button class="btn btn-sun btn-sm hide-sm" data-propose="">Proposer un bon plan</button>
+      <a class="btn btn-ghost btn-sm" href="#/profil" id="loginBtn">Connexion</a>
+    </div>
+  </div>
+</header>
+
+<main id="app" tabindex="-1"><noscript><p class="u0">Activez JavaScript pour afficher Bonszahé.</p></noscript></main>
+
+<svg class="foot-wave" viewBox="0 0 1440 48" preserveAspectRatio="none" aria-hidden="true"><path d="M0 48V26C180 6 360 2 540 16s360 30 540 18S1320 8 1440 14v34z" fill="currentColor"/></svg>
+<footer>
+  <span class="u1 fpalm"><svg viewBox="0 0 200 220" fill="currentColor" aria-hidden="true"><path d="M104 216c4-50 6-96-4-142" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="round"/><path d="M100 74c-30-30-70-32-96-12 34-6 64 2 96 16z"/><path d="M100 74c20-38 58-52 96-40-34 2-66 18-96 42z"/><path d="M100 74c-40-8-70 10-84 40 26-22 54-30 84-36z"/><path d="M100 74c38-6 72 12 86 44-26-22-56-32-86-40z"/><path d="M100 74c-6-34 6-62 30-74-14 24-20 48-26 76z"/></svg></span>
+  <div class="wrap">
+    <div>
+      <span class="flogo"><img src="logo.webp" alt="Bonszahé" width="461" height="150"></span>
+      <p class="u12">Achetez malin à Mayotte. Les entreprises de l'île et leurs bons plans, au même endroit.</p>
+    </div>
+    <nav aria-label="Pied de page">
+      <a href="#/entreprises">Entreprises</a>
+      <a href="#/codes">Codes promo</a>
+      <a href="#/categories">Catégories</a>
+      <a href="#/carte">Carte des communes</a>
+      <a href="#/" data-toast="Page À propos à venir">À propos</a>
+      <a href="#/" data-toast="Page Contact à venir">Contact</a>
+      <a href="#/" data-toast="Mentions légales à venir">Mentions légales</a>
+    </nav>
+  </div>
+</footer>
+
+<nav class="bottomnav" aria-label="Navigation mobile">
+  <a href="#/" data-nav="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9H4z"/><path d="M10 20v-5h4v5"/></svg>Accueil</a>
+  <a href="#/recherche" data-nav="recherche"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>Recherche</a>
+  <a href="#/codes" data-nav="codes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V5a2 2 0 0 1 2-2h7l9 9-9 9-9-9z"/><circle cx="8" cy="8" r="1.5"/></svg>Bons plans</a>
+  <a href="#/favoris" data-nav="favoris"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>Favoris</a>
+  <a href="#/profil" data-nav="profil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Profil</a>
+</nav>
+
+<dialog id="dlg" aria-labelledby="dlgTitle"><div class="dlg" id="dlgBody"></div></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="app-favorites-v2.js" defer></script>
+</body>
+</html>
