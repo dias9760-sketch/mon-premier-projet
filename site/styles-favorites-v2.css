@@ -446,3 +446,6 @@ dialog::backdrop{background:rgba(6,30,38,.55)}
 .evmonth{margin:22px 0 12px;font-size:1.3rem}
 .evmonth:first-child{margin-top:0}
 a.chip{text-decoration:none}
+.captcha{min-height:78px}
+.captcha[hidden]{display:none}
+@media (max-width:899px){.grecaptcha-badge{bottom:96px!important}}

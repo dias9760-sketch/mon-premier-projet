@@ -182,8 +182,36 @@ async function handleAuthState(res){
 }
 let pendingState=null;
 function logout(){ AUTH=null; saveAuth(); MINE={proposals:[]}; }
+
+// reCAPTCHA exigé par Wix pour l'inscription et la connexion (clés Wix, script « enterprise »).
+const RC_INVISIBLE='6LdoPaUfAAAAAJphvHoUoOob7mx0KDlXyXlgrx5v', RC_VISIBLE='6Ld0J8IcAAAAANyrnxzrRlX1xrrdXsOmsepUYosy';
+let rcReady=null, rcVisibleToken='';
+function loadRecaptcha(){
+  if(!rcReady) rcReady=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://www.google.com/recaptcha/enterprise.js?render='+RC_INVISIBLE; s.async=true;
+    s.onload=()=>window.grecaptcha.enterprise.ready(resolve);
+    s.onerror=()=>{ rcReady=null; reject(new Error('recaptcha')); };
+    document.head.appendChild(s);
+  });
+  return rcReady;
+}
+async function captchaTokens(action){
+  if(rcVisibleToken) return [{Recaptcha:rcVisibleToken}];
+  await loadRecaptcha();
+  return [{InvisibleRecaptcha:await window.grecaptcha.enterprise.execute(RC_INVISIBLE,{action})}];
+}
+async function showVisibleCaptcha(){
+  await loadRecaptcha();
+  const box=document.getElementById('captchaBox'); if(!box) return;
+  box.hidden=false; box.innerHTML=''; rcVisibleToken='';
+  window.grecaptcha.enterprise.render(box,{sitekey:RC_VISIBLE,callback:t=>{ rcVisibleToken=t; },'expired-callback':()=>{ rcVisibleToken=''; }});
+}
+const isCaptchaError=err=>/CAPTCHA/i.test(JSON.stringify(err&&err.data||{})+String(err&&err.message||''));
+
 function authError(err){
   const code=JSON.stringify(err&&err.data||{});
+  if(/CAPTCHA/i.test(code)||/recaptcha/i.test(String(err&&err.message||''))) return 'Cochez la case « Je ne suis pas un robot » ci-dessus, puis réessayez.';
   if(/IDENTITY_NOT_FOUND|not.?found/i.test(code)) return 'Aucun compte avec cet e-mail. Créez votre compte.';
   if(/INVALID_PASSWORD|wrong.?password|credentials/i.test(code)) return 'E-mail ou mot de passe incorrect.';
   if(/ALREADY_EXISTS|EMAIL_ALREADY/i.test(code)) return 'Un compte existe déjà avec cet e-mail. Connectez-vous.';
@@ -696,6 +724,7 @@ function authBox(msg=''){
       ${reg?`<label>Pseudo <span class="opt">(affiché sur les codes que vous partagez)</span><input name="nick" required maxlength="30" autocomplete="nickname"></label>`:''}
       <label>E-mail<input name="email" type="email" required autocomplete="email"></label>
       <label>Mot de passe<input name="password" type="password" required minlength="6" autocomplete="${reg?'new-password':'current-password'}"></label>
+      <div id="captchaBox" class="captcha" hidden></div>
       <p class="note err" id="authErr" role="alert"></p>
       <button class="btn btn-primary" type="submit">${reg?'Créer mon compte':'Se connecter'}</button>
       ${reg?'':`<button type="button" class="linkbtn" data-forgot>Mot de passe oublié ?</button>`}
@@ -1043,11 +1072,20 @@ document.addEventListener('submit',async e=>{
     const err=document.getElementById('authErr'); if(err) err.textContent='';
     try{
       const visitor=await getVisitorToken();
+      const captcha_tokens=await captchaTokens(authMode==='register'?'SIGNUP':'LOGIN');
       const res=authMode==='register'
-        ? await call('POST','/_api/iam/authentication/v2/register',{loginId:{email:d.email.trim()},password:d.password,profile:{nickname:d.nick.trim()}},visitor)
-        : await call('POST','/_api/iam/authentication/v2/login',{loginId:{email:d.email.trim()},password:d.password},visitor);
+        ? await call('POST','/_api/iam/authentication/v2/register',{loginId:{email:d.email.trim()},password:d.password,profile:{nickname:d.nick.trim()},captcha_tokens},visitor)
+        : await call('POST','/_api/iam/authentication/v2/login',{loginId:{email:d.email.trim()},password:d.password,captcha_tokens},visitor);
+      rcVisibleToken='';
       await afterAuth(res,btn,label);
-    }catch(ex){ console.warn(ex); if(err) err.textContent=authError(ex); btn.disabled=false; btn.textContent=label; }
+    }catch(ex){
+      console.warn(ex);
+      // Un jeton de case cochée ne sert qu'une fois : on remet la case à zéro.
+      if(rcVisibleToken){ rcVisibleToken=''; try{ window.grecaptcha.enterprise.reset(); }catch(_){} }
+      // Captcha invisible refusé (ou case déjà expirée) : on affiche la case « Je ne suis pas un robot ».
+      if(isCaptchaError(ex)) showVisibleCaptcha().catch(()=>{});
+      if(err) err.textContent=authError(ex); btn.disabled=false; btn.textContent=label;
+    }
   }
   else if(f.id==='verifyForm'){
     e.preventDefault(); const d=Object.fromEntries(new FormData(f));
