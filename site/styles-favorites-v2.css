@@ -502,3 +502,19 @@ a.deallink{text-decoration:none;color:inherit}
 a.deallink:hover{text-decoration:underline}
 .cbtn{width:100%;justify-content:center;margin-top:10px}
 .newbiz[hidden]{display:none}
+
+/* ---------- v13 : pages légales, offres en magasin, reCAPTCHA ---------- */
+.grecaptcha-badge{visibility:hidden!important}
+.prose{display:grid;gap:12px;max-width:760px}
+.prose h2{font-size:1.15rem;margin-top:8px}
+.prose ul{margin:0;padding-left:20px;display:grid;gap:6px}
+.code.store{border-style:solid;border-color:var(--vert);color:var(--vert);font-size:.95rem}
+.typeseg{display:flex}
+.typeseg label{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 10px;border-radius:10px;font-weight:600;cursor:pointer}
+.typeseg label:has(input:checked){background:var(--surface);box-shadow:var(--shadow);color:var(--ink)}
+.codefield[hidden]{display:none}
+.caisse{display:grid;gap:10px;text-align:center;justify-items:center;padding:12px 4px}
+.caisse .bizline{display:flex;align-items:center;gap:10px}
+.caisse-deal{font-family:var(--display);font-size:2.6rem;font-weight:800;color:var(--corail);line-height:1}
+.caisse-meta{font-weight:600}
+.caisse-brand{font-size:.8rem;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px;width:100%}

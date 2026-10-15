@@ -331,9 +331,9 @@ async function loadData(){
   REPORTS=reports.filter(x=>x.commentaire).map(x=>({id:x._id,comment:x.commentaire,owner:x._owner}));
   MODERATION={}; moder.forEach(x=>{ if(x.commentaire) MODERATION[x.commentaire]=String(x.decision||'').toLowerCase().includes('masq')?'masque':'approuve'; });
   MOROS=moros.filter(v=>v.code&&(v.sens==='moro'||v.sens==='maji')).map(v=>({id:v._id,code:v.code,dir:v.sens,owner:v._owner,at:stamp(v._updatedDate||v._createdDate)}));
-  baseCodes=codes.filter(c=>c.code&&idToSlug[refId(c.entreprise)]).map(c=>{
+  baseCodes=codes.filter(c=>(c.code||c.typeOffre==='magasin')&&idToSlug[refId(c.entreprise)]).map(c=>{
     const exp=dateFrom(c.dateExpiration);
-    return {id:c._id,biz:idToSlug[refId(c.entreprise)],deal:c.avantage||'Bon plan',detail:c.detail||'',code:String(c.code).trim(),cond:c.conditions||'',exp:exp||inDays(3650),noExp:!exp,verified:!!c.verifie,baseUp:+c.votesOui||0,baseDown:+c.votesNon||0,added:dateFrom(c._createdDate)||TODAY,addedAt:stamp(c._createdDate),status:statutFrom(c.statut),link:c.lienOffre||'',by:c.contributeur||'',byName:c.contributeurNom||''};
+    return {id:c._id,biz:idToSlug[refId(c.entreprise)],deal:c.avantage||'Bon plan',detail:c.detail||'',code:String(c.code||'').trim(),store:c.typeOffre==='magasin',cond:c.conditions||'',exp:exp||inDays(3650),noExp:!exp,verified:!!c.verifie,baseUp:+c.votesOui||0,baseDown:+c.votesNon||0,added:dateFrom(c._createdDate)||TODAY,addedAt:stamp(c._createdDate),status:statutFrom(c.statut),link:c.lienOffre||'',by:c.contributeur||'',byName:c.contributeurNom||''};
   });
   EVENTS=events.filter(e=>e.publie!==false&&e.titre&&dateFrom(e.date)).map(e=>({
     id:e._id,title:e.titre,date:dateFrom(e.date),end:dateFrom(e.dateFin),time:e.heure||'',commune:communeFrom(e.commune),communeName:e.commune||'',place:e.lieu||'',desc:e.description||'',img:imgUrl(e.image),link:e.lien||'',biz:idToSlug[refId(e.entreprise)]||''
@@ -437,8 +437,9 @@ function coupon(c,{showBiz=true,noLink=false}={}){
     <div class="perf" aria-hidden="true"></div>
     <div class="stub">
       <div class="coderow">
-        <span class="code" aria-label="Code promo">${esc(c.code)}</span>
-        <button class="btn btn-primary btn-sm" data-copy="${esc(c.code)}" data-copybiz="${b.slug}" data-copyid="${esc(c.id)}">${ic('copy')}Copier le code</button>
+        ${c.store?`<span class="code store" aria-label="Offre en magasin">🏬 En magasin</span>
+        <button class="btn btn-primary btn-sm" data-caisse="${esc(c.id)}" data-copybiz="${b.slug}">${ic('store')}Montrer en caisse</button>`:`<span class="code" aria-label="Code promo">${esc(c.code)}</span>
+        <button class="btn btn-primary btn-sm" data-copy="${esc(c.code)}" data-copybiz="${b.slug}" data-copyid="${esc(c.id)}">${ic('copy')}Copier le code</button>`}
       </div>
       <p class="vlabel">Le code marche ?</p>
       <div class="votes" role="group" aria-label="Ce code a-t-il fonctionné ?">
@@ -636,6 +637,7 @@ function pageBusiness(slug){
         ${b.web?`<a class="btn btn-primary" href="${esc(b.web)}" target="_blank" rel="noopener" data-track="site" data-trackbiz="${slug}">${ic('ext')}Visiter le site</a>`:''}
         ${b.phone?`<a class="btn btn-ghost" href="tel:${esc(b.phone.replace(/\s/g,''))}" data-track="appel" data-trackbiz="${slug}">${ic('call')}Appeler</a>`:''}
         ${b.email?`<a class="btn btn-ghost" href="mailto:${esc(b.email)}">${ic('mail')}Contacter</a>`:''}
+        <a class="btn btn-wa" href="${waHref(`Découvrez ${b.name} et ses bons plans sur Bonszahé 👉 ${location.origin}/#/entreprises/${slug}`)}" target="_blank" rel="noopener">Partager</a>
         <button class="iconbtn" data-fav="${slug}" aria-pressed="${fav}" aria-label="${fav?'Retirer des':'Ajouter aux'} favoris">${ic('heart')}</button>
       </div>
     </div>
@@ -713,6 +715,91 @@ function drawCodes(){
   document.getElementById('codeCount').textContent=`${list.length} code${list.length>1?'s':''} actif${list.length>1?'s':''}`;
   document.getElementById('codeList').innerHTML=list.length?list.map(c=>coupon(c)).join(''):
     `<div class="u5">${empty('Aucun code ne correspond','Changez de filtre ou proposez un code que vous connaissez.',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}</div>`;
+}
+
+/* ---------- Pages À propos, Contact, Mentions légales, Confidentialité ---------- */
+// Les éléments entre [crochets] sont à compléter par l'éditeur du site.
+const EDITEUR={nom:'[Nom et prénom ou raison sociale]',statut:'[Statut : entreprise individuelle, association, société…]',adresse:'[Adresse postale], Mayotte',siret:'[Numéro SIRET]',directeur:'[Nom du directeur de la publication]'};
+const legalPage=(title,body)=>`<div class="wrap legal"><div class="pagehead"><h1>${title}</h1></div><div class="card prose">${body}</div><div class="u8"></div></div>`;
+const waHref=text=>'https://wa.me/?text='+encodeURIComponent(text);
+function pageAbout(){
+  return legalPage('À propos de Bonszahé',`
+    <p><strong>Bonszahé</strong> réunit les bons plans de Mayotte au même endroit : codes promo, offres en magasin et événements des entreprises de l’île.</p>
+    <h2>Une communauté qui partage</h2>
+    <p>Les bons plans sont partagés par les habitants eux-mêmes. Chacun peut proposer un code ou une offre en magasin : il est publié tout de suite, avec son pseudo.</p>
+    <p>La communauté fait le tri : donnez du <strong>Moro 🔥</strong> aux bons plans qui valent le coup et du <strong>Maji 💧</strong> à ceux qui déçoivent, dites si un code marche encore, commentez et partagez. Les meilleurs contributeurs gagnent des points et des badges.</p>
+    <h2>Pour les entreprises</h2>
+    <p>Les entreprises de Mayotte peuvent revendiquer leur fiche pour publier leurs offres officielles, répondre aux clients et suivre leurs statistiques (vues, codes copiés, clics, appels).</p>
+    <p><a class="btn btn-primary" href="#/contact">Nous écrire</a></p>`);
+}
+function pageContact(){
+  const u=me();
+  return legalPage('Contact',`
+    <p>Une question, un problème, une entreprise à ajouter ? Écrivez-nous, nous répondons par e-mail.</p>
+    <form class="form" id="contactForm">
+      <div class="two"><label>Nom<input name="nom" required maxlength="80" autocomplete="name" value="${u?esc(u.name):''}"></label><label>E-mail<input name="email" type="email" required maxlength="120" autocomplete="email" value="${u?esc(u.email):''}"></label></div>
+      <label>Sujet<select name="sujet">${['Question','Signaler un problème','Entreprise / partenariat','Supprimer mon compte','Autre'].map(x=>`<option>${x}</option>`).join('')}</select></label>
+      <label>Message<textarea name="message" required maxlength="2000" rows="5"></textarea></label>
+      <p class="note">Vos informations servent uniquement à vous répondre. Voir la <a class="link" href="#/confidentialite">politique de confidentialité</a>.</p>
+      <button class="btn btn-primary" type="submit">Envoyer</button>
+    </form>`);
+}
+function pageMentions(){
+  return legalPage('Mentions légales',`
+    <h2>Éditeur du site</h2>
+    <p>Bonszahé est édité par ${EDITEUR.nom}, ${EDITEUR.statut}.<br>Adresse : ${EDITEUR.adresse}<br>SIRET : ${EDITEUR.siret}<br>Contact : via la <a class="link" href="#/contact">page Contact</a>.</p>
+    <p>Directeur de la publication : ${EDITEUR.directeur}.</p>
+    <h2>Hébergement</h2>
+    <p>Le site est hébergé par Wix.com Ltd., 40 Namal Tel Aviv St., Tel Aviv 6350671, Israël (www.wix.com).</p>
+    <h2>Contenus publiés par les membres</h2>
+    <p>Les codes promo, offres, votes et commentaires sont publiés par les membres de la communauté, sous leur responsabilité. Bonszahé ne garantit pas que chaque code fonctionne : la communauté indique s’il marche encore et les codes signalés sont masqués. Tout contenu illicite ou inapproprié peut être signalé (bouton « Signaler » ou page Contact) ; il est alors retiré.</p>
+    <h2>Entreprises citées</h2>
+    <p>Les noms, marques et logos des entreprises appartiennent à leurs propriétaires respectifs. Une entreprise peut demander la modification ou le retrait de sa fiche via la page Contact.</p>
+    <h2>Propriété intellectuelle</h2>
+    <p>La présentation du site, son logo et ses textes sont la propriété de l’éditeur. Toute reproduction sans autorisation est interdite.</p>
+    <h2>Liens externes</h2>
+    <p>Le site contient des liens vers les sites des entreprises. Bonszahé n’est pas responsable de leur contenu.</p>`);
+}
+function pagePrivacy(){
+  return legalPage('Politique de confidentialité',`
+    <p>Cette page explique quelles données Bonszahé collecte, pourquoi, et comment exercer vos droits (Règlement général sur la protection des données, RGPD).</p>
+    <h2>Responsable du traitement</h2>
+    <p>${EDITEUR.nom}, ${EDITEUR.adresse}. Contact : <a class="link" href="#/contact">page Contact</a>.</p>
+    <h2>Données collectées</h2>
+    <ul>
+      <li><strong>Compte membre</strong> : e-mail et pseudo. Le mot de passe est géré par Wix et n’est jamais accessible à Bonszahé.</li>
+      <li><strong>Contributions</strong> : codes et offres proposés, votes (Moro/Maji, « le code marche »), commentaires, « j’aime » et signalements. Votre pseudo est affiché publiquement avec vos contributions.</li>
+      <li><strong>Demandes des entreprises</strong> : nom du contact, téléphone, e-mail, numéro SIRET et entreprise concernée.</li>
+      <li><strong>Messages de contact</strong> : nom, e-mail et message.</li>
+      <li><strong>Statistiques pour les entreprises</strong> : nombre de vues des fiches, de codes copiés, de clics et d’appels. Ces mesures ne sont pas reliées à votre identité.</li>
+      <li><strong>Stockage dans votre navigateur</strong> : vos favoris et votre session de connexion. Aucun cookie publicitaire n’est utilisé.</li>
+    </ul>
+    <h2>Pourquoi</h2>
+    <p>Pour faire fonctionner le site (compte, publication des bons plans, points et badges), vérifier les entreprises, répondre à vos messages et fournir des statistiques aux entreprises. Base légale : l’exécution du service que vous utilisez et notre intérêt légitime à le sécuriser.</p>
+    <h2>Prestataires</h2>
+    <ul>
+      <li><strong>Wix</strong> : hébergement du site, comptes membres et base de données.</li>
+      <li><strong>Google reCAPTCHA</strong> : protection de l’inscription et de la connexion contre les robots. Les <a class="link" href="https://policies.google.com/privacy" target="_blank" rel="noopener">règles de confidentialité</a> et les <a class="link" href="https://policies.google.com/terms" target="_blank" rel="noopener">conditions d’utilisation</a> de Google s’appliquent.</li>
+      <li><strong>Google Fonts</strong> : affichage des polices de caractères.</li>
+    </ul>
+    <h2>Durée de conservation</h2>
+    <p>Les données du compte et les contributions sont conservées tant que le compte existe. Les demandes des entreprises et les messages de contact sont conservés 3 ans au plus.</p>
+    <h2>Vos droits</h2>
+    <p>Vous pouvez accéder à vos données, les corriger, demander leur suppression (y compris la suppression de votre compte) ou vous opposer à leur traitement : écrivez-nous via la <a class="link" href="#/contact">page Contact</a> (sujet « Supprimer mon compte » pour une suppression). Vous pouvez aussi adresser une réclamation à la CNIL (www.cnil.fr).</p>`);
+}
+// Affichage en caisse d'une offre en magasin
+function caisseDialog(id){
+  const c=allCodes().find(x=>x.id===id); if(!c) return;
+  const b=bizBy(c.biz);
+  openDialog(`<header><div><h2 id="dlgTitle">Offre en magasin</h2><p class="u14 note">Montrez cet écran en caisse.</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+  <div class="caisse">
+    <div class="bizline">${logo(b,'md')}<strong>${esc(b.name)}</strong></div>
+    <div class="caisse-deal">${esc(c.deal)}</div>
+    ${c.detail?`<p>${esc(c.detail)}</p>`:''}
+    ${c.cond?`<p class="muted">${esc(c.cond)}</p>`:''}
+    <p class="caisse-meta">${c.noExp?'Sans date limite':'Valable jusqu’au '+fmt(c.exp)}${b.addr?'<br>'+esc(b.addr):''}</p>
+    <p class="caisse-brand">Bon plan Bonszahé · ${fmt(new Date())}</p>
+  </div>`);
 }
 
 /* ---------- Commentaires ---------- */
@@ -928,7 +1015,7 @@ function authBox(msg=''){
       <p class="note err" id="authErr" role="alert"></p>
       <button class="btn btn-primary" type="submit">${reg?'Créer mon compte':'Se connecter'}</button>
       ${reg?'':`<button type="button" class="linkbtn" data-forgot>Mot de passe oublié ?</button>`}
-      <p class="note">Connexion sécurisée par Wix : votre mot de passe n’est jamais stocké par Bonszahé.</p>
+      <p class="note">Connexion sécurisée par Wix : votre mot de passe n’est jamais stocké par Bonszahé. Protégé par reCAPTCHA : les <a class="link" href="https://policies.google.com/privacy" target="_blank" rel="noopener">règles de confidentialité</a> et <a class="link" href="https://policies.google.com/terms" target="_blank" rel="noopener">conditions</a> de Google s’appliquent. <a class="link" href="#/confidentialite">Nos données</a>.</p>
     </form></div>`;
 }
 function requireLogin(msg,then){
@@ -968,6 +1055,7 @@ function pageProfile(){
       <div class="stat"><b>${S.favs.length}</b><span>Favoris</span></div>
     </div>
     <div class="stack">
+      <a class="btn btn-wa" href="${waHref(`Je suis « ${lv.name} » sur Bonszahé avec ${s.points} points 🔥 Rejoins la communauté des bons plans de Mayotte 👉 ${location.origin}/`)}" target="_blank" rel="noopener">Partager mon niveau sur WhatsApp</a>
       <div><div class="head"><h2>Mes badges</h2><a class="link" href="#/classement">Voir le classement</a></div>${badgeGrid(s)}</div>
       <div>
         <div class="head"><h2>Mes codes partagés</h2><button class="btn btn-sun btn-sm" data-propose="">${ic('plus')}Proposer</button></div>
@@ -994,12 +1082,12 @@ async function drawPro(){
   const owned=B.filter(b=>b.owners.includes(me().id));
   const blocks=await Promise.all(owned.map(async b=>{
     let rows=[]; try{ rows=await queryAll('Statistiques',{entreprise:b.id}); }catch(e){ console.warn(e); }
-    const n=(t,recent)=>rows.filter(r=>r.type===t&&(!recent||(dateFrom(r._createdDate)||TODAY)>=since)).length;
+    const n=(t,recent)=>rows.filter(r=>(t==='copie'?(r.type==='copie'||r.type==='caisse'):r.type===t)&&(!recent||(dateFrom(r._createdDate)||TODAY)>=since)).length;
     const tile=(t,label)=>`<div class="stat"><b>${n(t,true)}</b><span>${label}<br><small>${n(t)} au total</small></span></div>`;
-    const codes=allCodes().filter(c=>c.biz===b.slug).map(c=>({c,copies:rows.filter(r=>r.type==='copie'&&r.code===c.id).length})).sort((a,z)=>z.copies-a.copies);
+    const codes=allCodes().filter(c=>c.biz===b.slug).map(c=>({c,copies:rows.filter(r=>(r.type==='copie'||r.type==='caisse')&&r.code===c.id).length})).sort((a,z)=>z.copies-a.copies);
     return `<div class="card pro">
       <div class="lvhead">${logo(b,'md')}<div><strong>${esc(b.name)}</strong><small class="muted">30 derniers jours</small></div><a class="btn btn-ghost btn-sm" href="#/entreprises/${b.slug}">Voir ma fiche</a></div>
-      <div class="stats four">${tile('vue','Vues de la fiche')}${tile('copie','Codes copiés')}${tile('site','Clics vers le site')}${tile('appel','Appels')}</div>
+      <div class="stats four">${tile('vue','Vues de la fiche')}${tile('copie','Codes copiés / offres montrées')}${tile('site','Clics vers le site')}${tile('appel','Appels')}</div>
       <h3>Vos codes</h3>
       ${codes.length?`<div class="list">${codes.map(({c,copies})=>`<div class="li"><div class="grow"><strong>${esc(c.code)}</strong> ${esc(c.deal)}<small>${copies} copie${copies>1?'s':''} · chaleur ${c.heat} (${c.moro} Moro, ${c.maji} Maji) · ${c.up} « fonctionne » · ${c.down} « ne fonctionne plus »${daysLeft(c)<0?' · expiré':flagged(c)?' · masqué (signalé)':''}</small></div></div>`).join('')}</div>`:'<p class="muted">Aucun code pour le moment.</p>'}
       <div class="bandbtns"><button class="btn btn-sun btn-sm" data-propose="${b.slug}">${ic('plus')}Publier une offre officielle</button><button class="btn btn-ghost btn-sm" data-toast="Envoyez votre événement à Bonszahé via « Revendiquer / contact » : il sera publié dans l’onglet Événements.">Annoncer un événement</button></div>
@@ -1013,7 +1101,7 @@ function pageRanking(){
   const lb=leaderboard().slice(0,50);
   const mine=me()&&lb.findIndex(x=>x.id===me().id);
   return `<div class="wrap">
-    <div class="pagehead"><h1>Classement de la communauté</h1><p class="muted">Merci à celles et ceux qui partagent leurs bons plans ! 10 pts par code publié, 2 pts par Moro 🔥 reçu, 1 pt par « fonctionne » reçu, 1 pt par avis donné, 1 pt par commentaire (5 par jour max.) et par « j’aime » reçu.</p></div>
+    <div class="pagehead"><h1>Classement de la communauté</h1><a class="btn btn-wa btn-sm u13" href="${waHref(`🏆 Le classement des chasseurs de bons plans de Mayotte sur Bonszahé 👉 ${location.origin}/#/classement`)}" target="_blank" rel="noopener">Partager le classement</a><p class="muted">Merci à celles et ceux qui partagent leurs bons plans ! 10 pts par code publié, 2 pts par Moro 🔥 reçu, 1 pt par « fonctionne » reçu, 1 pt par avis donné, 1 pt par commentaire (5 par jour max.) et par « j’aime » reçu.</p></div>
     <div class="u13">${lb.length?`<ol class="ranking">${lb.map((x,i)=>`<li class="${me()&&x.id===me().id?'me':''}"><span class="rk">${i+1}</span><div class="grow"><strong>${esc(x.name)}</strong><small>${esc(levelOf(x.points).name)} · ${x.codes.length} code${x.codes.length>1?'s':''} partagé${x.codes.length>1?'s':''}</small></div><b>${x.points} pts</b></li>`).join('')}</ol>`:
       empty('Le classement attend ses premiers chasseurs de bons plans','Partagez un code pour y apparaître.',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}
     ${me()&&mine<0?`<p class="note">Vous n’apparaissez pas encore : partagez votre premier code !</p>`:''}</div>
@@ -1039,6 +1127,7 @@ function eventCard(e){
         <div class="evacts">
           ${b?`<a class="bizline" href="#/entreprises/${b.slug}">${logo(b)}<span>${esc(b.name)}</span></a>`:''}
           ${e.link?`<a class="btn btn-ghost btn-sm" href="${esc(e.link)}" target="_blank" rel="noopener">${ic('ext')}En savoir plus</a>`:''}
+          <a class="btn btn-wa btn-sm" href="${waHref(`📅 ${e.title} – ${when}${where?' – '+where:''} 👉 ${location.origin}/#/evenements`)}" target="_blank" rel="noopener">Partager</a>
         </div>
       </div>
     </div>
@@ -1114,6 +1203,10 @@ function route(){
   if(p==='home') html=pageHome();
   else if(p==='entreprises' && parts[1]){ html=pageBusiness(parts[1]); nav='entreprises'; const b=bizBy(parts[1]); if(b) title=`${b.name} : codes promo et bons plans | Bonszahé`; track('vue',parts[1]); }
   else if(p==='bon-plan'&&parts[1]){ const id=decodeURIComponent(parts[1]); if(id!==lastDeal){ lastDeal=id; replyTo=''; } html=pageDeal(id); nav='tendances'; const c=baseCodes.find(x=>x.id===id); if(c) title=`${c.deal} chez ${bizBy(c.biz).name} | Bonszahé`; }
+  else if(p==='a-propos'){ html=pageAbout(); title='À propos | Bonszahé'; }
+  else if(p==='contact'){ html=pageContact(); title='Contact | Bonszahé'; }
+  else if(p==='mentions-legales'){ html=pageMentions(); title='Mentions légales | Bonszahé'; }
+  else if(p==='confidentialite'){ html=pagePrivacy(); title='Politique de confidentialité | Bonszahé'; }
   else if(p==='tendances'){ html=pageTrends(params); title='Tendances : les bons plans qui chauffent | Bonszahé'; }
   else if(p==='evenements'){ html=pageEvents(params); title='Événements à Mayotte | Bonszahé'; }
   else if(p==='classement'){ html=pageRanking(); nav='profil'; title='Classement de la communauté | Bonszahé'; }
@@ -1158,8 +1251,9 @@ function proposeDialog(slug){
   <form class="form" id="proposeForm">
     ${b?`<div class="for">${logo(b)}<div><small class="muted">Pour l’entreprise</small><br><strong>${esc(b.name)}</strong></div><input type="hidden" name="biz" value="${b.slug}"></div>`:
       `<label>Entreprise<select name="biz" required><option value="">Choisir une entreprise</option>${[...B].sort((a,z)=>a.name.localeCompare(z.name,'fr')).map(x=>`<option value="${x.slug}">${esc(x.name)}</option>`).join('')}</select></label>`}
+    <div class="seg typeseg" role="radiogroup" aria-label="Type d’offre"><label><input type="radio" name="type" value="code" checked> Code promo</label><label><input type="radio" name="type" value="magasin"> Offre en magasin</label></div>
     <div class="two">
-      <label>Code<input class="u22" name="code" required placeholder="Ex. MAYOTTE20" maxlength="30"></label>
+      <label class="codefield">Code<input class="u22" name="code" required placeholder="Ex. MAYOTTE20" maxlength="30"></label>
       <label>Avantage<input name="deal" required placeholder="-15 %, livraison offerte…" maxlength="60"></label>
     </div>
     <label>Détail <span class="opt">(facultatif)</span><input name="detail" placeholder="Ex. 20 % sur tout le site" maxlength="120"></label>
@@ -1242,6 +1336,7 @@ async function reloadAll(){ try{ await loadData(); await loadMine(); }catch(e){ 
 document.addEventListener('click',async e=>{
   const t=e.target.closest('button,a'); if(!t) return;
   if(t.dataset.track){ track(t.dataset.track,t.dataset.trackbiz); return; }
+  if(t.dataset.caisse){ caisseDialog(t.dataset.caisse); track('caisse',t.dataset.copybiz,t.dataset.caisse); return; }
   if(t.dataset.copy!==undefined){
     const ok=await copy(t.dataset.copy);
     const old=t.innerHTML; t.innerHTML=ic('check')+'Copié'; setTimeout(()=>t.innerHTML=old,1800);
@@ -1316,6 +1411,7 @@ document.addEventListener('click',async e=>{
 dlg.addEventListener('click',e=>{ if(e.target===dlg) dlg.close(); });
 
 document.addEventListener('change',e=>{
+  if(e.target.name==='type'&&e.target.closest('#proposeForm')){ const cf=document.querySelector('#proposeForm .codefield'); const st=e.target.value==='magasin'; cf.hidden=st; cf.querySelector('input').required=!st; }
   if(e.target.name==='biz'&&e.target.closest('#claimForm')){ const nb=document.querySelector('#claimForm .newbiz'); if(nb){ nb.hidden=e.target.value!=='__new__'; nb.querySelector('input').required=!nb.hidden; } }
 });
 document.addEventListener('input',e=>{
@@ -1374,10 +1470,11 @@ document.addEventListener('submit',async e=>{
   else if(f.id==='proposeForm'){
     e.preventDefault(); if(!me()) return;
     const d=Object.fromEntries(new FormData(f));
-    const p={biz:d.biz,code:d.code.trim().toUpperCase(),deal:d.deal.trim(),detail:(d.detail||'').trim(),cond:d.cond.trim(),exp:d.exp,link:d.link.trim()};
-    if(activeCodes().some(c=>c.biz===p.biz&&c.code.toUpperCase()===p.code)){ toast('Ce code est déjà en ligne pour cette entreprise. Merci !'); return; }
+    const store=d.type==='magasin';
+    const p={biz:d.biz,code:store?'':(d.code||'').trim().toUpperCase(),deal:d.deal.trim(),detail:(d.detail||'').trim(),cond:d.cond.trim(),exp:d.exp,link:d.link.trim()};
+    if(!store&&activeCodes().some(c=>c.biz===p.biz&&c.code.toUpperCase()===p.code)){ toast('Ce code est déjà en ligne pour cette entreprise. Merci !'); return; }
     const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Publication…';
-    sendToWix('PropositionsCodes',{code:p.code,entreprise:bizId[p.biz]||p.biz,avantage:p.deal,detail:p.detail,conditions:p.cond,dateExpiration:p.exp,lienOffre:p.link,statut:'En attente',contributeurId:me().id,contributeurNom:me().name})
+    sendToWix('PropositionsCodes',{code:p.code,typeOffre:store?'magasin':'code',entreprise:bizId[p.biz]||p.biz,avantage:p.deal,detail:p.detail,conditions:p.cond,dateExpiration:p.exp,lienOffre:p.link,statut:'En attente',contributeurId:me().id,contributeurNom:me().name})
       .then(()=>{ dlg.close(); toast('Merci ! Votre code est publié dans quelques secondes.'); setTimeout(reloadAll,5000); })
       .catch(err=>{ console.warn(err); btn.disabled=false; btn.textContent='Publier le code'; toast(err.status===401||err.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'); });
   }
@@ -1391,6 +1488,12 @@ document.addEventListener('submit',async e=>{
       COMMENTS.push({id:r.dataItem&&r.dataItem.id,code:f.dataset.commentform,text,parent,name:me().name,owner:me().id,at:new Date()});
       replyTo=''; refresh(); toast(parent?'Réponse publiée':'Commentaire publié, merci !');
     }catch(err){ console.warn(err); btn.disabled=false; toast(err.status===401||err.status===403?'Session expirée : reconnectez-vous.':'Publication impossible. Réessayez.'); }
+  }
+  else if(f.id==='contactForm'){
+    e.preventDefault(); const d=Object.fromEntries(new FormData(f));
+    const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Envoi…';
+    try{ await sendToWix('MessagesContact',{nom:d.nom.trim(),email:d.email.trim(),sujet:d.sujet,message:d.message.trim(),traite:false}); f.outerHTML='<p class="authmsg">Merci, votre message est bien envoyé. Nous vous répondons par e-mail.</p>'; }
+    catch(err){ console.warn(err); btn.disabled=false; btn.textContent='Envoyer'; toast('Envoi impossible pour le moment. Réessayez dans un instant.'); }
   }
   else if(f.id==='reportForm'){
     e.preventDefault(); const cid=f.dataset.cid; const motif=(new FormData(f).get('motif')||'Autre').toString();
