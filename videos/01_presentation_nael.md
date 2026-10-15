@@ -137,3 +137,36 @@ Publier la variante A, puis tester B ou C quelques jours plus tard avec le même
 5. La musique est libre de droits ou issue de la bibliothèque de la plateforme.
 6. Les mentions « Image virtuelle » et l'étiquette IA sont présentes.
 7. Le rendu a été vérifié sur un téléphone.
+
+---
+
+## Production réalisée (15/10/2026)
+
+**Vidéo finale** : 26,8 s, 1080 × 1920, 30 im/s, H.264 + AAC.
+- Higgsfield media_id : `c6656101-a1bd-40a2-a85a-2c24ae0410a0`
+- Lien : https://d2ol7oe51mr4n9.cloudfront.net/user_3KViSTlmVjujrQsgUSoKurKeoeU/c6656101-a1bd-40a2-a85a-2c24ae0410a0.mp4
+
+| Élément | Outil | Identifiant |
+|---|---|---|
+| Image P1 (yeux) | Nano Banana Pro | `5269738a-fd21-4937-bd98-d3063450cda6` |
+| Image P2 (ponton) | Nano Banana Pro | `4c16b5bb-8af0-40bf-8edf-b68290fee993` |
+| Image P3 (matcha) | Nano Banana Pro | `cd4f157f-f8ac-4abd-8393-d73698d4cc86` |
+| Image P4 (sourire) | Nano Banana Pro | `52e63005-630d-45dd-bfb8-0e5f4bcce273` |
+| Plan 1 | Kling 3.0 Pro, 5 s, sans son | `89c71667-0742-4e60-abd3-2788e9c3d195` |
+| Plan 2 | Kling 3.0 Pro | `eb5238c0-7788-4668-9778-d14f43704f2f` |
+| Plan 3 | Kling 3.0 Pro | `3eba4c82-a354-4bed-9355-f3f1b8a5f138` |
+| Plan 4 | Kling 3.0 Pro | `9ad790ad-59df-4bd7-aa1e-885bbd3cad2c` |
+| Plan 5 | Kling 3.0 Pro (ralenti ×1,1 au montage) | `144198ca-8848-403f-8f27-84e2324bcf10` |
+| Plan 6 | Kling 3.0 Pro | `562d57ed-441c-41dd-ab7e-f9808e8df212` |
+| Plan 7 | Kling 3.0 Pro | `aa85d8a3-998a-4de4-81cc-be5105a48393` |
+| Voix off (retenue) | Higgsfield Seed Audio, voix « Andre », vitesse −12 | `fb9c9909-585d-40e9-9caf-89885382f462` |
+| Voix off (non retenue) | Seed Audio, voix « Marcus » | `fb658cc2-8ea9-4343-b093-969ba7faec20` |
+| Musique originale | Arcads (ElevenLabs Music), 27 s, instrumentale | `02007649-40ff-4172-ab63-607742ba4972` |
+
+**Voix de Naël** : Seed Audio, preset « Andre » (`f1e8226e-2248-4d5f-b43c-0a79e9949dbf`), `speech_rate` −12. À réutiliser pour toutes les vidéos.
+
+**Montage** (sandbox Higgsfield, ffmpeg) : coupes calées sur la voix off (décalée de 0,3 s), étalonnage léger (saturation +6 %, contraste +3 %), sous-titres Montserrat ExtraBold avec mots clés en jaune sable, hook en haut d'écran, mention « IMAGE VIRTUELLE » discrète en haut à gauche, musique à environ −16 dB sous la voix puis remontée et fondu final.
+
+**Coût** : environ 4 crédits Higgsfield pour la voix et les images, environ 61 pour l'animation des plans et 8 crédits Arcads pour la musique.
+
+**Point à vérifier à l'écoute** : la prononciation de « mahorais » par la voix de synthèse (la transcription automatique l'entend mal). Si elle sonne faux, régénérer la voix off avec l'orthographe phonétique « ma-o-rè ».
