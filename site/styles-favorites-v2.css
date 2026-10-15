@@ -547,3 +547,37 @@ a.deallink:hover{text-decoration:underline}
 .insights strong{font-family:var(--display);font-size:1.05rem}
 .insights strong::first-letter{text-transform:uppercase}
 a.li{text-decoration:none;color:inherit}
+
+/* ---------- v15 : carte des magasins ---------- */
+.storemap{display:grid;gap:18px;align-items:start}
+@media (min-width:900px){.storemap{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}.storelist{max-height:560px;overflow:auto;padding-right:4px}}
+.leafwrap{border-radius:22px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow);background:var(--soft)}
+.leaf{height:440px;width:100%;z-index:0}
+@media (min-width:900px){.leaf{height:560px}}
+.leaf.small{height:260px;border-radius:16px;border:1px solid var(--line)}
+.maperr{padding:24px;text-align:center}
+.pinicon{background:none;border:0}
+.pin{display:grid;place-items:center;width:44px;height:44px;border-radius:50% 50% 50% 6px;transform:rotate(-45deg);background:var(--surface);border:3px solid var(--lagon-700);box-shadow:0 4px 10px rgba(0,0,0,.25)}
+.pin.hot{border-color:var(--corail)}
+.pin .logo{transform:rotate(45deg);width:32px;height:32px;border-radius:50%;font-size:.75rem}
+.popup{display:grid;gap:4px;font-family:var(--body);color:#1F2B3D}
+.popup strong{font-size:1rem}
+.popup small{color:#6F6155}
+.popup .pill{justify-self:start}
+.popacts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.popacts .btn{padding:6px 10px}
+.leaflet-container a.btn-primary{color:#fff}
+.leaflet-container a.btn-ghost{color:#1F2B3D}
+.li.shop{align-items:center}
+.shopacts{display:flex;gap:6px;flex:none}
+.golinks{display:flex;flex-wrap:wrap;gap:8px}
+.radios{border:0;padding:0;margin:0;display:grid;gap:8px}
+.radios legend{font-weight:600;font-size:.92rem;margin-bottom:6px}
+.posbox{display:grid;gap:10px;padding:14px;border:1px dashed var(--line);border-radius:16px}
+.posbox[hidden]{display:none}
+.posrow{display:flex;flex-wrap:wrap;gap:8px}
+.stats.five{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.pindot{width:12px;height:12px;border-radius:50%;background:var(--corail);transform:rotate(45deg)}
+.form label.radio{display:flex;align-items:center;gap:10px;font-weight:500}
+.form input[type=radio],.form input[type=checkbox]{width:auto;flex:none;accent-color:var(--lagon-700)}
+@media (max-width:519px){.li.shop{flex-wrap:wrap}.shopacts{width:100%;justify-content:flex-end}}

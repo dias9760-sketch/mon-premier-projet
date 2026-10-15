@@ -308,6 +308,11 @@ function imgUrl(v){
   return /^https?:\/\//.test(s)?s:'';
 }
 const refId=v=>typeof v==='object'&&v?v._id:v;
+// Position GPS « latitude, longitude » (copiée depuis Google Maps), limitée à Mayotte.
+const inMayotte=p=>p&&p.lat>-13.1&&p.lat<-12.5&&p.lng>44.9&&p.lng<45.4;
+function parsePos(v){ const m=String(v||'').trim().match(/^(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)$/); if(!m) return null; const p={lat:+m[1],lng:+m[2]}; return inMayotte(p)?p:null; }
+const posStr=p=>p?`${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`:'';
+const SALES={boutique:'Boutique physique','en-ligne':'Vente en ligne / livraison','les-deux':'Boutique et vente en ligne'};
 // Date et heure complètes d'un champ système Wix ({$date:…}), pour le classement Tendance.
 const stamp=v=>{ const d=new Date(typeof v==='object'&&v?v.$date:v); return isNaN(d)?new Date(TODAY):d; };
 async function loadData(){
@@ -322,7 +327,7 @@ async function loadData(){
     while(used.has(slug)) slug+='-2';
     used.add(slug); idToSlug[e._id]=slug;
     const owners=String(e.proprietaire||'').split(/[\s,;]+/).filter(Boolean);
-    return {slug,id:e._id,name:e.nom,cat:catFrom(e.categorie),commune:communeFrom(e.commune),desc:e.description||'',addr:e.adresse||'',phone:e.telephone||'',web:e.siteWeb||'',email:e.email||'',hours:e.horaires||'',logo:imgUrl(e.logo),owners};
+    return {slug,id:e._id,name:e.nom,cat:catFrom(e.categorie),commune:communeFrom(e.commune),desc:e.description||'',addr:e.adresse||'',phone:e.telephone||'',web:e.siteWeb||'',email:e.email||'',hours:e.horaires||'',pos:parsePos(e.position),sale:SALES[e.typeVente]?e.typeVente:'',logo:imgUrl(e.logo),owners};
   }).sort((a,b)=>a.name.localeCompare(b.name,'fr'));
   B=list; bizId={}; Object.keys(idToSlug).forEach(id=>bizId[idToSlug[id]]=id);
   VOTES=votes.filter(v=>v.code&&(v.sens==='up'||v.sens==='down')).map(v=>({id:v._id,code:v.code,dir:v.sens,owner:v._owner,at:dateFrom(v._updatedDate||v._createdDate)||TODAY}));
@@ -557,7 +562,7 @@ function pageHome(){
 
   <section class="block">
     <div class="wrap">
-      <div class="head"><div><h2>Explorez Mayotte commune par commune</h2><p class="muted">Touchez une commune pour voir ses entreprises.</p></div><a class="link" href="#/carte">Ouvrir la carte</a></div>
+      <div class="head"><div><h2>Explorez Mayotte commune par commune</h2><p class="muted">Touchez une commune pour voir ses entreprises.</p></div><a class="link" href="#/carte">Carte des magasins</a></div>
       ${(mapSel='',mapWidget())}
     </div>
   </section>
@@ -645,7 +650,7 @@ function pageBusiness(slug){
       ${logo(b,'lg')}
       <div>
         <h1>${esc(b.name)} ${verified?`<span title="Entreprise avec codes vérifiés">${ic('badge','class="verif"')}</span>`:''}</h1>
-        <p class="tagline muted">${esc(cat.name)} &nbsp;|&nbsp; ${esc(b.desc)}</p>
+        <p class="tagline muted">${esc(cat.name)}${b.sale?' &nbsp;|&nbsp; '+esc(SALES[b.sale]):''} &nbsp;|&nbsp; ${esc(b.desc)}</p>
       </div>
       <div class="bactions">
         ${b.web?`<a class="btn btn-primary" href="${esc(b.web)}" target="_blank" rel="noopener" data-track="site" data-trackbiz="${slug}">${ic('ext')}Visiter le site</a>`:''}
@@ -656,10 +661,11 @@ function pageBusiness(slug){
       </div>
     </div>
     <div class="contact">
-      ${b.addr?`<div>${ic('pin')}<span>${esc(b.addr)}${b.commune?`<br><a class="link" href="#/carte?c=${b.commune}">Voir ${esc(comBy(b.commune).name)} sur la carte</a>`:''}</span></div>`:`<div>${ic('pin')}<span class="muted">Adresse à compléter</span></div>`}
+      ${b.addr?`<div>${ic('pin')}<span>${esc(b.addr)}${isShop(b)?`<br><a class="link" href="#/carte?b=${b.slug}">Voir sur la carte des magasins</a>`:b.commune?`<br><a class="link" href="#/carte?c=${b.commune}">Voir les magasins de ${esc(comBy(b.commune).name)}</a>`:''}</span></div>`:`<div>${ic('pin')}<span class="muted">Adresse à compléter</span></div>`}
       ${b.web?`<a href="${esc(b.web)}" target="_blank" rel="noopener" data-track="site" data-trackbiz="${slug}">${ic('globe')}<span>${esc(b.web.replace(/^https?:\/\/(www\.)?/,'').replace(/\/$/,''))}</span></a>`:''}
       ${b.phone?`<a href="tel:${esc(b.phone.replace(/\s/g,''))}" data-track="appel" data-trackbiz="${slug}">${ic('call')}<span>${esc(b.phone)}</span></a>`:`<div>${ic('call')}<span class="muted">Téléphone à compléter</span></div>`}
       ${b.hours?`<div>${ic('clock')}<span>${esc(b.hours)}</span></div>`:''}
+      ${isShop(b)?`<div class="golinks">${goLinks(b)}</div>`:''}
     </div>
 
     <div class="bpage">
@@ -760,7 +766,7 @@ function pageAbout(){
     <p>Les bons plans sont partagés par les habitants eux-mêmes. Chacun peut proposer un code ou une offre en magasin : il est publié tout de suite, avec son pseudo.</p>
     <p>La communauté fait le tri : donnez du <strong>Moro 🔥</strong> aux bons plans qui valent le coup et du <strong>Maji 💧</strong> à ceux qui déçoivent, dites si un code marche encore, commentez et partagez. Les meilleurs contributeurs gagnent des points et des badges.</p>
     <h2>Pour les entreprises</h2>
-    <p>Les entreprises de Mayotte peuvent revendiquer leur fiche pour publier leurs offres officielles, répondre aux clients et suivre leurs statistiques (vues, codes copiés, clics, appels).</p>
+    <p>Les entreprises de Mayotte peuvent revendiquer leur fiche pour publier leurs offres officielles, placer leur magasin sur la carte, répondre aux clients et suivre leurs statistiques (vues, codes copiés, clics, appels, itinéraires).</p>
     <p><a class="btn btn-primary" href="#/contact">Nous écrire</a></p>`);
 }
 function pageContact(){
@@ -804,6 +810,7 @@ function pagePrivacy(){
       <li><strong>Messages de contact</strong> : nom, e-mail et message.</li>
       <li><strong>Statistiques pour les entreprises</strong> : nombre de vues des fiches, de codes copiés, de clics et d’appels. Ces mesures ne sont pas reliées à votre identité.</li>
       <li><strong>Stockage dans votre navigateur</strong> : vos favoris et votre session de connexion. Aucun cookie publicitaire n’est utilisé.</li>
+      <li><strong>Localisation</strong> : seulement si vous touchez « Autour de moi » (ou, pour une entreprise, « utiliser ma position »). Elle sert dans votre navigateur à calculer les distances : elle n’est ni envoyée à Bonszahé ni enregistrée.</li>
     </ul>
     <h2>Pourquoi</h2>
     <p>Pour faire fonctionner le site (compte, publication des bons plans, points et badges), vérifier les entreprises, répondre à vos messages et fournir des statistiques aux entreprises. Base légale : l’exécution du service que vous utilisez et notre intérêt légitime à le sécuriser.</p>
@@ -812,6 +819,7 @@ function pagePrivacy(){
       <li><strong>Wix</strong> : hébergement du site, comptes membres et base de données.</li>
       <li><strong>Google reCAPTCHA</strong> : protection de l’inscription et de la connexion contre les robots. Les <a class="link" href="https://policies.google.com/privacy" target="_blank" rel="noopener">règles de confidentialité</a> et les <a class="link" href="https://policies.google.com/terms" target="_blank" rel="noopener">conditions d’utilisation</a> de Google s’appliquent.</li>
       <li><strong>Google Fonts</strong> : affichage des polices de caractères.</li>
+      <li><strong>OpenStreetMap</strong> (fonds de carte) et <strong>cdnjs / Cloudflare</strong> (outil d’affichage de la carte) : votre navigateur les contacte pour afficher la carte des magasins.</li>
     </ul>
     <h2>Durée de conservation</h2>
     <p>Les données du compte et les contributions sont conservées tant que le compte existe. Les demandes des entreprises et les messages de contact sont conservés 3 ans au plus.</p>
@@ -1154,7 +1162,8 @@ async function drawPro(){
       <div class="lvhead">${logo(b,'md')}<div><strong>${esc(b.name)}</strong><small class="muted">30 derniers jours</small></div><a class="btn btn-ghost btn-sm" href="#/entreprises/${b.slug}">Voir ma fiche</a></div>
       <div class="bandbtns"><button class="btn btn-sun btn-sm" data-propose="${b.slug}">${ic('plus')}Publier une offre</button><button class="btn btn-ghost btn-sm" data-editbiz="${b.slug}">Modifier ma fiche</button><button class="btn btn-ghost btn-sm" data-proevent="${b.slug}">Annoncer un événement</button></div>
       ${edits.length||evs.length?`<div class="list">${edits.map(x=>`<div class="li"><div class="grow"><strong>Modification de la fiche</strong><small>Envoyée le ${fmt(x.at)}</small></div><span class="pill ${x.status==='Refusée'?'no':'wait'}">${x.status==='Refusée'?'Refusée':'En vérification'}</span></div>`).join('')}${evs.map(x=>`<div class="li"><div class="grow"><strong>${esc(x.title)}</strong><small>Événement du ${fmt(x.date)}</small></div><span class="pill wait">En vérification</span></div>`).join('')}</div>`:''}
-      <div class="stats four">${tile('vue','Vues de la fiche')}${tile('copie','Codes copiés / offres montrées')}${tile('site','Clics vers le site')}${tile('appel','Appels')}</div>
+      <div class="stats five">${tile('vue','Vues de la fiche')}${tile('copie','Codes copiés / offres montrées')}${tile('site','Clics vers le site')}${tile('appel','Appels')}${tile('itineraire','Itinéraires demandés')}</div>
+      ${!b.pos&&b.sale!=='en-ligne'?`<p class="authmsg">Votre magasin n’est pas encore sur la carte. <button class="linkbtn link" data-editbiz="${b.slug}">Placer mon magasin</button></p>`:''}
       ${hasData?proChart(days):'<p class="muted">Les statistiques jour par jour apparaîtront dès les premières visites de votre fiche.</p>'}
       <div class="insights">
         ${hasData?`<div><span>Meilleur jour</span><strong>${best.date.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}</strong><small>${best.views} vue${best.views>1?'s':''}, ${best.copies} copie${best.copies>1?'s':''}</small></div>
@@ -1180,12 +1189,21 @@ function editBizDialog(slug){
   <form class="form" id="editBizForm" data-biz="${b.slug}">
     <label>Description<textarea name="description" maxlength="600" rows="4">${esc(b.desc)}</textarea></label>
     <div class="two"><label>Adresse<input name="adresse" maxlength="160" value="${esc(b.addr)}" autocomplete="street-address"></label><label>Commune${communeSelect('commune',b.commune)}</label></div>
+    <fieldset class="radios"><legend>Où vendez-vous ?</legend>${Object.keys(SALES).map(k=>`<label class="radio"><input type="radio" name="typeVente" value="${k}"${(b.sale||(b.pos?'boutique':''))===k?' checked':''}> ${SALES[k]}</label>`).join('')}</fieldset>
+    <div id="posBox" class="posbox"${b.sale==='en-ligne'?' hidden':''}>
+      <p class="u14"><strong>Position du magasin sur la carte</strong><br><span class="note">Touchez la carte à l’endroit exact de l’entrée, puis déplacez le point si besoin.</span></p>
+      <div id="posMap" class="leaf small" role="application" aria-label="Carte pour placer le magasin"></div>
+      <div class="posrow"><button type="button" class="btn btn-ghost btn-sm" id="posHere">${ic('pin')}Je suis dans le magasin : utiliser ma position</button></div>
+      <label>Position GPS <span class="opt">(remplie par la carte, ou collée depuis Google Maps)</span><input id="posInput" name="position" inputmode="decimal" maxlength="40" value="${esc(posStr(b.pos))}" placeholder="-12.7806, 45.2279"></label>
+    </div>
     <label>Horaires d’ouverture <span class="opt">(facultatif)</span><input name="horaires" maxlength="160" value="${esc(b.hours)}" placeholder="Lun-Ven 8h-17h, Sam 8h-12h"></label>
     <div class="two"><label>Téléphone<input name="telephone" type="tel" maxlength="30" value="${esc(b.phone)}"></label><label>E-mail de contact<input name="email" type="email" maxlength="120" value="${esc(b.email)}"></label></div>
     <label>Site web <span class="opt">(facultatif)</span><input name="siteWeb" type="url" maxlength="200" value="${esc(b.web)}" placeholder="https://"></label>
     <p class="note">Pour changer votre logo, envoyez-le via la <a class="link" href="#/contact">page Contact</a>.</p>
+    <p class="note err" id="editErr" role="alert"></p>
     <button class="btn btn-primary" type="submit">Envoyer les modifications</button>
   </form>`);
+  initPosPicker(b.pos);
 }
 function proEventDialog(slug){
   const b=ownerOf(slug); if(!b){ toast('Seul le gestionnaire de la fiche peut annoncer un événement.'); return; }
@@ -1288,13 +1306,141 @@ function selectCommune(slug){
   const panel=document.getElementById('mapPanel'); if(panel) panel.innerHTML=mapPanel();
   if(mapSel && window.innerWidth<900 && panel) panel.scrollIntoView({behavior:'smooth',block:'start'});
 }
+/* ---------- Carte des magasins (OpenStreetMap + Leaflet) ---------- */
+const isShop=b=>!!b.pos&&b.sale!=='en-ligne';
+const storeOffers=b=>codesOf(b.slug).filter(c=>c.store).length;
+const goLinks=(b,waze=true)=>`<a class="btn btn-primary btn-sm" href="https://www.google.com/maps/dir/?api=1&destination=${b.pos.lat},${b.pos.lng}" target="_blank" rel="noopener" data-track="itineraire" data-trackbiz="${b.slug}">${ic('pin')}Y aller</a>${waze?`<a class="btn btn-ghost btn-sm" href="https://waze.com/ul?ll=${b.pos.lat},${b.pos.lng}&navigate=yes" target="_blank" rel="noopener" data-track="itineraire" data-trackbiz="${b.slug}">Waze</a>`:''}`;
+function kmBetween(a,z){ const R=6371,r=x=>x*Math.PI/180; const dLat=r(z.lat-a.lat),dLng=r(z.lng-a.lng);
+  const h=Math.sin(dLat/2)**2+Math.cos(r(a.lat))*Math.cos(r(z.lat))*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
+const fmtKm=km=>km<1?Math.max(10,Math.round(km*100)*10)+' m':km.toFixed(1).replace('.',',')+' km';
+const LEAFLET='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/';
+const MAYOTTE_VIEW=[[-13.02,44.98],[-12.62,45.32]];
+// Recadrages sans animation : Leaflet plante si la carte est retirée pendant un zoom animé.
+const NOANIM={animate:false};
+let leafletP=null;
+function loadLeaflet(){
+  if(window.L) return Promise.resolve(window.L);
+  return leafletP||(leafletP=new Promise((ok,ko)=>{
+    const css=document.createElement('link'); css.rel='stylesheet'; css.href=LEAFLET+'leaflet.min.css'; document.head.appendChild(css);
+    const js=document.createElement('script'); js.src=LEAFLET+'leaflet.min.js'; js.onload=()=>ok(window.L); js.onerror=()=>{ leafletP=null; ko(new Error('Leaflet indisponible')); }; document.head.appendChild(js);
+  }));
+}
+function baseMap(el,opts={}){
+  const m=L.map(el,Object.assign({scrollWheelZoom:false},opts));
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}).addTo(m);
+  m.fitBounds(MAYOTTE_VIEW,NOANIM); return m;
+}
+let mapState={com:'',focus:'',me:null}, storeMap=null, storeMarkers={}, meMarker=null;
 function pageMap(params){
-  mapSel=params.get('c')||'';
+  mapState={com:params.get('c')||'',focus:params.get('b')||'',me:mapState.me};
+  const shops=B.filter(isShop);
+  const coms=new Set(shops.map(b=>b.commune).filter(Boolean));
+  if(mapState.com) coms.add(mapState.com);
   return `<div class="wrap">
-    <div class="pagehead"><h1>Carte des communes</h1><p class="muted">Explorez les entreprises de Mayotte commune par commune, de Mtsamboro à Kani-Kéli.</p></div>
-    <div class="u13">${mapWidget()}</div>
+    <div class="pagehead"><h1>Carte des magasins</h1><p class="muted">Les boutiques de l’île, leurs offres en magasin et l’itinéraire pour y aller.</p></div>
+    <div class="filters u13">
+      <button class="btn btn-primary" id="nearMe" type="button">${ic('pin')}Autour de moi</button>
+      <label class="sel"><span>Commune</span><select id="mapCom">${selOpts(communeOpts(coms),mapState.com)}</select></label>
+    </div>
+    <p class="note" id="geoMsg" role="status"></p>
+    <div class="storemap">
+      <div class="leafwrap"><div id="storeMap" class="leaf" role="region" aria-label="Carte des magasins de Mayotte"></div></div>
+      <div class="storelist"><p class="results" id="mapCount" aria-live="polite"></p><div class="list" id="mapList"></div></div>
+    </div>
+    <div class="u13" id="mapMissing"></div>
     <div class="u8"></div>
   </div>`;
+}
+const mapShops=()=>B.filter(b=>isShop(b)&&(!mapState.com||b.commune===mapState.com));
+function drawMapList(){
+  const list=mapShops().map(b=>({b,d:mapState.me?kmBetween(mapState.me,b.pos):null}));
+  list.sort((x,z)=>x.d!=null?x.d-z.d:x.b.name.localeCompare(z.b.name,'fr'));
+  const where=mapState.com?' à '+comBy(mapState.com).name:'';
+  document.getElementById('mapCount').textContent=`${list.length} magasin${list.length>1?'s':''}${where}${mapState.me?', du plus proche au plus loin':''}`;
+  document.getElementById('mapList').innerHTML=list.length?list.map(({b,d})=>{ const n=storeOffers(b), all=codesOf(b.slug).length;
+    return `<div class="li shop">${logo(b)}<div class="grow"><button class="linkbtn" data-focus="${b.slug}"><strong>${esc(b.name)}</strong></button><small>${[d!=null?fmtKm(d):'',b.commune?comBy(b.commune).name:'',n?n+' offre'+(n>1?'s':'')+' en magasin':all?all+' bon'+(all>1?'s':'')+' plan'+(all>1?'s':''):''].filter(Boolean).join(' · ')}</small></div><div class="shopacts"><a class="btn btn-ghost btn-sm" href="#/entreprises/${b.slug}">Voir</a>${goLinks(b,false)}</div></div>`; }).join(''):
+    empty(mapState.com?`Pas encore de magasin placé à ${esc(comBy(mapState.com).name)}`:'Aucun magasin sur la carte pour l’instant','Les entreprises placent leur magasin depuis leur espace pro.','');
+  const missing=B.filter(b=>!b.pos&&b.sale!=='en-ligne'&&(!mapState.com||b.commune===mapState.com));
+  document.getElementById('mapMissing').innerHTML=missing.length?`<details class="card"><summary><strong>${missing.length} entreprise${missing.length>1?'s':''} pas encore placée${missing.length>1?'s':''} sur la carte</strong></summary>
+    <div class="list u10">${missing.map(b=>`<a class="li" href="#/entreprises/${b.slug}">${logo(b)}<div class="grow"><strong>${esc(b.name)}</strong><small>${b.commune?esc(comBy(b.commune).name):'Commune à préciser'}</small></div></a>`).join('')}</div>
+    <p class="note">Vous gérez l’une de ces entreprises ? Placez votre magasin depuis <a class="link" href="#/profil">Mon espace</a>, bouton « Modifier ma fiche ».</p></details>`:'';
+}
+function popupHtml(b){
+  const n=storeOffers(b), all=codesOf(b.slug).length;
+  return `<div class="popup"><strong>${esc(b.name)}</strong><small>${esc(catBy(b.cat).name)}${b.addr?' · '+esc(b.addr):''}</small>${b.hours?`<small>${esc(b.hours)}</small>`:''}
+    ${n||all?`<span class="pill ok">${n?n+' offre'+(n>1?'s':'')+' en magasin':all+' bon'+(all>1?'s':'')+' plan'+(all>1?'s':'')}</span>`:''}
+    <div class="popacts"><a class="btn btn-ghost btn-sm" href="#/entreprises/${b.slug}">Voir la fiche</a>${goLinks(b)}</div></div>`;
+}
+function fitShops(){
+  const pts=mapShops().map(b=>[b.pos.lat,b.pos.lng]); if(mapState.me) pts.push([mapState.me.lat,mapState.me.lng]);
+  if(pts.length>1) storeMap.fitBounds(pts,{padding:[40,40],maxZoom:16,animate:false}); else if(pts.length===1) storeMap.setView(pts[0],15,NOANIM); else storeMap.fitBounds(MAYOTTE_VIEW,NOANIM);
+}
+function focusShop(slug){
+  const b=bizBy(slug), m=storeMarkers[slug]; if(!b||!m||!storeMap) return;
+  storeMap.setView([b.pos.lat,b.pos.lng],16,NOANIM); m.openPopup();
+  document.getElementById('storeMap').scrollIntoView({behavior:'smooth',block:'center'});
+}
+async function drawMap(){
+  drawMapList();
+  const el=document.getElementById('storeMap'); if(!el) return;
+  try{ await loadLeaflet(); }catch(e){ el.innerHTML='<p class="muted maperr">La carte ne peut pas s’afficher pour le moment. La liste des magasins reste disponible.</p>'; return; }
+  if(!document.body.contains(el)) return;
+  storeMap=dropMap(storeMap);
+  storeMap=baseMap(el); storeMarkers={}; meMarker=null;
+  B.filter(isShop).forEach(b=>{
+    const hot=storeOffers(b)>0;
+    const icon=L.divIcon({className:'pinicon',html:`<span class="pin${hot?' hot':''}">${logo(b)}</span>`,iconSize:[44,52],iconAnchor:[22,50],popupAnchor:[0,-46]});
+    storeMarkers[b.slug]=L.marker([b.pos.lat,b.pos.lng],{icon,title:b.name,alt:b.name}).addTo(storeMap).bindPopup(popupHtml(b),{maxWidth:260});
+  });
+  if(mapState.me) showMe();
+  fitShops();
+  if(mapState.focus) focusShop(mapState.focus);
+}
+function showMe(){
+  if(!storeMap||!mapState.me) return;
+  if(meMarker) meMarker.remove();
+  meMarker=L.circleMarker([mapState.me.lat,mapState.me.lng],{radius:9,color:'#fff',weight:3,fillColor:'#1FB5C9',fillOpacity:1}).addTo(storeMap).bindTooltip('Vous êtes ici');
+}
+function nearMe(btn){
+  const msg=document.getElementById('geoMsg');
+  if(!navigator.geolocation){ msg.textContent='Votre navigateur ne permet pas la localisation.'; return; }
+  btn.disabled=true; msg.textContent='Recherche de votre position…';
+  navigator.geolocation.getCurrentPosition(p=>{
+    btn.disabled=false;
+    mapState.me={lat:p.coords.latitude,lng:p.coords.longitude};
+    const far=kmBetween(mapState.me,{lat:-12.83,lng:45.14})>60;
+    msg.textContent=far?'Vous semblez être loin de Mayotte : les distances sont tout de même indiquées.':'Votre position sert uniquement à calculer les distances. Elle n’est pas enregistrée.';
+    mapState.com=''; const sel=document.getElementById('mapCom'); if(sel) sel.value='';
+    drawMapList(); showMe();
+    if(storeMap){ const near=mapShops().map(b=>({b,d:kmBetween(mapState.me,b.pos)})).sort((a,z)=>a.d-z.d).slice(0,5).map(x=>[x.b.pos.lat,x.b.pos.lng]);
+      storeMap.fitBounds([[mapState.me.lat,mapState.me.lng],...near],{padding:[40,40],maxZoom:16,animate:false}); }
+  },err=>{
+    btn.disabled=false;
+    msg.textContent=err.code===1?'Localisation refusée. Autorisez-la dans les réglages de votre navigateur pour voir les magasins proches.':'Position introuvable pour le moment. Réessayez dans un instant.';
+  },{enableHighAccuracy:true,timeout:12000,maximumAge:60000});
+}
+// Petite carte pour placer son magasin (espace pro)
+let posMap=null;
+// Retire une carte avant que son conteneur quitte la page (sinon Leaflet plante pendant ses animations).
+function dropMap(m){ if(!m) return null; try{ m.stop(); m.remove(); }catch(e){} return null; }
+async function initPosPicker(start){
+  const el=document.getElementById('posMap'); if(!el) return;
+  try{ await loadLeaflet(); }catch(e){ el.innerHTML='<p class="muted maperr">Carte indisponible : collez la position GPS ci-dessous.</p>'; return; }
+  if(!document.body.contains(el)) return;
+  posMap=dropMap(posMap);
+  posMap=baseMap(el); let mk=null;
+  const input=document.getElementById('posInput');
+  const set=(p,move)=>{ if(!inMayotte(p)){ toast('Ce point est en dehors de Mayotte.'); return; }
+    if(!mk){ mk=L.marker([p.lat,p.lng],{draggable:true,title:'Votre magasin',alt:'Votre magasin',icon:L.divIcon({className:'pinicon',html:'<span class="pin hot"><span class="pindot"></span></span>',iconSize:[44,52],iconAnchor:[22,50]})}).addTo(posMap); mk.on('dragend',()=>set(mk.getLatLng(),false)); } else mk.setLatLng([p.lat,p.lng]);
+    input.value=posStr({lat:p.lat,lng:p.lng}); if(move) posMap.setView([p.lat,p.lng],17,NOANIM); };
+  posMap.on('click',e=>set(e.latlng,false));
+  if(start) set(start,true);
+  input.addEventListener('change',()=>{ const p=parsePos(input.value); if(p) set(p,true); else if(input.value.trim()) toast('Position non reconnue : format « -12.78, 45.22 », à Mayotte.'); });
+  document.getElementById('posHere')?.addEventListener('click',()=>{
+    if(!navigator.geolocation){ toast('Localisation indisponible sur cet appareil.'); return; }
+    navigator.geolocation.getCurrentPosition(p=>set({lat:p.coords.latitude,lng:p.coords.longitude},true),()=>toast('Position introuvable. Placez le point à la main.'),{enableHighAccuracy:true,timeout:12000});
+  });
+  setTimeout(()=>posMap&&posMap.invalidateSize(),150);
 }
 
 /* ---------- Routeur ---------- */
@@ -1320,11 +1466,12 @@ function route(){
   else if(p==='entreprises') html=pageDirectory(params);
   else if(p==='codes') html=pageCodes(params);
   else if(p==='categories') html=pageCategories();
-  else if(p==='carte') html=pageMap(params);
+  else if(p==='carte'){ html=pageMap(params); title='Carte des magasins de Mayotte | Bonszahé'; }
   else if(p==='recherche') html=pageSearch(params);
   else if(p==='favoris') html=pageFavs();
   else if(p==='profil') html=pageProfile();
   else { html=pageHome(); nav='home'; }
+  storeMap=dropMap(storeMap); meMarker=null;
   app.innerHTML=html;
   document.title=title;
   if(p==='entreprises'&&!parts[1]) drawDirectory();
@@ -1332,6 +1479,7 @@ function route(){
   document.querySelectorAll('[data-nav]').forEach(a=>{ a.getAttribute('data-nav')===nav?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current'); });
   document.getElementById('loginBtn').textContent=me()?me().name:'Connexion';
   if(p==='profil') drawPro();
+  if(p==='carte') drawMap();
   window.scrollTo(0,0);
   if(p==='recherche'&&!params.get('q')) document.getElementById('sq')?.focus();
 }
@@ -1500,6 +1648,8 @@ document.addEventListener('click',async e=>{
   else if(t.dataset.propose!==undefined){ proposeDialog(t.dataset.propose); }
   else if(t.dataset.claim!==undefined){ claimDialog(t.dataset.claim); }
   else if(t.dataset.editbiz){ editBizDialog(t.dataset.editbiz); }
+  else if(t.dataset.focus){ focusShop(t.dataset.focus); }
+  else if(t.id==='nearMe'){ nearMe(t); }
   else if(t.dataset.proevent){ proEventDialog(t.dataset.proevent); }
   else if(t.id==='codeReset'){ location.hash='#/codes'; route(); }
   else if(t.id==='dirReset'){ location.hash='#/entreprises'; route(); }
@@ -1519,6 +1669,7 @@ document.addEventListener('click',async e=>{
   else if(t.id==='logout'){ logout(); route(); toast('Vous êtes déconnecté'); }
 });
 dlg.addEventListener('click',e=>{ if(e.target===dlg) dlg.close(); });
+dlg.addEventListener('close',()=>{ posMap=dropMap(posMap); });
 
 document.addEventListener('change',e=>{
   if(e.target.name==='type'&&e.target.closest('#proposeForm')){ const cf=document.querySelector('#proposeForm .codefield'); const st=e.target.value==='magasin'; cf.hidden=st; cf.querySelector('input').required=!st; }
@@ -1530,6 +1681,8 @@ document.addEventListener('change',e=>{
   if(id==='dirCom'){ dirState.com=e.target.value; drawDirectory(); }
   if(id==='dirSort'){ dirState.sort=e.target.value; drawDirectory(); }
   if(id==='dirDeals'){ dirState.deals=e.target.checked; drawDirectory(); }
+  if(id==='mapCom'){ mapState.com=e.target.value; drawMapList(); if(storeMap) fitShops(); }
+  if(e.target.name==='typeVente'&&e.target.closest('#editBizForm')){ const box=document.getElementById('posBox'); box.hidden=e.target.value==='en-ligne'; if(!box.hidden&&posMap) setTimeout(()=>posMap.invalidateSize(),50); }
   if(e.target.name==='biz'&&e.target.closest('#claimForm')){ const nb=document.querySelector('#claimForm .newbiz'); if(nb){ nb.hidden=e.target.value!=='__new__'; nb.querySelector('input').required=!nb.hidden; } }
 });
 document.addEventListener('input',e=>{
@@ -1622,8 +1775,10 @@ document.addEventListener('submit',async e=>{
   else if(f.id==='editBizForm'){
     e.preventDefault(); const b=ownerOf(f.dataset.biz); if(!b) return;
     const d=Object.fromEntries(new FormData(f)); const t=k=>String(d[k]||'').trim();
+    const online=d.typeVente==='en-ligne'; const pos=online?null:parsePos(t('position'));
+    if(!online&&t('position')&&!pos){ document.getElementById('editErr').textContent='Position GPS non reconnue : placez le point sur la carte ou utilisez le format « -12.78, 45.22 ».'; return; }
     const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Envoi…';
-    sendToWix('ModificationsFiches',{nomEntreprise:b.name,entreprise:b.id,statut:'En attente',description:t('description'),adresse:t('adresse'),commune:d.commune?comBy(d.commune).name:'',telephone:t('telephone'),siteWeb:t('siteWeb'),email:t('email'),horaires:t('horaires'),membreId:me().id,membreNom:me().name})
+    sendToWix('ModificationsFiches',{typeVente:d.typeVente||'',position:posStr(pos),nomEntreprise:b.name,entreprise:b.id,statut:'En attente',description:t('description'),adresse:t('adresse'),commune:d.commune?comBy(d.commune).name:'',telephone:t('telephone'),siteWeb:t('siteWeb'),email:t('email'),horaires:t('horaires'),membreId:me().id,membreNom:me().name})
       .then(()=>{ dlg.close(); toast('Merci ! Vos modifications seront en ligne après vérification.'); loadMine().then(()=>{ if(location.hash.startsWith('#/profil')) refresh(); }); })
       .catch(ex=>{ console.warn(ex); btn.disabled=false; btn.textContent='Envoyer les modifications'; toast(ex.status===401||ex.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'); });
   }
