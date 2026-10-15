@@ -207,3 +207,10 @@ Flow ElevenLabs : `r6yzBajnNDgxG4ck0qDb`. La voix Rakoto (`LwXmJOoCvgC7Oo043IW7`
 **Audio** : voix Kenzy complète décalée de 0,8 s, musique Arcads en fond. Extraits audio envoyés pour le lip-sync : `2b17249e-504f-4a26-a506-8efafca5e632` (ligne 1) et `cc49f810-bf38-46a1-a81c-66bfcc2505fd` (lignes 4-5).
 
 **Méthode lip-sync à réutiliser** : Wan 2.7 (`wan2_7`), image de départ (`start_image`) + extrait audio (`audio_references`), 1080p, environ 15 crédits pour 6 s.
+
+## Version 3 — sans la mention « IMAGE VIRTUELLE » à l'écran (15/10/2026)
+
+Même montage que la v2, sans la mention à l'écran (re-rendu sans nouvelle génération, 0 crédit).
+- Higgsfield media_id : `ec052a52-63bc-450f-ab72-01d0dbf974c1`
+- Lien : https://d2ol7oe51mr4n9.cloudfront.net/user_3KViSTlmVjujrQsgUSoKurKeoeU/ec052a52-63bc-450f-ab72-01d0dbf974c1.mp4
+- À la publication : garder « Image virtuelle » dans la légende et activer l'étiquette « contenu généré par IA » de la plateforme.
