@@ -184,3 +184,26 @@ La voix Seed Audio n'a pas été retenue. Trois prises ElevenLabs (modèle `elev
 Flow ElevenLabs : `r6yzBajnNDgxG4ck0qDb`. La voix Rakoto (`LwXmJOoCvgC7Oo043IW7`) n'a pas pu être générée : quota ElevenLabs épuisé (54 crédits restants, 327 nécessaires par prise).
 
 **Voix retenue : Kenzy** (`xclXfpLYbMIBNgiHTm8S`, fichier `videos/voix_01/kenzy.mp3`). Montage final réalisé par le créateur.
+
+## Version 2 — voix Kenzy + synchronisation labiale (15/10/2026)
+
+**Vidéo finale** : 19,2 s, 1080 × 1920, 30 im/s.
+- Higgsfield media_id : `5b795b41-fcf8-4639-bd42-e05820b51580`
+- Lien : https://d2ol7oe51mr4n9.cloudfront.net/user_3KViSTlmVjujrQsgUSoKurKeoeU/5b795b41-fcf8-4639-bd42-e05820b51580.mp4
+
+**Principe** : Naël parle face caméra (lip-sync) sur la première et la dernière réplique ; voix off sur les plans sans visage parlant (mains, dos, paysages).
+
+| Temps | Plan | Texte |
+|---|---|---|
+| 0–0,8 s | Gros plan yeux (hook) | — |
+| 0,8–2,95 s | **Lip-sync L1** (Wan 2.7, `9bd4b9c1-4c2e-466f-9826-0624d8a6cbbc`) | « On me demande toujours d'où viennent mes yeux. » |
+| 2,95–4,35 s | Ponton | « Mon père est mahorais. » |
+| 4,35–5,95 s | Bol de matcha | « Ma mère est japonaise. » |
+| 5,95–8,5 s | Marche vers le lagon | « Et moi, j'ai grandi ici, à Mayotte, » |
+| 8,5–12,6 s | Baobab | « entre le lagon, le shimaoré… et le thé vert de ma mère. » |
+| 12,6–17,75 s | **Lip-sync L2** (Wan 2.7, `bd3ec1ae-81e5-4c78-a4f8-83cb8bfd74a1`) | « Je m'appelle Naël… On se retrouve au lagon. » |
+| 17,75–19,2 s | Sourire final (boucle) | — |
+
+**Audio** : voix Kenzy complète décalée de 0,8 s, musique Arcads en fond. Extraits audio envoyés pour le lip-sync : `2b17249e-504f-4a26-a506-8efafca5e632` (ligne 1) et `cc49f810-bf38-46a1-a81c-66bfcc2505fd` (lignes 4-5).
+
+**Méthode lip-sync à réutiliser** : Wan 2.7 (`wan2_7`), image de départ (`start_image`) + extrait audio (`audio_references`), 1080p, environ 15 crédits pour 6 s.
