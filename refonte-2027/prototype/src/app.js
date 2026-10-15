@@ -229,7 +229,7 @@ function renderFooter() {
       </ul></details>
     </div>
     <div class="foot__bottom"><div class="pay" aria-label="Moyens de paiement"><span>VISA</span><span>MASTERCARD</span><span>AMEX</span><span>PAYPAL</span><span>ESPÈCES EN BOUTIQUE</span></div>
-      <span>© 2027 Zarahissi · Mamoudzou, Mayotte · Paiement sécurisé avec SumUp, Wix et PayPal</span></div>
+      <span>© 2027 Zarahissi · Mamoudzou, Mayotte · Paiement sécurisé avec SumUp, Wix et PayPal</span><span>Prototype de démonstration : produits, prix et tarifs fictifs, aucune commande réelle.</span></div>
   </div>`;
 }
 function mountSearch() {
