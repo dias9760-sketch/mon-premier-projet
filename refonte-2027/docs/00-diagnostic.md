@@ -22,7 +22,7 @@
 2. **Une palette marine, sable et crème** sobre et reconnaissable, qui sert de base à toutes les directions.
 3. **L'ancrage dans les îles** : la bannière « Mayotte, Réunion, Comores… » crée un lien affectif fort avec la clientèle.
 4. **Une réassurance déjà présente** (paiement sécurisé, livraison suivie, expédition DOM, retrait sur place).
-5. **Des catégories en visuels ronds** (Collier, Bracelet, Montres) et le **programme Ambassadeur**, de bons leviers de fidélité.
+5. **Une vraie preuve sociale et des outils de fidélité** : photos des « commandes clients » sur la carte Zarahissi, vidéos des ambassadrices, Zarahissi Fidelity, parrainage, blog et FAQ complète. Peu de boutiques à petit prix en ont autant.
 
 ## 5 irritants à corriger
 
@@ -30,7 +30,7 @@
 2. **Un texte défilant tronqué en haut à gauche** (« …tiniqueLivraison : Mayotte - France - La ré… ») : peu lisible et donne une impression de bug.
 3. **Trop de styles mélangés** : quatre familles typographiques, des icônes de réassurance très lourdes, des stickers colorés dans la bannière. L'ensemble paraît moins haut de gamme que le logo.
 4. **Aucun produit visible au-dessus de la ligne de flottaison** : il faut faire défiler bannière et réassurance avant de voir un bijou ou un prix. Sur mobile, c'est encore plus long.
-5. **Peu d'appels à l'action** : un seul bouton « Découvrir », sans destination claire ; recherche petite, aucune barre de navigation mobile, un widget de chat qui masque le contenu.
+5. **Trois codes promo à retenir** (LIVGRA, MOINS5, MOINS10) et des titres en image au pinceau doré qui alourdissent la page. **Peu d'appels à l'action** : un seul bouton « Découvrir », sans destination claire ; recherche petite, aucune barre de navigation mobile, un widget de chat qui masque le contenu.
 
 ## Ce que la refonte doit garantir
 
