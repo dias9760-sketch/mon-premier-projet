@@ -518,3 +518,32 @@ a.deallink:hover{text-decoration:underline}
 .caisse-deal{font-family:var(--display);font-size:2.6rem;font-weight:800;color:var(--corail);line-height:1}
 .caisse-meta{font-weight:600}
 .caisse-brand{font-size:.8rem;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px;width:100%}
+
+/* ---------- v14 : filtres, espace pro enrichi ---------- */
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.sel{display:grid;gap:4px;font-size:.8rem;font-weight:600;color:var(--muted);flex:1 1 150px;max-width:240px}
+.sel select{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:9px 10px;font-weight:600;color:var(--ink);width:100%}
+.check{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:.9rem;padding:9px 4px;cursor:pointer}
+.check input{width:18px;height:18px;accent-color:var(--lagon-700)}
+@media (max-width:519px){.sel{flex:1 1 calc(50% - 10px);max-width:none}}
+.delta{display:block;font-weight:600;font-size:.75rem;color:var(--muted)}
+.delta.up{color:var(--vert)}
+.delta.down{color:var(--corail)}
+.stat small{display:block}
+.chart{margin:0;background:var(--soft);border:1px solid var(--line);border-radius:18px;padding:14px}
+.chart figcaption{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;font-size:.82rem;color:var(--muted);margin-bottom:10px}
+.chart .lg{width:10px;height:10px;border-radius:3px;display:inline-block}
+.lg-v,.bars .v{background:var(--soleil)}
+.lg-c,.bars .c{background:var(--turquoise)}
+.bars{display:flex;align-items:flex-end;gap:2px;height:120px}
+.bars .day{flex:1;height:100%;position:relative;display:flex;align-items:flex-end;justify-content:center}
+.bars .v{position:absolute;bottom:0;left:0;right:0;border-radius:3px 3px 0 0;min-height:1px}
+.bars .c{position:absolute;bottom:0;left:30%;right:30%;border-radius:2px 2px 0 0}
+.chart .axis{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);margin-top:6px}
+.insights{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media (min-width:700px){.insights{grid-template-columns:repeat(4,1fr)}}
+.insights>div{background:var(--soft);border:1px solid var(--line);border-radius:16px;padding:12px;display:grid;gap:2px}
+.insights span,.insights small{font-size:.78rem;color:var(--muted)}
+.insights strong{font-family:var(--display);font-size:1.05rem}
+.insights strong::first-letter{text-transform:uppercase}
+a.li{text-decoration:none;color:inherit}

@@ -229,7 +229,7 @@ async function handleAuthState(res){
   return 'error';
 }
 let pendingState=null;
-function logout(){ AUTH=null; saveAuth(); MINE={proposals:[],claims:[]}; }
+function logout(){ AUTH=null; saveAuth(); MINE={proposals:[],claims:[],edits:[],events:[]}; }
 
 // reCAPTCHA exigé par Wix pour l'inscription et la connexion (clés Wix, script « enterprise »).
 const RC_INVISIBLE='6LdoPaUfAAAAAJphvHoUoOob7mx0KDlXyXlgrx5v', RC_VISIBLE='6Ld0J8IcAAAAANyrnxzrRlX1xrrdXsOmsepUYosy';
@@ -322,7 +322,7 @@ async function loadData(){
     while(used.has(slug)) slug+='-2';
     used.add(slug); idToSlug[e._id]=slug;
     const owners=String(e.proprietaire||'').split(/[\s,;]+/).filter(Boolean);
-    return {slug,id:e._id,name:e.nom,cat:catFrom(e.categorie),commune:communeFrom(e.commune),desc:e.description||'',addr:e.adresse||'',phone:e.telephone||'',web:e.siteWeb||'',email:e.email||'',logo:imgUrl(e.logo),owners};
+    return {slug,id:e._id,name:e.nom,cat:catFrom(e.categorie),commune:communeFrom(e.commune),desc:e.description||'',addr:e.adresse||'',phone:e.telephone||'',web:e.siteWeb||'',email:e.email||'',hours:e.horaires||'',logo:imgUrl(e.logo),owners};
   }).sort((a,b)=>a.name.localeCompare(b.name,'fr'));
   B=list; bizId={}; Object.keys(idToSlug).forEach(id=>bizId[idToSlug[id]]=id);
   VOTES=votes.filter(v=>v.code&&(v.sens==='up'||v.sens==='down')).map(v=>({id:v._id,code:v.code,dir:v.sens,owner:v._owner,at:dateFrom(v._updatedDate||v._createdDate)||TODAY}));
@@ -345,9 +345,9 @@ async function sendToWix(collection,data){
 }
 
 /* ---------- Données du membre connecté ---------- */
-let MINE={proposals:[],claims:[]};
+let MINE={proposals:[],claims:[],edits:[],events:[]};
 async function loadMine(){
-  if(!me()){ MINE={proposals:[],claims:[]}; return; }
+  if(!me()){ MINE={proposals:[],claims:[],edits:[],events:[]}; return; }
   try{
     const items=await queryAll('PropositionsCodes');
     MINE.proposals=items.map(p=>({id:p._id,biz:B.find(b=>b.id===refId(p.entreprise))?.slug||'',code:p.code,deal:p.avantage||'',exp:p.dateExpiration||'',status:statutFrom(p.statut==='Traité'?'valide':p.statut),created:dateFrom(p._createdDate)||TODAY})).sort((a,b)=>b.created-a.created);
@@ -356,6 +356,9 @@ async function loadMine(){
     const cl=await queryAll('DemandesEntreprises');
     MINE.claims=cl.map(c=>({id:c._id,name:c.nomEntreprise||'',entreprise:refId(c.entreprise)||'',status:c.statut||'Nouvelle',at:stamp(c._createdDate)})).sort((a,b)=>b.at-a.at);
   }catch(e){ console.warn('Demandes indisponibles',e); }
+  const [edits,evs]=await Promise.all([queryAll('ModificationsFiches').catch(()=>[]),queryAll('EvenementsProposes').catch(()=>[])]);
+  MINE.edits=edits.map(x=>({id:x._id,entreprise:refId(x.entreprise)||'',status:x.statut||'En attente',at:stamp(x._createdDate)})).sort((a,b)=>b.at-a.at);
+  MINE.events=evs.map(x=>({id:x._id,entreprise:refId(x.entreprise)||'',title:x.titre||'',date:dateFrom(x.date),at:stamp(x._createdDate)})).sort((a,b)=>b.at-a.at);
 }
 
 /* ---------- Statistiques pour l'espace pro ---------- */
@@ -540,7 +543,7 @@ function pageHome(){
 
   <section class="block">
     <div class="wrap">
-      <div class="head"><div><h2>Nouveautés</h2><p class="muted">Les derniers bons plans ajoutés.</p></div><a class="link" href="#/codes?f=new">Voir les nouveautés</a></div>
+      <div class="head"><div><h2>Nouveautés</h2><p class="muted">Les derniers bons plans ajoutés.</p></div><a class="link" href="#/codes?tri=nouveaux">Voir les nouveautés</a></div>
       <div class="rail">${news.map(c=>coupon(c)).join('')}</div>
     </div>
   </section>
@@ -589,30 +592,41 @@ function pageHome(){
   </section>`;
 }
 
-let dirState={q:'',cat:''};
+const selOpts=(list,cur)=>list.map(([v,l])=>`<option value="${esc(v)}"${v===cur?' selected':''}>${esc(l)}</option>`).join('');
+const communeOpts=slugs=>[['','Toutes les communes'],...COMMUNES.filter(c=>slugs.has(c.slug)).sort((a,z)=>a.name.localeCompare(z.name,'fr')).map(c=>[c.slug,c.name])];
+let dirState={q:'',cat:'',com:'',sort:'az',deals:false};
 function pageDirectory(params){
-  dirState={q:params.get('q')||'',cat:params.get('cat')||''};
+  dirState={q:params.get('q')||'',cat:params.get('cat')||'',com:params.get('c')||'',sort:params.get('tri')==='codes'?'codes':'az',deals:params.get('bonsplans')==='1'};
   return `<div class="wrap">
     <div class="pagehead"><h1>Entreprises</h1><p class="muted">Toutes les entreprises référencées sur Bonszahé.</p></div>
     <div class="toolbar">
       <label class="field">${ic('search')}<span class="sr">Rechercher une entreprise</span><input id="dirQ" type="search" placeholder="Nom, activité…" value="${esc(dirState.q)}"></label>
+      <div class="filters">
+        <label class="sel"><span>Commune</span><select id="dirCom">${selOpts(communeOpts(new Set(B.map(b=>b.commune))),dirState.com)}</select></label>
+        <label class="sel"><span>Trier par</span><select id="dirSort">${selOpts([['az','Nom (A → Z)'],['codes','Plus de bons plans']],dirState.sort)}</select></label>
+        <label class="check"><input type="checkbox" id="dirDeals"${dirState.deals?' checked':''}> Avec bons plans en cours</label>
+        <button class="btn btn-ghost btn-sm" id="dirReset" type="button">Réinitialiser</button>
+      </div>
       <div class="chips" role="group" aria-label="Filtrer par catégorie">
         <button class="chip" data-dircat="" aria-pressed="${!dirState.cat}">Toutes</button>
         ${CATS.map(c=>`<button class="chip" data-dircat="${c.slug}" aria-pressed="${dirState.cat===c.slug}">${c.name}</button>`).join('')}
       </div>
     </div>
-    <p class="results" id="dirCount"></p>
+    <p class="results" id="dirCount" aria-live="polite"></p>
     <div class="bizgrid" id="dirList"></div>
     <div class="u7"></div>
   </div>`;
 }
 function drawDirectory(){
   const q=norm(dirState.q);
-  const list=B.filter(b=>(!dirState.cat||b.cat===dirState.cat)&&(!q||norm(b.name+' '+b.desc+' '+catBy(b.cat).name).includes(q)));
-  document.getElementById('dirCount').textContent=`${list.length} entreprise${list.length>1?'s':''}`;
-  const cat=catBy(dirState.cat);
+  const list=B.filter(b=>(!dirState.cat||b.cat===dirState.cat)&&(!dirState.com||b.commune===dirState.com)&&(!dirState.deals||codesOf(b.slug).length)&&(!q||norm(b.name+' '+b.desc+' '+catBy(b.cat).name).includes(q)));
+  if(dirState.sort==='codes') list.sort((a,z)=>codesOf(z.slug).length-codesOf(a.slug).length||a.name.localeCompare(z.name,'fr'));
+  const active=dirState.cat||dirState.com||dirState.deals||q||dirState.sort!=='az';
+  document.getElementById('dirReset').hidden=!active;
+  document.getElementById('dirCount').textContent=`${list.length} entreprise${list.length>1?'s':''}${dirState.com?' à '+comBy(dirState.com).name:''}`;
+  const cat=catBy(dirState.cat); const only=cat&&!q&&!dirState.com&&!dirState.deals;
   document.getElementById('dirList').innerHTML=list.length?list.map(bizCard).join(''):
-    `<div class="u5">${empty(cat&&!q?`Aucune entreprise ${cat.name.toLowerCase()} pour l’instant`:'Aucune entreprise trouvée',cat&&!q?'Cette catégorie attend ses premières entreprises. Vous en connaissez une ?':'Essayez un autre mot ou une autre catégorie.',`<button class="btn btn-primary" data-claim="">Ajouter une entreprise</button>`)}</div>`;
+    `<div class="u5">${empty(only?`Aucune entreprise ${cat.name.toLowerCase()} pour l’instant`:'Aucune entreprise trouvée',only?'Cette catégorie attend ses premières entreprises. Vous en connaissez une ?':'Essayez un autre mot ou d’autres filtres.',`<button class="btn btn-primary" data-claim="">Ajouter une entreprise</button>`)}</div>`;
 }
 
 function pageBusiness(slug){
@@ -645,6 +659,7 @@ function pageBusiness(slug){
       ${b.addr?`<div>${ic('pin')}<span>${esc(b.addr)}${b.commune?`<br><a class="link" href="#/carte?c=${b.commune}">Voir ${esc(comBy(b.commune).name)} sur la carte</a>`:''}</span></div>`:`<div>${ic('pin')}<span class="muted">Adresse à compléter</span></div>`}
       ${b.web?`<a href="${esc(b.web)}" target="_blank" rel="noopener" data-track="site" data-trackbiz="${slug}">${ic('globe')}<span>${esc(b.web.replace(/^https?:\/\/(www\.)?/,'').replace(/\/$/,''))}</span></a>`:''}
       ${b.phone?`<a href="tel:${esc(b.phone.replace(/\s/g,''))}" data-track="appel" data-trackbiz="${slug}">${ic('call')}<span>${esc(b.phone)}</span></a>`:`<div>${ic('call')}<span class="muted">Téléphone à compléter</span></div>`}
+      ${b.hours?`<div>${ic('clock')}<span>${esc(b.hours)}</span></div>`:''}
     </div>
 
     <div class="bpage">
@@ -667,11 +682,15 @@ function pageBusiness(slug){
           <p>Partagez-le avec la communauté.</p>
           <button class="u24 btn btn-sun" data-propose="${slug}">${ic('plus')}Proposer un code promo</button>
         </div>
-        <div class="card">
+        ${me()&&b.owners.includes(me().id)?`<div class="card">
+          <h3>Vous gérez cette fiche</h3>
+          <p class="muted">Mettez à jour vos informations, annoncez un événement et suivez vos statistiques.</p>
+          <div class="bandbtns"><button class="btn btn-ghost btn-sm" data-editbiz="${slug}">Modifier ma fiche</button><button class="btn btn-ghost btn-sm" data-proevent="${slug}">Annoncer un événement</button><a class="btn btn-ghost btn-sm" href="#/profil">Mes statistiques</a></div>
+        </div>`:`<div class="card">
           <h3>Vous êtes le propriétaire ?</h3>
           <p class="muted">Revendiquez la fiche pour publier vos offres officielles et suivre vos statistiques : vues de la page, codes copiés, clics.</p>
           <button class="u23 btn btn-ghost" data-claim="${slug}">Revendiquer cette entreprise</button>
-        </div>
+        </div>`}
       </aside>
     </div>
     <div class="u7"></div>
@@ -679,21 +698,30 @@ function pageBusiness(slug){
   <button class="btn btn-sun fab" data-propose="${slug}">${ic('plus')}Proposer un code</button>`;
 }
 
-let codeState={q:'',cat:'',f:'all'};
+const CODE_SORTS=[['tendance','Tendance'],['chauds','Les plus chauds 🔥'],['nouveaux','Nouveautés'],['expire','Expire bientôt'],['fiables','Les plus confirmés']];
+let codeState={q:'',cat:'',com:'',type:'',sort:'tendance',verified:false};
 function pageCodes(params){
-  codeState={q:params.get('q')||'',cat:params.get('cat')||'',f:params.get('f')||'all'};
-  const segs=[['all','Tous'],['new','Nouveautés'],['soon','Expire bientôt'],['verified','Codes vérifiés']];
+  const f=params.get('f')||'';
+  codeState={q:params.get('q')||'',cat:params.get('cat')||'',com:params.get('c')||'',type:['code','magasin'].includes(params.get('type'))?params.get('type'):'',
+    sort:f==='new'?'nouveaux':f==='soon'?'expire':CODE_SORTS.some(x=>x[0]===params.get('tri'))?params.get('tri'):'tendance',verified:f==='verified'};
+  const act=activeCodes();
   return `<div class="wrap">
-    <div class="pagehead"><h1>Codes promo</h1><p class="muted">Tous les bons plans valables aujourd'hui à Mayotte. Les codes expirés disparaissent automatiquement.</p></div>
+    <div class="pagehead"><h1>Codes promo et offres</h1><p class="muted">Tous les bons plans valables aujourd'hui à Mayotte. Les offres expirées disparaissent automatiquement.</p></div>
     <div class="toolbar">
       <label class="field">${ic('search')}<span class="sr">Rechercher un code</span><input id="codeQ" type="search" placeholder="Entreprise, réduction, livraison…" value="${esc(codeState.q)}"></label>
-      <div class="seg" role="group" aria-label="Trier les codes">${segs.map(([k,l])=>`<button data-seg="${k}" aria-pressed="${codeState.f===k}">${l}</button>`).join('')}</div>
+      <div class="filters">
+        <label class="sel"><span>Trier par</span><select id="codeSort">${selOpts(CODE_SORTS,codeState.sort)}</select></label>
+        <label class="sel"><span>Type d’offre</span><select id="codeType">${selOpts([['','Tous les bons plans'],['code','Codes promo'],['magasin','Offres en magasin']],codeState.type)}</select></label>
+        <label class="sel"><span>Commune</span><select id="codeCom">${selOpts(communeOpts(new Set(act.map(c=>bizBy(c.biz).commune))),codeState.com)}</select></label>
+        <label class="check"><input type="checkbox" id="codeVer"${codeState.verified?' checked':''}> Vérifiés uniquement</label>
+        <button class="btn btn-ghost btn-sm" id="codeReset" type="button">Réinitialiser</button>
+      </div>
       <div class="chips" role="group" aria-label="Filtrer par catégorie">
         <button class="chip" data-codecat="" aria-pressed="${!codeState.cat}">Toutes</button>
-        ${CATS.filter(c=>activeCodes().some(x=>bizBy(x.biz).cat===c.slug)).map(c=>`<button class="chip" data-codecat="${c.slug}" aria-pressed="${codeState.cat===c.slug}">${c.name}</button>`).join('')}
+        ${CATS.filter(c=>act.some(x=>bizBy(x.biz).cat===c.slug)).map(c=>`<button class="chip" data-codecat="${c.slug}" aria-pressed="${codeState.cat===c.slug}">${c.name}</button>`).join('')}
       </div>
     </div>
-    <p class="results" id="codeCount"></p>
+    <p class="results" id="codeCount" aria-live="polite"></p>
     <div class="coupons" id="codeList"></div>
     <div class="u7"></div>
   </div>`;
@@ -703,18 +731,21 @@ function drawCodes(){
   let list=activeCodes().filter(c=>{
     const b=bizBy(c.biz);
     if(codeState.cat&&b.cat!==codeState.cat) return false;
+    if(codeState.com&&b.commune!==codeState.com) return false;
+    if(codeState.type==='magasin'&&!c.store) return false;
+    if(codeState.type==='code'&&c.store) return false;
+    if(codeState.verified&&!c.verified) return false;
     if(q&&!norm(b.name+' '+c.deal+' '+c.detail+' '+c.code).includes(q)) return false;
-    if(codeState.f==='new'&&!isNew(c)) return false;
-    if(codeState.f==='soon'&&daysLeft(c)>7) return false;
-    if(codeState.f==='verified'&&!c.verified) return false;
     return true;
   });
-  if(codeState.f==='soon') list.sort((a,b)=>a.exp-b.exp);
-  else if(codeState.f==='new') list.sort((a,b)=>b.added-a.added);
-  else list.sort((a,b)=>b.up-a.up);
-  document.getElementById('codeCount').textContent=`${list.length} code${list.length>1?'s':''} actif${list.length>1?'s':''}`;
+  const by={tendance:(a,z)=>hotScore(z)-hotScore(a),chauds:(a,z)=>z.heat-a.heat||z.moro-a.moro,nouveaux:(a,z)=>z.addedAt-a.addedAt,expire:(a,z)=>a.exp-z.exp,fiables:(a,z)=>(z.up-z.down)-(a.up-a.down)||z.up-a.up};
+  list.sort(by[codeState.sort]||by.tendance);
+  const active=codeState.cat||codeState.com||codeState.type||codeState.verified||q||codeState.sort!=='tendance';
+  document.getElementById('codeReset').hidden=!active;
+  const what=codeState.type==='magasin'?['offre','offres']:codeState.type==='code'?['code','codes']:['bon plan','bons plans'];
+  document.getElementById('codeCount').textContent=`${list.length} ${list.length>1?what[1]:what[0]}${codeState.com?' à '+comBy(codeState.com).name:''}`;
   document.getElementById('codeList').innerHTML=list.length?list.map(c=>coupon(c)).join(''):
-    `<div class="u5">${empty('Aucun code ne correspond','Changez de filtre ou proposez un code que vous connaissez.',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}</div>`;
+    `<div class="u5">${empty('Aucun bon plan ne correspond','Changez de filtre ou proposez un code que vous connaissez.',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}</div>`;
 }
 
 /* ---------- Pages À propos, Contact, Mentions légales, Confidentialité ---------- */
@@ -1075,25 +1106,101 @@ function pageProfile(){
   </div>`;
 }
 
-/* ---------- Espace pro : statistiques ---------- */
+/* ---------- Espace pro : statistiques, fiche et événements ---------- */
+const dayKey=d=>`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+const isCopy=t=>t==='copie'||t==='caisse';
+function deltaTxt(now,before){
+  if(!before) return now?'<small class="delta up">nouveau</small>':'';
+  const p=Math.round((now-before)/before*100);
+  return `<small class="delta ${p>0?'up':p<0?'down':''}">${p>0?'+':''}${p} % vs 30 j précédents</small>`;
+}
+function proChart(days){
+  const max=Math.max(1,...days.map(d=>d.views));
+  const tot=days.reduce((n,d)=>n+d.views,0), cop=days.reduce((n,d)=>n+d.copies,0);
+  return `<figure class="chart"><figcaption><span class="lg lg-v"></span>Vues <span class="lg lg-c"></span>Codes copiés / offres montrées</figcaption>
+    <div class="bars" role="img" aria-label="30 derniers jours : ${tot} vues et ${cop} codes copiés">${days.map(d=>{
+      const label=d.date.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+      return `<div class="day" title="${esc(label)} : ${d.views} vue${d.views>1?'s':''}, ${d.copies} copie${d.copies>1?'s':''}"><span class="v" style="height:${d.views/max*100}%"></span><span class="c" style="height:${Math.min(d.copies,max)/max*100}%"></span></div>`;}).join('')}</div>
+    <div class="axis"><span>${days[0].date.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</span><span>aujourd’hui</span></div></figure>`;
+}
 async function drawPro(){
   const el=document.getElementById('proDash'); if(!el||!me()) return;
-  const since=new Date(TODAY); since.setDate(since.getDate()-30);
+  const since=new Date(TODAY); since.setDate(since.getDate()-29);
+  const before=new Date(since); before.setDate(before.getDate()-30);
+  const week=Date.now()-7*864e5;
   const owned=B.filter(b=>b.owners.includes(me().id));
   const blocks=await Promise.all(owned.map(async b=>{
     let rows=[]; try{ rows=await queryAll('Statistiques',{entreprise:b.id}); }catch(e){ console.warn(e); }
-    const n=(t,recent)=>rows.filter(r=>(t==='copie'?(r.type==='copie'||r.type==='caisse'):r.type===t)&&(!recent||(dateFrom(r._createdDate)||TODAY)>=since)).length;
-    const tile=(t,label)=>`<div class="stat"><b>${n(t,true)}</b><span>${label}<br><small>${n(t)} au total</small></span></div>`;
-    const codes=allCodes().filter(c=>c.biz===b.slug).map(c=>({c,copies:rows.filter(r=>(r.type==='copie'||r.type==='caisse')&&r.code===c.id).length})).sort((a,z)=>z.copies-a.copies);
+    rows=rows.map(r=>({type:r.type,code:r.code,at:stamp(r._createdDate)}));
+    const match=(r,t)=>t==='copie'?isCopy(r.type):r.type===t;
+    const n=(t,from,to)=>rows.filter(r=>match(r,t)&&(!from||r.at>=from)&&(!to||r.at<to)).length;
+    const tile=(t,label)=>`<div class="stat"><b>${n(t,since)}</b><span>${label}</span>${deltaTxt(n(t,since),n(t,before,since))}<small>${n(t)} au total</small></div>`;
+    const days=Array.from({length:30},(_,i)=>{ const d=new Date(since); d.setDate(d.getDate()+i); return {date:d,key:dayKey(d),views:0,copies:0}; });
+    const idx={}; days.forEach(d=>idx[d.key]=d);
+    rows.forEach(r=>{ const d=idx[dayKey(r.at)]; if(!d) return; if(r.type==='vue') d.views++; else if(isCopy(r.type)) d.copies++; });
+    const best=days.reduce((a,d)=>d.views+d.copies>a.views+a.copies?d:a,days[0]);
+    const wk=[0,0,0,0,0,0,0]; rows.filter(r=>r.at>=since).forEach(r=>wk[r.at.getDay()]++);
+    const wkBest=wk.indexOf(Math.max(...wk));
+    const all=allCodes().filter(c=>c.biz===b.slug);
+    const live=all.filter(c=>c.status==='valide'&&daysLeft(c)>=0&&!flagged(c));
+    const avgHeat=live.length?Math.round(live.reduce((n,c)=>n+c.heat,0)/live.length*10)/10:0;
+    const codes=all.map(c=>({c,copies:rows.filter(r=>isCopy(r.type)&&r.code===c.id).length})).sort((a,z)=>z.copies-a.copies);
+    const ids=new Set(all.map(c=>c.id));
+    const recent=COMMENTS.filter(cm=>ids.has(cm.code)&&cm.at>=week&&!isHidden(cm)&&!b.owners.includes(cm.owner)).sort((a,z)=>z.at-a.at);
+    const edits=MINE.edits.filter(x=>x.entreprise===b.id&&x.status!=='Appliquée').slice(0,3);
+    const evs=MINE.events.filter(x=>x.entreprise===b.id&&x.date&&x.date>=TODAY&&!EVENTS.some(e=>e.biz===b.slug&&e.title===x.title)).slice(0,3);
+    const hasData=rows.some(r=>r.at>=since);
     return `<div class="card pro">
       <div class="lvhead">${logo(b,'md')}<div><strong>${esc(b.name)}</strong><small class="muted">30 derniers jours</small></div><a class="btn btn-ghost btn-sm" href="#/entreprises/${b.slug}">Voir ma fiche</a></div>
+      <div class="bandbtns"><button class="btn btn-sun btn-sm" data-propose="${b.slug}">${ic('plus')}Publier une offre</button><button class="btn btn-ghost btn-sm" data-editbiz="${b.slug}">Modifier ma fiche</button><button class="btn btn-ghost btn-sm" data-proevent="${b.slug}">Annoncer un événement</button></div>
+      ${edits.length||evs.length?`<div class="list">${edits.map(x=>`<div class="li"><div class="grow"><strong>Modification de la fiche</strong><small>Envoyée le ${fmt(x.at)}</small></div><span class="pill ${x.status==='Refusée'?'no':'wait'}">${x.status==='Refusée'?'Refusée':'En vérification'}</span></div>`).join('')}${evs.map(x=>`<div class="li"><div class="grow"><strong>${esc(x.title)}</strong><small>Événement du ${fmt(x.date)}</small></div><span class="pill wait">En vérification</span></div>`).join('')}</div>`:''}
       <div class="stats four">${tile('vue','Vues de la fiche')}${tile('copie','Codes copiés / offres montrées')}${tile('site','Clics vers le site')}${tile('appel','Appels')}</div>
-      <h3>Vos codes</h3>
-      ${codes.length?`<div class="list">${codes.map(({c,copies})=>`<div class="li"><div class="grow"><strong>${esc(c.code)}</strong> ${esc(c.deal)}<small>${copies} copie${copies>1?'s':''} · chaleur ${c.heat} (${c.moro} Moro, ${c.maji} Maji) · ${c.up} « fonctionne » · ${c.down} « ne fonctionne plus »${daysLeft(c)<0?' · expiré':flagged(c)?' · masqué (signalé)':''}</small></div></div>`).join('')}</div>`:'<p class="muted">Aucun code pour le moment.</p>'}
-      <div class="bandbtns"><button class="btn btn-sun btn-sm" data-propose="${b.slug}">${ic('plus')}Publier une offre officielle</button><button class="btn btn-ghost btn-sm" data-toast="Envoyez votre événement à Bonszahé via « Revendiquer / contact » : il sera publié dans l’onglet Événements.">Annoncer un événement</button></div>
+      ${hasData?proChart(days):'<p class="muted">Les statistiques jour par jour apparaîtront dès les premières visites de votre fiche.</p>'}
+      <div class="insights">
+        ${hasData?`<div><span>Meilleur jour</span><strong>${best.date.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}</strong><small>${best.views} vue${best.views>1?'s':''}, ${best.copies} copie${best.copies>1?'s':''}</small></div>
+        <div><span>Jour le plus actif</span><strong>${['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'][wkBest]}</strong><small>sur les 30 derniers jours</small></div>`:''}
+        <div><span>Chaleur moyenne de vos offres</span><strong>${live.length?(avgHeat>0?'+':'')+avgHeat+' '+(avgHeat<0?'💧':'🔥'):'—'}</strong><small>${live.length?live.length+' offre'+(live.length>1?'s':'')+' en ligne':'aucune offre en ligne'}</small></div>
+        <div><span>Commentaires (7 jours)</span><strong>${recent.length}</strong><small>sur vos offres</small></div>
+      </div>
+      ${recent.length?`<h3>Derniers commentaires</h3><div class="list">${recent.slice(0,5).map(cm=>{ const c=all.find(x=>x.id===cm.code); return `<a class="li" href="#/bon-plan/${encodeURIComponent(cm.code)}"><div class="grow"><strong>${esc(cm.name||'Membre')}</strong> <small class="muted">${ago(cm.at)} · ${esc(c.deal)}</small><small>${esc(cm.text.slice(0,140))}${cm.text.length>140?'…':''}</small></div><span class="pill">Répondre</span></a>`; }).join('')}</div>`:''}
+      <h3>Vos offres</h3>
+      ${codes.length?`<div class="list">${codes.map(({c,copies})=>`<div class="li"><div class="grow"><strong>${c.store?'Offre en magasin':esc(c.code)}</strong> ${esc(c.deal)}<small>${copies} ${c.store?'affichage'+(copies>1?'s':'')+' en caisse':'copie'+(copies>1?'s':'')} · chaleur ${c.heat} (${c.moro} Moro, ${c.maji} Maji) · ${c.up} « fonctionne » · ${c.down} « ne fonctionne plus » · ${countComments(c.id)} commentaire${countComments(c.id)>1?'s':''}${daysLeft(c)<0?' · expirée':flagged(c)?' · masquée (signalée)':''}</small></div></div>`).join('')}</div>`:'<p class="muted">Aucune offre pour le moment.</p>'}
     </div>`;
   }));
   el.innerHTML=blocks.join('');
+}
+const ownerOf=slug=>{ const b=bizBy(slug); return b&&me()&&b.owners.includes(me().id)?b:null; };
+const isoDay=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const communeSelect=(name,cur)=>`<select name="${name}">${selOpts([['','Choisir'],...[...COMMUNES].sort((a,z)=>a.name.localeCompare(z.name,'fr')).map(c=>[c.slug,c.name])],cur)}</select>`;
+function editBizDialog(slug){
+  const b=ownerOf(slug); if(!b){ toast('Seul le gestionnaire de la fiche peut la modifier.'); return; }
+  const pending=MINE.edits.find(x=>x.entreprise===b.id&&x.status==='En attente');
+  openDialog(`<header><div><h2 id="dlgTitle">Modifier ${esc(b.name)}</h2><p class="u14 note">Vos changements sont vérifiés par Bonszahé puis publiés sur votre fiche.</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+  ${pending?`<p class="authmsg">Une modification envoyée le ${fmt(pending.at)} est en cours de vérification. Une nouvelle demande la remplacera.</p>`:''}
+  <form class="form" id="editBizForm" data-biz="${b.slug}">
+    <label>Description<textarea name="description" maxlength="600" rows="4">${esc(b.desc)}</textarea></label>
+    <div class="two"><label>Adresse<input name="adresse" maxlength="160" value="${esc(b.addr)}" autocomplete="street-address"></label><label>Commune${communeSelect('commune',b.commune)}</label></div>
+    <label>Horaires d’ouverture <span class="opt">(facultatif)</span><input name="horaires" maxlength="160" value="${esc(b.hours)}" placeholder="Lun-Ven 8h-17h, Sam 8h-12h"></label>
+    <div class="two"><label>Téléphone<input name="telephone" type="tel" maxlength="30" value="${esc(b.phone)}"></label><label>E-mail de contact<input name="email" type="email" maxlength="120" value="${esc(b.email)}"></label></div>
+    <label>Site web <span class="opt">(facultatif)</span><input name="siteWeb" type="url" maxlength="200" value="${esc(b.web)}" placeholder="https://"></label>
+    <p class="note">Pour changer votre logo, envoyez-le via la <a class="link" href="#/contact">page Contact</a>.</p>
+    <button class="btn btn-primary" type="submit">Envoyer les modifications</button>
+  </form>`);
+}
+function proEventDialog(slug){
+  const b=ownerOf(slug); if(!b){ toast('Seul le gestionnaire de la fiche peut annoncer un événement.'); return; }
+  const min=isoDay(TODAY);
+  openDialog(`<header><div><h2 id="dlgTitle">Annoncer un événement</h2><p class="u14 note">Vente privée, animation, ouverture… Il apparaîtra dans l’agenda et sur votre fiche après vérification.</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+  <form class="form" id="proEventForm" data-biz="${b.slug}">
+    <label>Titre<input name="titre" required maxlength="90" placeholder="Ex. Grande braderie de fin d’année"></label>
+    <div class="two"><label>Date<input name="date" type="date" required min="${min}"></label><label>Date de fin <span class="opt">(facultatif)</span><input name="dateFin" type="date" min="${min}"></label></div>
+    <div class="two"><label>Heure <span class="opt">(facultatif)</span><input name="heure" maxlength="40" placeholder="9h - 18h"></label><label>Commune${communeSelect('commune',b.commune)}</label></div>
+    <label>Lieu <span class="opt">(facultatif)</span><input name="lieu" maxlength="120" value="${esc(b.addr)}"></label>
+    <label>Description<textarea name="description" maxlength="600" rows="3" required></textarea></label>
+    <label>Lien <span class="opt">(facultatif)</span><input name="lien" type="url" maxlength="200" placeholder="https://"></label>
+    <p class="note err" id="evErr" role="alert"></p>
+    <button class="btn btn-primary" type="submit">Envoyer l’événement</button>
+  </form>`);
 }
 
 /* ---------- Classement ---------- */
@@ -1392,6 +1499,10 @@ document.addEventListener('click',async e=>{
   else if(t.dataset.commune){ selectCommune(t.dataset.commune); }
   else if(t.dataset.propose!==undefined){ proposeDialog(t.dataset.propose); }
   else if(t.dataset.claim!==undefined){ claimDialog(t.dataset.claim); }
+  else if(t.dataset.editbiz){ editBizDialog(t.dataset.editbiz); }
+  else if(t.dataset.proevent){ proEventDialog(t.dataset.proevent); }
+  else if(t.id==='codeReset'){ location.hash='#/codes'; route(); }
+  else if(t.id==='dirReset'){ location.hash='#/entreprises'; route(); }
   else if(t.hasAttribute('data-close')){ dlg.close(); }
   else if(t.dataset.toast){ e.preventDefault(); toast(t.dataset.toast); }
   else if(t.dataset.authmode){ authMode=t.dataset.authmode; pendingState=null; redrawAuth(); }
@@ -1405,13 +1516,20 @@ document.addEventListener('click',async e=>{
   }
   else if(t.dataset.dircat!==undefined){ dirState.cat=t.dataset.dircat; document.querySelectorAll('[data-dircat]').forEach(b=>b.setAttribute('aria-pressed',b===t)); drawDirectory(); }
   else if(t.dataset.codecat!==undefined){ codeState.cat=t.dataset.codecat; document.querySelectorAll('[data-codecat]').forEach(b=>b.setAttribute('aria-pressed',b===t)); drawCodes(); }
-  else if(t.dataset.seg){ codeState.f=t.dataset.seg; document.querySelectorAll('[data-seg]').forEach(b=>b.setAttribute('aria-pressed',b===t)); drawCodes(); }
   else if(t.id==='logout'){ logout(); route(); toast('Vous êtes déconnecté'); }
 });
 dlg.addEventListener('click',e=>{ if(e.target===dlg) dlg.close(); });
 
 document.addEventListener('change',e=>{
   if(e.target.name==='type'&&e.target.closest('#proposeForm')){ const cf=document.querySelector('#proposeForm .codefield'); const st=e.target.value==='magasin'; cf.hidden=st; cf.querySelector('input').required=!st; }
+  const id=e.target.id;
+  if(id==='codeSort'){ codeState.sort=e.target.value; drawCodes(); }
+  if(id==='codeType'){ codeState.type=e.target.value; drawCodes(); }
+  if(id==='codeCom'){ codeState.com=e.target.value; drawCodes(); }
+  if(id==='codeVer'){ codeState.verified=e.target.checked; drawCodes(); }
+  if(id==='dirCom'){ dirState.com=e.target.value; drawDirectory(); }
+  if(id==='dirSort'){ dirState.sort=e.target.value; drawDirectory(); }
+  if(id==='dirDeals'){ dirState.deals=e.target.checked; drawDirectory(); }
   if(e.target.name==='biz'&&e.target.closest('#claimForm')){ const nb=document.querySelector('#claimForm .newbiz'); if(nb){ nb.hidden=e.target.value!=='__new__'; nb.querySelector('input').required=!nb.hidden; } }
 });
 document.addEventListener('input',e=>{
@@ -1500,6 +1618,23 @@ document.addEventListener('submit',async e=>{
     const btn=f.querySelector('button[type=submit]'); btn.disabled=true;
     try{ const r=await sendToWix('Signalements',{commentaire:cid,motif}); REPORTS.push({id:r.dataItem&&r.dataItem.id,comment:cid,owner:me().id}); dlg.close(); refresh(); toast('Merci, le commentaire est signalé.'); }
     catch(err){ console.warn(err); btn.disabled=false; toast('Signalement impossible. Réessayez.'); }
+  }
+  else if(f.id==='editBizForm'){
+    e.preventDefault(); const b=ownerOf(f.dataset.biz); if(!b) return;
+    const d=Object.fromEntries(new FormData(f)); const t=k=>String(d[k]||'').trim();
+    const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Envoi…';
+    sendToWix('ModificationsFiches',{nomEntreprise:b.name,entreprise:b.id,statut:'En attente',description:t('description'),adresse:t('adresse'),commune:d.commune?comBy(d.commune).name:'',telephone:t('telephone'),siteWeb:t('siteWeb'),email:t('email'),horaires:t('horaires'),membreId:me().id,membreNom:me().name})
+      .then(()=>{ dlg.close(); toast('Merci ! Vos modifications seront en ligne après vérification.'); loadMine().then(()=>{ if(location.hash.startsWith('#/profil')) refresh(); }); })
+      .catch(ex=>{ console.warn(ex); btn.disabled=false; btn.textContent='Envoyer les modifications'; toast(ex.status===401||ex.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'); });
+  }
+  else if(f.id==='proEventForm'){
+    e.preventDefault(); const b=ownerOf(f.dataset.biz); if(!b) return;
+    const d=Object.fromEntries(new FormData(f)); const t=k=>String(d[k]||'').trim();
+    if(d.dateFin&&d.dateFin<d.date){ document.getElementById('evErr').textContent='La date de fin doit être après la date de début.'; return; }
+    const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Envoi…';
+    sendToWix('EvenementsProposes',Object.assign({titre:t('titre'),date:d.date,heure:t('heure'),commune:d.commune?comBy(d.commune).name:'',lieu:t('lieu'),description:t('description'),lien:t('lien'),entreprise:b.id,membreId:me().id,membreNom:me().name},d.dateFin?{dateFin:d.dateFin}:{}))
+      .then(()=>{ dlg.close(); toast('Merci ! Votre événement sera publié après vérification.'); loadMine().then(()=>{ if(location.hash.startsWith('#/profil')) refresh(); }); })
+      .catch(ex=>{ console.warn(ex); btn.disabled=false; btn.textContent='Envoyer l’événement'; toast(ex.status===401||ex.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'); });
   }
   else if(f.id==='claimForm'){
     e.preventDefault(); if(!me()) return;
