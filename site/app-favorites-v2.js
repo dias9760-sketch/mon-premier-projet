@@ -101,9 +101,11 @@ const WIX_CLIENT_ID='5ead703b-03d1-45f5-8049-74802f2b86f2';
 const API='https://www.wixapis.com';
 let baseCodes=[];
 let bizId={};
+let EVENTS=[];
+let VOTES=[];
 let dataSource='snapshot';
 let tokenPromise=null;
-function getToken(){
+function getVisitorToken(){
   if(!tokenPromise){
     tokenPromise=(async()=>{
       try{ const t=JSON.parse(localStorage.getItem('bonszahe:token')||'null'); if(t&&t.exp>Date.now()+60000) return t.access; }catch(e){}
@@ -117,16 +119,83 @@ function getToken(){
   }
   return tokenPromise;
 }
-async function wix(path,body){
-  const tok=await getToken();
-  const r=await fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json','Authorization':tok},body:JSON.stringify(body)});
-  if(!r.ok) throw new Error(path+' '+r.status+' '+(await r.text()).slice(0,200));
-  return r.json();
+
+/* ---------- Compte membre (connexion sécurisée Wix) ---------- */
+const AUTH_KEY='bonszahe:member';
+let AUTH=null; // {access, refresh, exp, member:{id,name,email}}
+try{ AUTH=JSON.parse(localStorage.getItem(AUTH_KEY)||'null'); }catch(e){}
+const saveAuth=()=>{ try{ AUTH?localStorage.setItem(AUTH_KEY,JSON.stringify(AUTH)):localStorage.removeItem(AUTH_KEY); }catch(e){} };
+const me=()=>AUTH&&AUTH.member;
+async function getToken(){
+  if(!AUTH) return getVisitorToken();
+  if(AUTH.exp>Date.now()+60000) return AUTH.access;
+  const r=await fetch(API+'/oauth2/token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clientId:WIX_CLIENT_ID,grantType:'refresh_token',refreshToken:AUTH.refresh})});
+  if(!r.ok){ AUTH=null; saveAuth(); return getVisitorToken(); }
+  const j=await r.json();
+  AUTH.access=j.access_token; AUTH.exp=Date.now()+(j.expires_in||14400)*1000; if(j.refresh_token) AUTH.refresh=j.refresh_token; saveAuth();
+  return AUTH.access;
 }
-async function queryAll(collection){
+async function call(method,path,body,tok){
+  const auth=tok||await getToken();
+  const r=await fetch(API+path,{method,headers:{'Content-Type':'application/json','Authorization':auth},body:body===undefined?undefined:JSON.stringify(body)});
+  const txt=await r.text();
+  let j={}; try{ j=txt?JSON.parse(txt):{}; }catch(e){}
+  if(!r.ok){ const err=new Error(path+' '+r.status+' '+txt.slice(0,200)); err.status=r.status; err.data=j; throw err; }
+  return j;
+}
+const wix=(path,body)=>call('POST',path,body);
+
+const b64url=buf=>btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const randomStr=()=>b64url(crypto.getRandomValues(new Uint8Array(32)));
+// Transforme le sessionToken (connexion ou inscription) en jetons membre, via un iframe invisible (PKCE).
+async function finishLogin(sessionToken){
+  const verifier=randomStr(), state=randomStr();
+  const challenge=b64url(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(verifier)));
+  const visitor=await getVisitorToken();
+  const rs=await call('POST','/_api/redirects-api/v1/redirect-session',{auth:{authRequest:{clientId:WIX_CLIENT_ID,codeChallenge:challenge,codeChallengeMethod:'S256',responseMode:'web_message',responseType:'code',scope:'offline_access',state,sessionToken}}},visitor);
+  const code=await new Promise((resolve,reject)=>{
+    const frame=document.createElement('iframe'); frame.style.display='none'; frame.title='Connexion';
+    const timer=setTimeout(()=>{ cleanup(); reject(new Error('timeout')); },20000);
+    function cleanup(){ clearTimeout(timer); window.removeEventListener('message',onMsg); frame.remove(); }
+    function onMsg(e){
+      let d=e.data; if(typeof d==='string'){ try{ d=JSON.parse(d); }catch(_){ return; } }
+      if(!d||d.state!==state) return;
+      cleanup(); d.code?resolve(d.code):reject(new Error(d.error||'auth'));
+    }
+    window.addEventListener('message',onMsg);
+    frame.src=rs.redirectSession.fullUrl; document.body.appendChild(frame);
+  });
+  const t=await call('POST','/oauth2/token',{clientId:WIX_CLIENT_ID,grantType:'authorization_code',code,codeVerifier:verifier},visitor);
+  AUTH={access:t.access_token,refresh:t.refresh_token,exp:Date.now()+(t.expires_in||14400)*1000,member:null};
+  const m=(await call('GET','/members/v1/members/my',undefined,t.access_token)).member||{};
+  const p=m.profile||{};
+  AUTH.member={id:m.id,name:p.nickname||[p.firstName,p.lastName].filter(Boolean).join(' ')||(m.loginEmail||'').split('@')[0]||'Membre',email:m.loginEmail||''};
+  saveAuth();
+  await loadMine();
+}
+// Gère la réponse de Login V2 / Register V2 / Verify : SUCCESS, vérification e-mail ou approbation.
+async function handleAuthState(res){
+  if(res.state==='SUCCESS'&&res.sessionToken){ await finishLogin(res.sessionToken); return 'ok'; }
+  if(res.state==='REQUIRE_EMAIL_VERIFICATION'){ pendingState=res.stateToken; return 'verify'; }
+  if(res.state==='REQUIRE_OWNER_APPROVAL') return 'approval';
+  return 'error';
+}
+let pendingState=null;
+function logout(){ AUTH=null; saveAuth(); MINE={proposals:[]}; }
+function authError(err){
+  const code=JSON.stringify(err&&err.data||{});
+  if(/IDENTITY_NOT_FOUND|not.?found/i.test(code)) return 'Aucun compte avec cet e-mail. Créez votre compte.';
+  if(/INVALID_PASSWORD|wrong.?password|credentials/i.test(code)) return 'E-mail ou mot de passe incorrect.';
+  if(/ALREADY_EXISTS|EMAIL_ALREADY/i.test(code)) return 'Un compte existe déjà avec cet e-mail. Connectez-vous.';
+  if(/PASSWORD/i.test(code)) return 'Mot de passe trop faible : 6 caractères minimum.';
+  if(/RESET_PASSWORD|CODE/i.test(code)) return 'Code incorrect ou expiré.';
+  return 'Connexion impossible pour le moment. Réessayez dans un instant.';
+}
+
+async function queryAll(collection,filter){
   let out=[],offset=0;
   for(let i=0;i<20;i++){
-    const j=await wix('/wix-data/v2/items/query',{dataCollectionId:collection,query:{paging:{limit:1000,offset}},returnTotalCount:true});
+    const j=await wix('/wix-data/v2/items/query',{dataCollectionId:collection,query:Object.assign({paging:{limit:1000,offset}},filter?{filter}:{}),returnTotalCount:true});
     const items=(j.dataItems||[]).map(x=>x.data||{});
     out=out.concat(items);
     const total=j.pagingMetadata&&j.pagingMetadata.total;
@@ -151,40 +220,83 @@ function dateFrom(v){
   const d=new Date(raw); return isNaN(d)?null:d;
 }
 function statutFrom(v){ const k=key(v); if(k.includes('attente')) return 'attente'; if(k.includes('refus')) return 'refuse'; return 'valide'; }
+// Champ Image du CMS (wix:image://v1/<id>/<nom>…) ou URL classique -> URL affichable
+function imgUrl(v){
+  if(!v) return '';
+  const s=typeof v==='object'?(v.url||v.src||''):String(v);
+  const m=s.match(/^wix:image:\/\/v1\/([^/#]+)/);
+  if(m) return 'https://static.wixstatic.com/media/'+m[1];
+  return /^https?:\/\//.test(s)?s:'';
+}
+const refId=v=>typeof v==='object'&&v?v._id:v;
 async function loadData(){
-  const [ents,codes]=await Promise.all([queryAll('Entreprises'),queryAll('CodesPromo')]);
+  const [ents,codes,votes,events]=await Promise.all([
+    queryAll('Entreprises'),queryAll('CodesPromo'),
+    queryAll('Votes').catch(()=>[]),queryAll('Evenements').catch(()=>[])
+  ]);
   const idToSlug={}; const used=new Set();
   const list=ents.filter(e=>e.publiee!==false&&e.nom).map(e=>{
     let slug=slugify(e.slug||e.nom)||String(e._id);
     while(used.has(slug)) slug+='-2';
     used.add(slug); idToSlug[e._id]=slug;
-    return {slug,name:e.nom,cat:catFrom(e.categorie),commune:communeFrom(e.commune),desc:e.description||'',addr:e.adresse||'',phone:e.telephone||'',web:e.siteWeb||'',email:e.email||''};
+    const owners=String(e.proprietaire||'').split(/[\s,;]+/).filter(Boolean);
+    return {slug,id:e._id,name:e.nom,cat:catFrom(e.categorie),commune:communeFrom(e.commune),desc:e.description||'',addr:e.adresse||'',phone:e.telephone||'',web:e.siteWeb||'',email:e.email||'',logo:imgUrl(e.logo),owners};
   }).sort((a,b)=>a.name.localeCompare(b.name,'fr'));
   B=list; bizId={}; Object.keys(idToSlug).forEach(id=>bizId[idToSlug[id]]=id);
-  baseCodes=codes.filter(c=>c.code&&idToSlug[typeof c.entreprise==='object'&&c.entreprise?c.entreprise._id:c.entreprise]).map(c=>{
+  VOTES=votes.filter(v=>v.code&&(v.sens==='up'||v.sens==='down')).map(v=>({id:v._id,code:v.code,dir:v.sens,owner:v._owner,at:dateFrom(v._updatedDate||v._createdDate)||TODAY}));
+  baseCodes=codes.filter(c=>c.code&&idToSlug[refId(c.entreprise)]).map(c=>{
     const exp=dateFrom(c.dateExpiration);
-    return {id:c._id,biz:idToSlug[typeof c.entreprise==='object'?c.entreprise._id:c.entreprise],deal:c.avantage||'Bon plan',detail:c.detail||'',code:String(c.code).trim(),cond:c.conditions||'',exp:exp||inDays(3650),noExp:!exp,verified:!!c.verifie,up:+c.votesOui||0,down:+c.votesNon||0,added:dateFrom(c._createdDate)||TODAY,status:statutFrom(c.statut),link:c.lienOffre||''};
+    return {id:c._id,biz:idToSlug[refId(c.entreprise)],deal:c.avantage||'Bon plan',detail:c.detail||'',code:String(c.code).trim(),cond:c.conditions||'',exp:exp||inDays(3650),noExp:!exp,verified:!!c.verifie,baseUp:+c.votesOui||0,baseDown:+c.votesNon||0,added:dateFrom(c._createdDate)||TODAY,status:statutFrom(c.statut),link:c.lienOffre||'',by:c.contributeur||'',byName:c.contributeurNom||''};
   });
+  EVENTS=events.filter(e=>e.publie!==false&&e.titre&&dateFrom(e.date)).map(e=>({
+    id:e._id,title:e.titre,date:dateFrom(e.date),end:dateFrom(e.dateFin),time:e.heure||'',commune:communeFrom(e.commune),communeName:e.commune||'',place:e.lieu||'',desc:e.description||'',img:imgUrl(e.image),link:e.lien||'',biz:idToSlug[refId(e.entreprise)]||''
+  })).sort((a,b)=>a.date-b.date);
   dataSource='wix';
 }
 async function sendToWix(collection,data){
   return wix('/wix-data/v2/items',{dataCollectionId:collection,dataItem:{data}});
 }
 
-/* ---------- État local (favoris, votes, propositions) ---------- */
-const KEY='bonszahe:v2';
-let S = {favs:[],votes:{},proposals:[],user:null,claims:[]};
-try{ const raw=localStorage.getItem(KEY); if(raw) S=Object.assign(S,JSON.parse(raw)); }catch(e){}
-const save=()=>{ try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){} };
+/* ---------- Données du membre connecté ---------- */
+let MINE={proposals:[]};
+async function loadMine(){
+  if(!me()){ MINE={proposals:[]}; return; }
+  try{
+    const items=await queryAll('PropositionsCodes');
+    MINE.proposals=items.map(p=>({id:p._id,biz:B.find(b=>b.id===refId(p.entreprise))?.slug||'',code:p.code,deal:p.avantage||'',exp:p.dateExpiration||'',status:statutFrom(p.statut==='Traité'?'valide':p.statut),created:dateFrom(p._createdDate)||TODAY})).sort((a,b)=>b.created-a.created);
+  }catch(e){ console.warn('Propositions indisponibles',e); }
+}
 
+/* ---------- Statistiques pour l'espace pro ---------- */
+function track(type,slug,codeId){
+  const id=bizId[slug]; if(!id) return;
+  if(type==='vue'){ const k='bonszahe:vu:'+id; try{ if(sessionStorage.getItem(k)) return; sessionStorage.setItem(k,'1'); }catch(e){} }
+  sendToWix('Statistiques',Object.assign({type,entreprise:id},codeId?{code:codeId}:{})).catch(()=>{});
+}
+
+/* ---------- État local (favoris) ---------- */
+const KEY='bonszahe:v2';
+let S = {favs:[]};
+try{ const raw=localStorage.getItem(KEY); if(raw) S.favs=JSON.parse(raw).favs||[]; }catch(e){}
+const save=()=>{ try{localStorage.setItem(KEY,JSON.stringify({favs:S.favs}))}catch(e){} };
+
+// Un avis par membre et par code : on garde le plus récent.
+function voteMap(){
+  const last={};
+  VOTES.forEach(v=>{ const k=v.code+'|'+v.owner; if(!last[k]||last[k].at<=v.at) last[k]=v; });
+  const out={};
+  Object.values(last).forEach(v=>{ const o=out[v.code]||(out[v.code]={up:0,down:0}); o[v.dir]++; });
+  return out;
+}
+const myVote=codeId=>me()&&VOTES.filter(v=>v.code===codeId&&v.owner===me().id).sort((a,b)=>b.at-a.at)[0];
+// Masqué automatiquement quand la communauté le signale : au moins 3 « ne fonctionne plus » et plus de non que de oui.
+const flagged=c=>c.down>=3&&c.down>c.up;
 function allCodes(){
-  return baseCodes.map(c=>{
-    const v=S.votes[c.id];
-    return Object.assign({},c,{up:c.up+(v==='up'?1:0),down:c.down+(v==='down'?1:0)});
-  });
+  const vm=voteMap();
+  return baseCodes.map(c=>{ const v=vm[c.id]||{up:0,down:0}; return Object.assign({},c,{up:c.baseUp+v.up,down:c.baseDown+v.down}); });
 }
 const daysLeft = c => Math.round((c.exp - TODAY)/864e5);
-const activeCodes = () => allCodes().filter(c=>c.status==='valide' && daysLeft(c)>=0);
+const activeCodes = () => allCodes().filter(c=>c.status==='valide' && daysLeft(c)>=0 && !flagged(c));
 const codesOf = slug => activeCodes().filter(c=>c.biz===slug);
 const isNew = c => (TODAY - c.added)/864e5 <= 7;
 const fmt = d => d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
@@ -193,15 +305,16 @@ const norm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-
 
 /* ---------- Composants ---------- */
 function logo(b,size=''){
-  const c=catBy(b.cat).c;
+  if(b.logo) return `<span class="logo ${size} haslogo" aria-hidden="true"><img src="${esc(b.logo)}" alt="" loading="lazy"></span>`;
   const initials=b.name.replace(/[^A-Za-zÀ-ÿ0-9 ]/g,' ').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
   return `<span class="logo ${size} lg-${b.cat}" aria-hidden="true">${esc(initials)}</span>`;
 }
 const coverStyle = b => { const c=catBy(b.cat).c; return `--c1:${c[0]};--c2:${c[1]};--c3:${c[2]}`; };
 
 function coupon(c,{showBiz=true}={}){
-  const b=bizBy(c.biz); const left=daysLeft(c); const v=S.votes[c.id];
+  const b=bizBy(c.biz); const left=daysLeft(c); const mv=myVote(c.id); const v=mv&&mv.dir;
   const soon = !c.noExp && left<=7;
+  const official = c.by && b.owners && b.owners.includes(c.by);
   return `<article class="coupon">
     <div class="main">
       ${showBiz?`<a class="bizline" href="#/entreprises/${b.slug}">${logo(b)}<span>${esc(b.name)}</span></a>`:''}
@@ -211,14 +324,16 @@ function coupon(c,{showBiz=true}={}){
       <div class="meta">
         ${c.verified?`<span class="pill ok">${ic('check')}Code vérifié</span>`:''}
         ${soon?`<span class="pill soon">${ic('clock')}${left===0?'Dernier jour':left===1?'Plus qu’1 jour':'Plus que '+left+' jours'}</span>`:(c.noExp?`<span class="pill">${ic('clock')}Sans date limite</span>`:`<span class="pill">${ic('clock')}Expire le ${fmt(c.exp)}</span>`)}
+        ${official?`<span class="pill ok">${ic('store')}Offre officielle</span>`:''}
         ${isNew(c)?`<span class="pill wait">Nouveau</span>`:''}
       </div>
+      ${c.byName&&!official?`<p class="by">${ic('heart')}Partagé par <strong>${esc(c.byName)}</strong>, merci !</p>`:''}
     </div>
     <div class="perf" aria-hidden="true"></div>
     <div class="stub">
       <div class="coderow">
         <span class="code" aria-label="Code promo">${esc(c.code)}</span>
-        <button class="btn btn-primary btn-sm" data-copy="${esc(c.code)}">${ic('copy')}Copier le code</button>
+        <button class="btn btn-primary btn-sm" data-copy="${esc(c.code)}" data-copybiz="${b.slug}" data-copyid="${esc(c.id)}">${ic('copy')}Copier le code</button>
       </div>
       <div class="votes" role="group" aria-label="Ce code a-t-il fonctionné ?">
         <button class="vote up" data-vote="${c.id}" data-dir="up" aria-pressed="${v==='up'}">${ic('up')}Fonctionne (${c.up})</button>
@@ -322,6 +437,13 @@ function pageHome(){
     </div>
   </section>
 
+  ${upcomingEvents().length?`<section class="block alt">
+    <div class="wrap">
+      <div class="head"><div><h2>Prochains événements à Mayotte</h2><p class="muted">Marchés, soldes, fêtes et animations près de chez vous.</p></div><a class="link" href="#/evenements">Tous les événements</a></div>
+      <div class="events">${upcomingEvents().slice(0,3).map(eventCard).join('')}</div>
+    </div>
+  </section>`:''}
+
   <section class="block">
     <div class="wrap">
       <div class="head"><div><h2>Explorez Mayotte commune par commune</h2><p class="muted">Touchez une commune pour voir ses entreprises.</p></div><a class="link" href="#/carte">Ouvrir la carte</a></div>
@@ -347,12 +469,12 @@ function pageHome(){
     <div class="wrap stack">
       <div class="band community">
         <span class="u2 deco">${FLOWER}</span>
-        <div><h2>Vous connaissez un bon plan ?</h2><p>Partagez-le avec la communauté Bonszahé. Chaque code est vérifié avant publication.</p></div>
-        <button class="btn btn-primary" data-propose="">${ic('plus')}Proposer un code promo</button>
+        <div><h2>Vous connaissez un bon plan ?</h2><p>Partagez-le avec la communauté Bonszahé : il est publié tout de suite, avec votre pseudo. Gagnez des points et des badges à chaque code qui fonctionne.</p></div>
+        <div class="u24 bandbtns"><button class="btn btn-primary" data-propose="">${ic('plus')}Proposer un code promo</button><a class="btn btn-ghost" href="#/classement">${ic('badge')}Voir le classement</a></div>
       </div>
       <div class="band pro">
         <span class="u1 deco">${PALM_SMALL}</span>
-        <div><h2>Vous êtes une entreprise ?</h2><p>Faites découvrir votre activité aux habitants de Mayotte. Ajoutez ou revendiquez votre établissement.</p></div>
+        <div><h2>Vous êtes une entreprise ?</h2><p>Revendiquez votre fiche : publiez vos offres officielles et suivez combien de personnes voient votre page et copient vos codes.</p></div>
         <button class="btn btn-sun" data-claim="">${ic('store')}Ajouter ou revendiquer mon entreprise</button>
       </div>
     </div>
@@ -391,6 +513,7 @@ function pageBusiness(slug){
   const codes=codesOf(slug).sort((a,b)=>b.verified-a.verified||b.up-a.up);
   const verified=codes.some(c=>c.verified);
   const fav=S.favs.includes(slug);
+  const bizEvents=upcomingEvents().filter(e=>e.biz===slug);
   const similar=B.filter(x=>x.cat===b.cat&&x.slug!==slug).sort((a,z)=>codesOf(z.slug).length-codesOf(a.slug).length).slice(0,3);
   const cat=catBy(b.cat);
   return `<div class="wrap">
@@ -403,16 +526,16 @@ function pageBusiness(slug){
         <p class="tagline muted">${esc(cat.name)} &nbsp;|&nbsp; ${esc(b.desc)}</p>
       </div>
       <div class="bactions">
-        ${b.web?`<a class="btn btn-primary" href="${esc(b.web)}" target="_blank" rel="noopener">${ic('ext')}Visiter le site</a>`:''}
-        ${b.phone?`<a class="btn btn-ghost" href="tel:${esc(b.phone.replace(/\s/g,''))}">${ic('call')}Appeler</a>`:''}
+        ${b.web?`<a class="btn btn-primary" href="${esc(b.web)}" target="_blank" rel="noopener" data-track="site" data-trackbiz="${slug}">${ic('ext')}Visiter le site</a>`:''}
+        ${b.phone?`<a class="btn btn-ghost" href="tel:${esc(b.phone.replace(/\s/g,''))}" data-track="appel" data-trackbiz="${slug}">${ic('call')}Appeler</a>`:''}
         ${b.email?`<a class="btn btn-ghost" href="mailto:${esc(b.email)}">${ic('mail')}Contacter</a>`:''}
         <button class="iconbtn" data-fav="${slug}" aria-pressed="${fav}" aria-label="${fav?'Retirer des':'Ajouter aux'} favoris">${ic('heart')}</button>
       </div>
     </div>
     <div class="contact">
       ${b.addr?`<div>${ic('pin')}<span>${esc(b.addr)}${b.commune?`<br><a class="link" href="#/carte?c=${b.commune}">Voir ${esc(comBy(b.commune).name)} sur la carte</a>`:''}</span></div>`:`<div>${ic('pin')}<span class="muted">Adresse à compléter</span></div>`}
-      ${b.web?`<a href="${esc(b.web)}" target="_blank" rel="noopener">${ic('globe')}<span>${esc(b.web.replace(/^https?:\/\/(www\.)?/,'').replace(/\/$/,''))}</span></a>`:''}
-      ${b.phone?`<a href="tel:${esc(b.phone.replace(/\s/g,''))}">${ic('call')}<span>${esc(b.phone)}</span></a>`:`<div>${ic('call')}<span class="muted">Téléphone à compléter</span></div>`}
+      ${b.web?`<a href="${esc(b.web)}" target="_blank" rel="noopener" data-track="site" data-trackbiz="${slug}">${ic('globe')}<span>${esc(b.web.replace(/^https?:\/\/(www\.)?/,'').replace(/\/$/,''))}</span></a>`:''}
+      ${b.phone?`<a href="tel:${esc(b.phone.replace(/\s/g,''))}" data-track="appel" data-trackbiz="${slug}">${ic('call')}<span>${esc(b.phone)}</span></a>`:`<div>${ic('call')}<span class="muted">Téléphone à compléter</span></div>`}
     </div>
 
     <div class="bpage">
@@ -420,8 +543,9 @@ function pageBusiness(slug){
         <div>
           <div class="head"><div><h2>Codes promo ${esc(b.name)}</h2><p class="muted">${codes.length?codes.length+' bon'+(codes.length>1?'s':'')+' plan'+(codes.length>1?'s':'')+' disponible'+(codes.length>1?'s':''):'Aucun code actif pour le moment'}</p></div></div>
           ${codes.length?`<div class="coupons">${codes.map(c=>coupon(c,{showBiz:false})).join('')}</div>`:
-            empty('Pas encore de code pour '+esc(b.name),'Si vous en connaissez un, proposez-le : il apparaîtra ici après vérification.',`<button class="btn btn-sun" data-propose="${slug}">${ic('plus')}Proposer un code promo</button>`)}
+            empty('Pas encore de code pour '+esc(b.name),'Si vous en connaissez un, proposez-le : il apparaîtra ici immédiatement.',`<button class="btn btn-sun" data-propose="${slug}">${ic('plus')}Proposer un code promo</button>`)}
         </div>
+        ${bizEvents.length?`<div><div class="head"><h2>Événements ${esc(b.name)}</h2></div><div class="events">${bizEvents.map(eventCard).join('')}</div></div>`:''}
         <div class="card">
           <h3>À propos de ${esc(b.name)}</h3>
           <p>${esc(b.desc)}</p>
@@ -436,7 +560,7 @@ function pageBusiness(slug){
         </div>
         <div class="card">
           <h3>Vous êtes le propriétaire ?</h3>
-          <p class="muted">Revendiquez la fiche pour mettre à jour vos informations et publier vos promotions.</p>
+          <p class="muted">Revendiquez la fiche pour publier vos offres officielles et suivre vos statistiques : vues de la page, codes copiés, clics.</p>
           <button class="u23 btn btn-ghost" data-claim="${slug}">Revendiquer cette entreprise</button>
         </div>
       </aside>
@@ -519,39 +643,189 @@ function pageFavs(){
   </div>`;
 }
 
-function pageProfile(){
-  if(!S.user) return `<div class="u16 wrap">
-    <div class="pagehead"><h1>Mon espace</h1><p class="muted">Créez votre espace pour garder vos favoris et suivre les codes que vous proposez.</p></div>
-    <form class="card form" id="loginForm">
-      <label>Prénom<input name="name" required autocomplete="given-name"></label>
+/* ---------- Points, niveaux et badges ---------- */
+// Barème : 10 points par code publié, 2 points par « fonctionne » reçu sur ses codes, 1 point par avis donné.
+const LEVELS=[[0,'Nouveau membre'],[25,'Débrouillard'],[100,'Chasseur de bons plans'],[250,'Expert des bons plans'],[500,'Légende de l’île']];
+function statsFor(memberId){
+  const codes=allCodes().filter(c=>c.by===memberId&&c.status==='valide');
+  const upReceived=codes.reduce((s,c)=>s+c.up,0);
+  const votesGiven=new Set(VOTES.filter(v=>v.owner===memberId).map(v=>v.code)).size;
+  const cats=new Set(codes.map(c=>bizBy(c.biz).cat)).size;
+  const best=codes.reduce((m,c)=>Math.max(m,c.up),0);
+  return {codes,upReceived,votesGiven,cats,best,points:codes.length*10+upReceived*2+votesGiven};
+}
+const BADGES=[
+  {name:'Premier bon plan',desc:'Partager 1 code',icon:'plus',val:s=>[s.codes.length,1]},
+  {name:'Chasseur',desc:'Partager 5 codes',icon:'search',val:s=>[s.codes.length,5]},
+  {name:'Expert des codes',desc:'Partager 15 codes',icon:'badge',val:s=>[s.codes.length,15]},
+  {name:'Code en or',desc:'Un de vos codes confirmé 10 fois',icon:'up',val:s=>[s.best,10]},
+  {name:'Voix de la communauté',desc:'Donner 10 avis',icon:'check',val:s=>[s.votesGiven,10]},
+  {name:'Pilier Bonszahé',desc:'Donner 50 avis',icon:'heart',val:s=>[s.votesGiven,50]},
+  {name:'Explorateur',desc:'Des codes dans 3 catégories',icon:'grid',val:s=>[s.cats,3]}
+];
+function levelOf(p){ let i=0; LEVELS.forEach((l,j)=>{ if(p>=l[0]) i=j; }); return {name:LEVELS[i][1],next:LEVELS[i+1]}; }
+function leaderboard(){
+  const ids=[...new Set(baseCodes.filter(c=>c.by).map(c=>c.by))];
+  return ids.map(id=>{ const s=statsFor(id); const name=(baseCodes.find(c=>c.by===id&&c.byName)||{}).byName||'Membre'; return Object.assign({id,name},s); })
+    .filter(x=>x.points>0).sort((a,b)=>b.points-a.points);
+}
+function badgeGrid(s){
+  return `<div class="badges">${BADGES.map(bd=>{ const [v,goal]=bd.val(s); const ok=v>=goal; return `<div class="bdg${ok?' on':''}">
+    <span class="bic">${ic(bd.icon)}</span><strong>${bd.name}</strong><small>${ok?'Obtenu':`${bd.desc} (${Math.min(v,goal)}/${goal})`}</small></div>`; }).join('')}</div>`;
+}
+
+/* ---------- Connexion / inscription ---------- */
+let authMode='login', afterLogin=null;
+function authBox(msg=''){
+  if(pendingState) return `<div class="card form authcard">
+    <h3>Vérifiez votre e-mail</h3>
+    <p class="muted">Nous venons de vous envoyer un code à 6 chiffres. Saisissez-le pour activer votre compte.</p>
+    <form class="form" id="verifyForm">
+      <label>Code reçu par e-mail<input name="code" required inputmode="numeric" autocomplete="one-time-code" maxlength="8"></label>
+      <p class="note err" id="authErr" role="alert"></p>
+      <button class="btn btn-primary" type="submit">Valider</button>
+    </form></div>`;
+  const reg=authMode==='register';
+  return `<div class="card form authcard">
+    ${msg?`<p class="authmsg">${msg}</p>`:''}
+    <div class="seg" role="group" aria-label="Connexion ou inscription">
+      <button type="button" data-authmode="login" aria-pressed="${!reg}">Se connecter</button>
+      <button type="button" data-authmode="register" aria-pressed="${reg}">Créer un compte</button>
+    </div>
+    <form class="form" id="authForm">
+      ${reg?`<label>Pseudo <span class="opt">(affiché sur les codes que vous partagez)</span><input name="nick" required maxlength="30" autocomplete="nickname"></label>`:''}
       <label>E-mail<input name="email" type="email" required autocomplete="email"></label>
-      <button class="btn btn-primary" type="submit">Créer mon espace</button>
-      <p class="note">Démo : aucune donnée n’est envoyée, tout reste dans ce navigateur.</p>
-    </form>
+      <label>Mot de passe<input name="password" type="password" required minlength="6" autocomplete="${reg?'new-password':'current-password'}"></label>
+      <p class="note err" id="authErr" role="alert"></p>
+      <button class="btn btn-primary" type="submit">${reg?'Créer mon compte':'Se connecter'}</button>
+      ${reg?'':`<button type="button" class="linkbtn" data-forgot>Mot de passe oublié ?</button>`}
+      <p class="note">Connexion sécurisée par Wix : votre mot de passe n’est jamais stocké par Bonszahé.</p>
+    </form></div>`;
+}
+function requireLogin(msg,then){
+  if(me()) return true;
+  afterLogin=then; authMode='login';
+  openDialog(`<header><div><h2 id="dlgTitle">Connexion</h2></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>${authBox(msg)}`);
+  return false;
+}
+function redrawAuth(msg){
+  const inDlg=dlg.open&&dlgBody.querySelector('.authcard');
+  if(inDlg) dlgBody.querySelector('.authcard').outerHTML=authBox(msg);
+  else route();
+}
+
+/* ---------- Mon espace ---------- */
+function pageProfile(){
+  if(!me()) return `<div class="u16 wrap">
+    <div class="pagehead"><h1>Mon espace</h1><p class="muted">Créez votre compte pour partager des codes, donner votre avis, gagner des points et des badges.</p></div>
+    ${authBox()}
     <div class="u8"></div>
   </div>`;
-  const status={attente:['wait','Envoyé, en attente de validation'],valide:['ok','Publié'],refuse:['no','Refusé'],erreur:['no','Non envoyé']};
-  const pending=S.proposals.filter(p=>p.status==='attente');
+  const u=me(), s=statsFor(u.id), lv=levelOf(s.points);
+  const pct=lv.next?Math.round((s.points-LEVELS.find(l=>l[1]===lv.name)[0])/(lv.next[0]-LEVELS.find(l=>l[1]===lv.name)[0])*100):100;
+  const status={attente:['wait','En cours de publication'],valide:['ok','Publié'],refuse:['no','Refusé']};
+  const owned=B.filter(b=>b.owners.includes(u.id));
   return `<div class="u17 wrap">
-    <div class="pagehead"><h1>Bonjour ${esc(S.user.name)}</h1><p class="muted">${esc(S.user.email)}</p></div>
-    <div class="stats">
+    <div class="pagehead"><h1>Bonjour ${esc(u.name)}</h1><p class="muted">${esc(u.email)}</p></div>
+    <div class="card level">
+      <div class="lvhead"><span class="lvic">${ic('badge')}</span><div><small class="muted">Votre niveau</small><strong>${esc(lv.name)}</strong></div><b class="pts">${s.points} pts</b></div>
+      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></div>
+      <p class="note">${lv.next?`Encore ${lv.next[0]-s.points} points pour devenir « ${esc(lv.next[1])} ».`:'Niveau maximum atteint, bravo !'} 10 pts par code publié, 2 pts par « fonctionne » reçu, 1 pt par avis donné.</p>
+    </div>
+    <div class="stats four">
+      <div class="stat"><b>${s.codes.length}</b><span>Codes partagés</span></div>
+      <div class="stat"><b>${s.upReceived}</b><span>« Fonctionne » reçus</span></div>
+      <div class="stat"><b>${s.votesGiven}</b><span>Avis donnés</span></div>
       <div class="stat"><b>${S.favs.length}</b><span>Favoris</span></div>
-      <div class="stat"><b>${S.proposals.length}</b><span>Codes proposés</span></div>
-      <div class="stat"><b>${Object.keys(S.votes).length}</b><span>Avis donnés</span></div>
     </div>
     <div class="stack">
+      <div><div class="head"><h2>Mes badges</h2><a class="link" href="#/classement">Voir le classement</a></div>${badgeGrid(s)}</div>
       <div>
-        <div class="head"><h2>Mes propositions</h2><button class="btn btn-sun btn-sm" data-propose="">${ic('plus')}Proposer</button></div>
-        ${S.proposals.length?`<div class="list">${S.proposals.slice().reverse().map(p=>{const b=bizBy(p.biz);return `<div class="li">${logo(b)}<div class="grow"><strong>${esc(p.code)}</strong> ${esc(p.deal)}<small>${esc(b.name)}, expire le ${fmt(new Date(p.exp+'T00:00:00'))}</small></div><span class="pill ${status[p.status][0]}">${status[p.status][1]}</span></div>`}).join('')}</div>`:
-          empty('Vous n’avez proposé aucun code','Un code partagé aide toute la communauté.','')}
+        <div class="head"><h2>Mes codes partagés</h2><button class="btn btn-sun btn-sm" data-propose="">${ic('plus')}Proposer</button></div>
+        ${MINE.proposals.length?`<div class="list">${MINE.proposals.map(p=>{const b=bizBy(p.biz);const c=baseCodes.find(x=>x.by===u.id&&x.code===p.code&&x.biz===p.biz);const st=status[p.status]||status.attente;return `<div class="li">${logo(b)}<div class="grow"><strong>${esc(p.code)}</strong> ${esc(p.deal)}<small>${esc(b.name)}${p.exp?', expire le '+fmt(dateFrom(p.exp)):''}${c?` · ${allCodes().find(x=>x.id===c.id).up} « fonctionne »`:''}</small></div><span class="pill ${st[0]}">${st[1]}</span></div>`}).join('')}</div>`:
+          empty('Vous n’avez encore partagé aucun code','Un code partagé aide toute la communauté et vous rapporte 10 points.','')}
       </div>
-      <div class="card">
+      ${owned.length?`<div><div class="head"><h2>Espace pro</h2></div><div id="proDash" class="stack"><p class="muted">Chargement de vos statistiques…</p></div></div>`:
+      `<div class="card">
         <h3>Espace professionnel</h3>
-        <p class="muted">Bientôt : les entreprises pourront revendiquer leur fiche, modifier leurs informations et publier leurs promotions elles-mêmes.</p>
-        <button class="u10 btn btn-ghost" data-claim="">Revendiquer une entreprise</button>
-      </div>
+        <p class="muted">Vous gérez une entreprise ? Revendiquez sa fiche pour publier vos offres officielles et voir vos statistiques : vues de la page, codes copiés, clics vers votre site et appels.</p>
+        <button class="u10 btn btn-ghost" data-claim="">Revendiquer mon entreprise</button>
+      </div>`}
       <button class="u9 btn btn-ghost" id="logout">Se déconnecter</button>
     </div>
+    <div class="u8"></div>
+  </div>`;
+}
+
+/* ---------- Espace pro : statistiques ---------- */
+async function drawPro(){
+  const el=document.getElementById('proDash'); if(!el||!me()) return;
+  const since=new Date(TODAY); since.setDate(since.getDate()-30);
+  const owned=B.filter(b=>b.owners.includes(me().id));
+  const blocks=await Promise.all(owned.map(async b=>{
+    let rows=[]; try{ rows=await queryAll('Statistiques',{entreprise:b.id}); }catch(e){ console.warn(e); }
+    const n=(t,recent)=>rows.filter(r=>r.type===t&&(!recent||(dateFrom(r._createdDate)||TODAY)>=since)).length;
+    const tile=(t,label)=>`<div class="stat"><b>${n(t,true)}</b><span>${label}<br><small>${n(t)} au total</small></span></div>`;
+    const codes=allCodes().filter(c=>c.biz===b.slug).map(c=>({c,copies:rows.filter(r=>r.type==='copie'&&r.code===c.id).length})).sort((a,z)=>z.copies-a.copies);
+    return `<div class="card pro">
+      <div class="lvhead">${logo(b,'md')}<div><strong>${esc(b.name)}</strong><small class="muted">30 derniers jours</small></div><a class="btn btn-ghost btn-sm" href="#/entreprises/${b.slug}">Voir ma fiche</a></div>
+      <div class="stats four">${tile('vue','Vues de la fiche')}${tile('copie','Codes copiés')}${tile('site','Clics vers le site')}${tile('appel','Appels')}</div>
+      <h3>Vos codes</h3>
+      ${codes.length?`<div class="list">${codes.map(({c,copies})=>`<div class="li"><div class="grow"><strong>${esc(c.code)}</strong> ${esc(c.deal)}<small>${copies} copie${copies>1?'s':''} · ${c.up} « fonctionne » · ${c.down} « ne fonctionne plus »${daysLeft(c)<0?' · expiré':flagged(c)?' · masqué (signalé)':''}</small></div></div>`).join('')}</div>`:'<p class="muted">Aucun code pour le moment.</p>'}
+      <div class="bandbtns"><button class="btn btn-sun btn-sm" data-propose="${b.slug}">${ic('plus')}Publier une offre officielle</button><button class="btn btn-ghost btn-sm" data-toast="Envoyez votre événement à Bonszahé via « Revendiquer / contact » : il sera publié dans l’onglet Événements.">Annoncer un événement</button></div>
+    </div>`;
+  }));
+  el.innerHTML=blocks.join('');
+}
+
+/* ---------- Classement ---------- */
+function pageRanking(){
+  const lb=leaderboard().slice(0,50);
+  const mine=me()&&lb.findIndex(x=>x.id===me().id);
+  return `<div class="wrap">
+    <div class="pagehead"><h1>Classement de la communauté</h1><p class="muted">Merci à celles et ceux qui partagent leurs bons plans ! 10 pts par code publié, 2 pts par « fonctionne » reçu, 1 pt par avis donné.</p></div>
+    <div class="u13">${lb.length?`<ol class="ranking">${lb.map((x,i)=>`<li class="${me()&&x.id===me().id?'me':''}"><span class="rk">${i+1}</span><div class="grow"><strong>${esc(x.name)}</strong><small>${esc(levelOf(x.points).name)} · ${x.codes.length} code${x.codes.length>1?'s':''} partagé${x.codes.length>1?'s':''}</small></div><b>${x.points} pts</b></li>`).join('')}</ol>`:
+      empty('Le classement attend ses premiers chasseurs de bons plans','Partagez un code pour y apparaître.',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}
+    ${me()&&mine<0?`<p class="note">Vous n’apparaissez pas encore : partagez votre premier code !</p>`:''}</div>
+    <div class="u8"></div>
+  </div>`;
+}
+
+/* ---------- Événements locaux ---------- */
+const upcomingEvents=()=>EVENTS.filter(e=>(e.end||e.date)>=TODAY);
+function eventCard(e){
+  const b=e.biz&&bizBy(e.biz);
+  const when=e.date.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+(e.end&&e.end>e.date?' au '+e.end.toLocaleDateString('fr-FR',{day:'numeric',month:'long'}):'');
+  const where=[e.place,e.commune?comBy(e.commune).name:e.communeName].filter(Boolean).join(', ');
+  return `<article class="event">
+    ${e.img?`<img class="evimg" src="${esc(e.img)}" alt="" loading="lazy">`:''}
+    <div class="evbody">
+      <div class="evdate" aria-hidden="true"><b>${e.date.getDate()}</b><span>${e.date.toLocaleDateString('fr-FR',{month:'short'}).replace('.','')}</span></div>
+      <div class="grow">
+        <h3>${esc(e.title)}</h3>
+        <p class="evmeta">${ic('clock')}${esc(when)}${e.time?' · '+esc(e.time):''}</p>
+        ${where?`<p class="evmeta">${ic('pin')}${esc(where)}</p>`:''}
+        ${e.desc?`<p class="evdesc">${esc(e.desc)}</p>`:''}
+        <div class="evacts">
+          ${b?`<a class="bizline" href="#/entreprises/${b.slug}">${logo(b)}<span>${esc(b.name)}</span></a>`:''}
+          ${e.link?`<a class="btn btn-ghost btn-sm" href="${esc(e.link)}" target="_blank" rel="noopener">${ic('ext')}En savoir plus</a>`:''}
+        </div>
+      </div>
+    </div>
+  </article>`;
+}
+function pageEvents(params){
+  const sel=params.get('c')||'';
+  const all=upcomingEvents();
+  const list=all.filter(e=>!sel||e.commune===sel);
+  const coms=[...new Set(all.map(e=>e.commune).filter(Boolean))].map(comBy).sort((a,z)=>a.name.localeCompare(z.name,'fr'));
+  const groups={};
+  list.forEach(e=>{ const k=e.date.toLocaleDateString('fr-FR',{month:'long',year:'numeric'}); (groups[k]=groups[k]||[]).push(e); });
+  return `<div class="wrap">
+    <div class="pagehead"><h1>Événements à Mayotte</h1><p class="muted">Marchés, ventes privées, fêtes, concerts et animations des entreprises de l’île.</p></div>
+    ${coms.length>1?`<div class="chips" role="group" aria-label="Filtrer par commune"><a class="chip" href="#/evenements" aria-pressed="${!sel}">Toutes les communes</a>${coms.map(c=>`<a class="chip" href="#/evenements?c=${c.slug}" aria-pressed="${sel===c.slug}">${esc(c.name)}</a>`).join('')}</div>`:''}
+    <div class="u13">${list.length?Object.keys(groups).map(k=>`<h2 class="evmonth">${esc(k.charAt(0).toUpperCase()+k.slice(1))}</h2><div class="events">${groups[k].map(eventCard).join('')}</div>`).join(''):
+      empty('Aucun événement à venir pour l’instant','Vous organisez un marché, une vente privée ou une animation ? Faites-le savoir à la communauté.',`<button class="btn btn-primary" data-claim="">Annoncer un événement</button>`)}</div>
     <div class="u8"></div>
   </div>`;
 }
@@ -607,7 +881,9 @@ function route(){
   const p=parts[0]||'home';
   let html='', nav=p, title='Bonszahé — Acheter malin à Mayotte';
   if(p==='home') html=pageHome();
-  else if(p==='entreprises' && parts[1]){ html=pageBusiness(parts[1]); nav='entreprises'; const b=bizBy(parts[1]); if(b) title=`${b.name} : codes promo et bons plans | Bonszahé`; }
+  else if(p==='entreprises' && parts[1]){ html=pageBusiness(parts[1]); nav='entreprises'; const b=bizBy(parts[1]); if(b) title=`${b.name} : codes promo et bons plans | Bonszahé`; track('vue',parts[1]); }
+  else if(p==='evenements'){ html=pageEvents(params); title='Événements à Mayotte | Bonszahé'; }
+  else if(p==='classement'){ html=pageRanking(); nav='profil'; title='Classement de la communauté | Bonszahé'; }
   else if(p==='entreprises') html=pageDirectory(params);
   else if(p==='codes') html=pageCodes(params);
   else if(p==='categories') html=pageCategories();
@@ -621,7 +897,8 @@ function route(){
   if(p==='entreprises'&&!parts[1]) drawDirectory();
   if(p==='codes') drawCodes();
   document.querySelectorAll('[data-nav]').forEach(a=>{ a.getAttribute('data-nav')===nav?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current'); });
-  document.getElementById('loginBtn').textContent=S.user?S.user.name:'Connexion';
+  document.getElementById('loginBtn').textContent=me()?me().name:'Connexion';
+  if(p==='profil') drawPro();
   window.scrollTo(0,0);
   if(p==='recherche'&&!params.get('q')) document.getElementById('sq')?.focus();
 }
@@ -641,9 +918,10 @@ const dlg=document.getElementById('dlg'), dlgBody=document.getElementById('dlgBo
 function openDialog(html){ dlgBody.innerHTML=html; dlg.showModal(); dlgBody.querySelector('input,select,textarea')?.focus(); }
 
 function proposeDialog(slug){
+  if(!requireLogin('Connectez-vous pour partager un code : il sera publié avec votre pseudo et vous rapportera des points.',()=>proposeDialog(slug))) return;
   const b=slug&&bizBy(slug);
-  const min=TODAY.toISOString().slice(0,10);
-  openDialog(`<header><div><h2 id="dlgTitle">Proposer un code promo</h2><p class="u14 note">Votre code sera vérifié par l’équipe Bonszahé avant d’être publié.</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+  const t=new Date(); const min=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+  openDialog(`<header><div><h2 id="dlgTitle">Proposer un code promo</h2><p class="u14 note">Publié tout de suite sous le pseudo <strong>${esc(me().name)}</strong>. La communauté confirme ensuite s’il fonctionne.</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
   <form class="form" id="proposeForm">
     ${b?`<div class="for">${logo(b)}<div><small class="muted">Pour l’entreprise</small><br><strong>${esc(b.name)}</strong></div><input type="hidden" name="biz" value="${b.slug}"></div>`:
       `<label>Entreprise<select name="biz" required><option value="">Choisir une entreprise</option>${[...B].sort((a,z)=>a.name.localeCompare(z.name,'fr')).map(x=>`<option value="${x.slug}">${esc(x.name)}</option>`).join('')}</select></label>`}
@@ -651,12 +929,13 @@ function proposeDialog(slug){
       <label>Code<input class="u22" name="code" required placeholder="Ex. MAYOTTE20" maxlength="30"></label>
       <label>Avantage<input name="deal" required placeholder="-15 %, livraison offerte…" maxlength="60"></label>
     </div>
+    <label>Détail <span class="opt">(facultatif)</span><input name="detail" placeholder="Ex. 20 % sur tout le site" maxlength="120"></label>
     <label>Conditions <span class="opt">(facultatif)</span><textarea name="cond" placeholder="Montant minimum, produits exclus…"></textarea></label>
     <div class="two">
       <label>Date d’expiration<input name="exp" type="date" required min="${min}"></label>
       <label>Lien de l’offre <span class="opt">(facultatif)</span><input name="link" type="url" placeholder="https://"></label>
     </div>
-    <button class="btn btn-primary" type="submit">Envoyer pour validation</button>
+    <button class="btn btn-primary" type="submit">Publier le code</button>
   </form>`);
 }
 function claimDialog(slug){
@@ -665,7 +944,8 @@ function claimDialog(slug){
   <form class="form" id="claimForm">
     <label>Nom de l’entreprise<input name="name" required value="${b?esc(b.name):''}"></label>
     <div class="two"><label>Votre nom<input name="contact" required autocomplete="name"></label><label>Téléphone<input name="phone" type="tel" autocomplete="tel"></label></div>
-    <label>E-mail professionnel<input name="email" type="email" required autocomplete="email"></label>
+    <label>E-mail professionnel<input name="email" type="email" required autocomplete="email" value="${me()?esc(me().email):''}"></label>
+    ${me()?'':`<p class="note">Astuce : connectez-vous d’abord à votre compte Bonszahé, votre espace pro y sera rattaché.</p>`}
     <label>Message <span class="opt">(facultatif)</span><textarea name="msg" placeholder="Votre activité, votre site, vos promotions…"></textarea></label>
     <button class="btn btn-primary" type="submit">Envoyer la demande</button>
   </form>`);
@@ -673,18 +953,39 @@ function claimDialog(slug){
 
 document.addEventListener('click',e=>{ const z=e.target.closest('.map .zone'); if(z){ selectCommune(z.dataset.commune); } });
 document.addEventListener('keydown',e=>{ const z=e.target.closest&&e.target.closest('.map .zone'); if(z&&(e.key==='Enter'||e.key===' ')){ e.preventDefault(); selectCommune(z.dataset.commune); } });
+async function vote(id,dir){
+  const mv=myVote(id);
+  if(mv&&mv.dir===dir){
+    await call('DELETE',`/wix-data/v2/items/${encodeURIComponent(mv.id)}?dataCollectionId=Votes`);
+    VOTES=VOTES.filter(v=>v.id!==mv.id); return 'retire';
+  }
+  if(mv){
+    await call('PUT',`/wix-data/v2/items/${encodeURIComponent(mv.id)}`,{dataCollectionId:'Votes',dataItem:{data:{code:id,sens:dir}}});
+    mv.dir=dir; mv.at=new Date(); return dir;
+  }
+  const r=await sendToWix('Votes',{code:id,sens:dir});
+  VOTES.push({id:r.dataItem&&r.dataItem.id,code:id,dir,owner:me().id,at:new Date()});
+  return dir;
+}
+async function reloadAll(){ try{ await loadData(); await loadMine(); }catch(e){ console.warn(e); } refresh(); }
+
 document.addEventListener('click',async e=>{
   const t=e.target.closest('button,a'); if(!t) return;
+  if(t.dataset.track){ track(t.dataset.track,t.dataset.trackbiz); return; }
   if(t.dataset.copy!==undefined){
     const ok=await copy(t.dataset.copy);
     const old=t.innerHTML; t.innerHTML=ic('check')+'Copié'; setTimeout(()=>t.innerHTML=old,1800);
     toast(ok?`Code ${t.dataset.copy} copié`:`Copiez le code : ${t.dataset.copy}`);
+    if(t.dataset.copybiz) track('copie',t.dataset.copybiz,t.dataset.copyid);
   }
   else if(t.dataset.vote){
     const id=t.dataset.vote, dir=t.dataset.dir;
-    S.votes[id]=S.votes[id]===dir?undefined:dir; if(!S.votes[id]) delete S.votes[id];
-    save(); refresh();
-    toast(S.votes[id]==='up'?'Merci ! Votre avis aide la communauté.':S.votes[id]==='down'?'Merci, le code est signalé à l’équipe.':'Avis retiré');
+    if(!requireLogin('Connectez-vous pour donner votre avis : chaque avis vous rapporte 1 point.',()=>refresh())) return;
+    t.disabled=true;
+    try{
+      const res=await vote(id,dir); refresh();
+      toast(res==='up'?'Merci ! Votre avis aide la communauté.':res==='down'?'Merci, le code est signalé. Il disparaît s’il est signalé plusieurs fois.':'Avis retiré');
+    }catch(err){ console.warn(err); t.disabled=false; toast('Avis non enregistré. Réessayez dans un instant.'); }
   }
   else if(t.dataset.fav){
     e.preventDefault();
@@ -697,13 +998,19 @@ document.addEventListener('click',async e=>{
   else if(t.dataset.claim!==undefined){ claimDialog(t.dataset.claim); }
   else if(t.hasAttribute('data-close')){ dlg.close(); }
   else if(t.dataset.toast){ e.preventDefault(); toast(t.dataset.toast); }
+  else if(t.dataset.authmode){ authMode=t.dataset.authmode; pendingState=null; redrawAuth(); }
+  else if(t.hasAttribute('data-forgot')){
+    const email=(t.closest('form').querySelector('[name=email]')||{}).value||'';
+    if(!email){ toast('Saisissez d’abord votre e-mail'); return; }
+    try{
+      await call('POST','/_api/iam/recovery/v1/send-email',{email,redirect:{url:location.origin+'/',clientId:WIX_CLIENT_ID}},await getVisitorToken());
+      toast('E-mail de réinitialisation envoyé');
+    }catch(err){ console.warn(err); toast('Envoi impossible. Vérifiez l’adresse e-mail.'); }
+  }
   else if(t.dataset.dircat!==undefined){ dirState.cat=t.dataset.dircat; document.querySelectorAll('[data-dircat]').forEach(b=>b.setAttribute('aria-pressed',b===t)); drawDirectory(); }
   else if(t.dataset.codecat!==undefined){ codeState.cat=t.dataset.codecat; document.querySelectorAll('[data-codecat]').forEach(b=>b.setAttribute('aria-pressed',b===t)); drawCodes(); }
   else if(t.dataset.seg){ codeState.f=t.dataset.seg; document.querySelectorAll('[data-seg]').forEach(b=>b.setAttribute('aria-pressed',b===t)); drawCodes(); }
-  else if(t.dataset.mod){
-    const p=S.proposals.find(x=>x.id===t.dataset.mod); if(p){ p.status=t.dataset.to; save(); refresh(); toast(p.status==='valide'?`Code ${p.code} publié sur la fiche ${bizBy(p.biz).name}`:'Code refusé'); }
-  }
-  else if(t.id==='logout'){ S.user=null; save(); route(); toast('Vous êtes déconnecté'); }
+  else if(t.id==='logout'){ logout(); route(); toast('Vous êtes déconnecté'); }
 });
 dlg.addEventListener('click',e=>{ if(e.target===dlg) dlg.close(); });
 
@@ -712,29 +1019,64 @@ document.addEventListener('input',e=>{
   if(e.target.id==='codeQ'){ codeState.q=e.target.value; drawCodes(); }
 });
 
-document.addEventListener('submit',e=>{
+async function afterAuth(res,btn,label){
+  try{
+    const st=await handleAuthState(res);
+    if(st==='ok'){
+      const inDlg=dlg.open; if(inDlg) dlg.close();
+      toast(`Bienvenue ${me().name} !`);
+      const next=afterLogin; afterLogin=null;
+      route(); if(inDlg&&next) next();
+    }
+    else if(st==='verify') redrawAuth();
+    else if(st==='approval') redrawAuth('Votre compte doit être approuvé par Bonszahé. Vous recevrez un e-mail.');
+    else throw new Error('state '+res.state);
+  }catch(err){ console.warn(err); const el=document.getElementById('authErr'); if(el) el.textContent=authError(err); btn.disabled=false; btn.textContent=label; }
+}
+
+document.addEventListener('submit',async e=>{
   const f=e.target;
   if(f.matches('[data-search]')){ e.preventDefault(); const q=f.querySelector('input').value.trim(); location.hash='#/recherche'+(q?'?q='+encodeURIComponent(q):''); }
-  else if(f.id==='proposeForm'){
+  else if(f.id==='authForm'){
     e.preventDefault(); const d=Object.fromEntries(new FormData(f));
-    const p={id:'p'+Date.now(),biz:d.biz,code:d.code.trim().toUpperCase(),deal:d.deal.trim(),cond:d.cond.trim(),exp:d.exp,link:d.link.trim(),status:'attente',created:new Date().toISOString()};
-    const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Envoi…';
-    const ref=(B.find(x=>x.slug===p.biz)||{}).slug;
-    sendToWix('PropositionsCodes',{code:p.code,entreprise:bizId[p.biz]||ref,avantage:p.deal,conditions:p.cond,dateExpiration:p.exp,lienOffre:p.link,statut:'En attente'})
-      .then(()=>{ S.proposals.push(p); save(); dlg.close(); toast('Merci ! Votre code est en attente de validation.'); if(location.hash.startsWith('#/profil')) refresh(); })
-      .catch(()=>{ btn.disabled=false; btn.textContent='Envoyer pour validation'; toast('Envoi impossible pour le moment. Réessayez dans un instant.'); });
+    const btn=f.querySelector('button[type=submit]'); const label=btn.textContent; btn.disabled=true; btn.textContent='Connexion…';
+    const err=document.getElementById('authErr'); if(err) err.textContent='';
+    try{
+      const visitor=await getVisitorToken();
+      const res=authMode==='register'
+        ? await call('POST','/_api/iam/authentication/v2/register',{loginId:{email:d.email.trim()},password:d.password,profile:{nickname:d.nick.trim()}},visitor)
+        : await call('POST','/_api/iam/authentication/v2/login',{loginId:{email:d.email.trim()},password:d.password},visitor);
+      await afterAuth(res,btn,label);
+    }catch(ex){ console.warn(ex); if(err) err.textContent=authError(ex); btn.disabled=false; btn.textContent=label; }
+  }
+  else if(f.id==='verifyForm'){
+    e.preventDefault(); const d=Object.fromEntries(new FormData(f));
+    const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Vérification…';
+    try{
+      const res=await call('POST','/_api/iam/verification/v1/auth/verify',{code:d.code.trim(),stateToken:pendingState},await getVisitorToken());
+      pendingState=null;
+      await afterAuth(res,btn,'Valider');
+    }catch(ex){ console.warn(ex); const el=document.getElementById('authErr'); if(el) el.textContent=authError(ex); btn.disabled=false; btn.textContent='Valider'; }
+  }
+  else if(f.id==='proposeForm'){
+    e.preventDefault(); if(!me()) return;
+    const d=Object.fromEntries(new FormData(f));
+    const p={biz:d.biz,code:d.code.trim().toUpperCase(),deal:d.deal.trim(),detail:(d.detail||'').trim(),cond:d.cond.trim(),exp:d.exp,link:d.link.trim()};
+    if(activeCodes().some(c=>c.biz===p.biz&&c.code.toUpperCase()===p.code)){ toast('Ce code est déjà en ligne pour cette entreprise. Merci !'); return; }
+    const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Publication…';
+    sendToWix('PropositionsCodes',{code:p.code,entreprise:bizId[p.biz]||p.biz,avantage:p.deal,detail:p.detail,conditions:p.cond,dateExpiration:p.exp,lienOffre:p.link,statut:'En attente',contributeurId:me().id,contributeurNom:me().name})
+      .then(()=>{ dlg.close(); toast('Merci ! Votre code est publié dans quelques secondes.'); setTimeout(reloadAll,5000); })
+      .catch(err=>{ console.warn(err); btn.disabled=false; btn.textContent='Publier le code'; toast(err.status===401||err.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'); });
   }
   else if(f.id==='claimForm'){
     e.preventDefault(); const d=Object.fromEntries(new FormData(f));
     const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Envoi…';
-    sendToWix('DemandesEntreprises',{nomEntreprise:d.name,contact:d.contact,telephone:d.phone,email:d.email,message:d.msg,statut:'Nouvelle'})
+    const account=me()?`\n\nCompte Bonszahé : ${me().name} (${me().email})\nID membre : ${me().id}`:'';
+    sendToWix('DemandesEntreprises',{nomEntreprise:d.name,contact:d.contact,telephone:d.phone,email:d.email,message:(d.msg||'')+account,statut:'Nouvelle'})
       .then(()=>{ dlg.close(); toast('Demande envoyée. Nous revenons vers vous rapidement.'); })
       .catch(()=>{ btn.disabled=false; btn.textContent='Envoyer la demande'; toast('Envoi impossible pour le moment. Réessayez dans un instant.'); });
-  }
-  else if(f.id==='loginForm'){
-    e.preventDefault(); const d=Object.fromEntries(new FormData(f)); S.user={name:d.name.trim(),email:d.email.trim()}; save(); route(); toast('Votre espace est prêt');
   }
 });
 
 app.innerHTML='<div class="wrap"><div class="pagehead"><p class="muted">Chargement des bons plans…</p></div></div>';
-loadData().catch(err=>{ console.warn('CMS Wix indisponible, affichage de la copie locale',err); B.forEach(b=>bizId[b.slug]=b.slug); }).finally(route);
+loadData().then(loadMine).catch(err=>{ console.warn('CMS Wix indisponible, affichage de la copie locale',err); B.forEach(b=>{ bizId[b.slug]=b.slug; b.owners=b.owners||[]; }); }).finally(route);

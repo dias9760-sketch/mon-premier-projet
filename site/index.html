@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles-favorites-v2.css">
+<link rel="stylesheet" href="styles-favorites-v2.css?v=3">
 <script id="wix-site-script" src="https://manage.wix.com/_api/headless-business-setup/v1/headless-business/site-script.js" data-client-id="5ead703b-03d1-45f5-8049-74802f2b86f2" async></script></head>
 <body>
 
@@ -22,6 +22,7 @@
       <a href="#/entreprises" data-nav="entreprises">Entreprises</a>
       <a href="#/codes" data-nav="codes">Codes promo</a>
       <a href="#/categories" data-nav="categories">Catégories</a>
+      <a href="#/evenements" data-nav="evenements">Événements</a>
       <a href="#/carte" data-nav="carte">Carte</a>
     </nav>
     <div class="actions">
@@ -45,6 +46,8 @@
       <a href="#/entreprises">Entreprises</a>
       <a href="#/codes">Codes promo</a>
       <a href="#/categories">Catégories</a>
+      <a href="#/evenements">Événements</a>
+      <a href="#/classement">Classement</a>
       <a href="#/carte">Carte des communes</a>
       <a href="#/" data-toast="Page À propos à venir">À propos</a>
       <a href="#/" data-toast="Page Contact à venir">Contact</a>
@@ -55,7 +58,7 @@
 
 <nav class="bottomnav" aria-label="Navigation mobile">
   <a href="#/" data-nav="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9H4z"/><path d="M10 20v-5h4v5"/></svg>Accueil</a>
-  <a href="#/recherche" data-nav="recherche"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>Recherche</a>
+  <a href="#/evenements" data-nav="evenements"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Agenda</a>
   <a href="#/codes" data-nav="codes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V5a2 2 0 0 1 2-2h7l9 9-9 9-9-9z"/><circle cx="8" cy="8" r="1.5"/></svg>Bons plans</a>
   <a href="#/favoris" data-nav="favoris"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>Favoris</a>
   <a href="#/profil" data-nav="profil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Profil</a>
@@ -64,6 +67,6 @@
 <dialog id="dlg" aria-labelledby="dlgTitle"><div class="dlg" id="dlgBody"></div></dialog>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="app-favorites-v2.js" defer></script>
+<script src="app-favorites-v2.js?v=3" defer></script>
 </body>
 </html>
