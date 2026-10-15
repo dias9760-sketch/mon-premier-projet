@@ -29,35 +29,37 @@ Direction retenue : **A · Lagon chic**. Plateforme : **Wix** (site actuel conse
 - **Les produits couple sont en double** : « Couple » existe à la fois dans Personnalisés et dans Bijoux.
 - **Les emojis dans le menu** rendent l'ensemble moins haut de gamme.
 
-## 2. Le nouveau menu (7 entrées + 1 emplacement saisonnier)
+## 2. Le nouveau menu (version validée)
 
-Principe : les **noms connus des fidèles sont conservés** (Produits personnalisés, Montres, Bons plans, Bijoux des îles, Gravure express, Ylang Ylang).
+**Une règle par niveau, pour que chaque produit n'ait qu'une seule place logique :**
+- **Niveau 1 = l'univers** que la cliente cherche (Personnalisés, Bijoux, Montres…).
+- **Niveau 2 = le type d'article**, puis « Pour qui » ou « Collections » quand c'est utile.
+- Les **occasions et les budgets** ne sont pas des rayons : ils sont regroupés dans « Idées cadeaux », qui pointe vers des produits déjà rangés ailleurs.
+- Maximum **2 niveaux**, sans emoji, avec les noms connus des fidèles (Produits personnalisés, Gravure express, Bijoux des îles, Ylang Ylang, Bons plans).
 
 ```
-[Saisonnier] Offres Ramadan / Fête des mères / Noël…   ← 1 seule entrée, mise en couleur, changée selon la saison
+[Saisonnier]  Offres Ramadan / Fête des mères / Noël…   ← 1 entrée, mise en couleur, changée selon la saison
 1. Nouveautés
 2. Personnalisés
-   ├─ Par bijou   : Colliers · Bracelets · Bagues · Boucles d'oreilles · Bracelets de cheville · Porte-clés
+   ├─ Par article : Colliers · Bracelets · Bagues · Boucles d'oreilles · Bracelets de cheville · Porte-clés · Musique personnalisée
    ├─ Pour qui    : Femme · Homme · Couple · Enfant
-   ├─ Hors bijoux : 🎵 Musique personnalisée
-   └─ À la une    : ⚡ Gravure express (bandeau visuel) · Meilleures ventes
+   └─ Gravure express
 3. Bijoux
-   ├─ Par bijou   : Colliers · Bracelets · Bagues · Boucles d'oreilles
-   ├─ Collections : Ylang Ylang · Bijoux des îles (Mayotte, Réunion, Comores, Madagascar, Martinique, Guadeloupe) · Bijoux spirituels
-   └─ À partager  : Amitié · Couples
+   ├─ Par article : Colliers · Bracelets · Bagues · Boucles d'oreilles
+   ├─ Collections : Bijoux des îles · Ylang Ylang · Bijoux spirituels
+   └─ Amitié & couples
 4. Montres
-   └─ Homme · Femme · Enfant · Connectées · Toutes nos montres
+   └─ Homme · Femme · Enfant · Connectées
 5. Accessoires
-   ├─ Mode        : Accessoires cheveux · Lunettes · Salouva
-   ├─ High-Tech   : Coques iPhone · Accessoires téléphone
-   └─ Maison      : Lampes · Pour la maison
+   └─ Accessoires cheveux · Lunettes · Coques iPhone · Accessoires téléphone · Lampes & maison
 6. Idées cadeaux
-   ├─ Par occasion : Ramadan & Aïd · Fête des mères · Saint-Valentin · Anniversaire · Naissance · Noël (+ Calendrier de l'avent)
-   ├─ 🎁 Carte cadeau
+   ├─ Par occasion : Ramadan & Aïd · Fête des mères · Saint-Valentin · Anniversaire · Naissance · Noël
    ├─ Par budget   : Moins de 10 € · Moins de 20 € · Moins de 30 €
-   └─ Pour qui     : Elle · Lui · Enfant · Couple
-7. Bons plans    ← mis en valeur (couleur terracotta), reprend la signature « Bons plans à petit prix »
+   └─ Calendrier de l'avent · Carte cadeau
+7. Bons plans   ← en terracotta, reprend la signature « Bons plans à petit prix »
 ```
+
+Supprimés : **Salouva**, **Divers** (« Carte cadeau » rejoint Idées cadeaux, « Pour la maison » rejoint Accessoires › Lampes & maison) et l'entrée **Musique** (rangée dans Personnalisés).
 
 **Les pages d'information sortent du menu principal.** Elles passent dans l'en-tête (icône compte), le pied de page et le bas du menu burger mobile, en deux blocs :
 
@@ -86,7 +88,7 @@ Principe : les **noms connus des fidèles sont conservés** (Produits personnali
 
 | Besoin | Sur Wix |
 |---|---|
-| Méga-menu | Natif sur **Wix Studio** ; sur **Wix Editor** classique, il faut le simuler avec un menu « boîte extensible » (hover box) ou une app. ➜ *À vérifier : quelle version utilises-tu ?* |
+| Méga-menu | Natif sur **Wix Studio** (menu avec sous-menus en conteneurs). ✅ Le nouveau site se fait sur Wix Studio, **dans un site séparé** : le site actuel n'est pas modifié jusqu'à la bascule. |
 | Barre fixe en bas sur mobile | Une bande fixée (« Pin to screen ») dans l'éditeur mobile, avec 5 boutons-icônes. |
 | Filtres et tri | Natifs dans les pages catégorie de Wix Stores (prix, options) ; à compléter avec les **catégories** (Pour qui, Personnalisable). |
 | Personnalisation avec aperçu en direct | Les « champs personnalisés » de Wix Stores ne font pas d'aperçu. L'aperçu demande soit **Velo (code Wix)**, soit une app spécialisée du Wix App Market. Je le prépare en Velo dans le prototype. |
@@ -100,25 +102,28 @@ Les pages Wix **gardent leur URL** tant qu'on ne les renomme pas. On réorganise
 |---|---|---|
 | Produits personnalisés (et sous-pages) | Personnalisés › mêmes pages | Non, URL conservées |
 | Bijoux & Accessoires › Colliers / Bracelets / Bagues / Boucles d'oreilles | Bijoux › idem | Non |
-| Bijoux & Accessoires › Lunettes, Accessoires cheveux | Accessoires › Mode | Non (seul le menu change) |
+| Bijoux & Accessoires › Lunettes, Accessoires cheveux | Accessoires | Non (seul le menu change) |
 | Bijoux religion islam | Bijoux › Bijoux spirituels | Uniquement si tu renommes l'URL |
 | Colliers & Bracelets Couples (non gravés) | Bijoux › À partager › Couples | Non |
 | High-Tech, Lampes | Accessoires › High-Tech / Maison | Non |
 | Musique (personnalisée) | Personnalisés › Musique personnalisée | Non |
 | Divers › Carte cadeau | Idées cadeaux › Carte cadeau | Non |
-| Divers › Pour la maison | Accessoires › Maison | Non |
+| Divers › Pour la maison | Accessoires › Lampes & maison | Non |
+| Salouva | Supprimée | **Oui** → Accessoires |
 | Divers (page parente) | Supprimée | **Oui** → Accessoires |
 | Zarahissi & Vous, À propos (sous-pages) | Pied de page, blocs « Zarahissi & Vous » et « Aide » | Non |
 | Calendrier de l'avent | Idées cadeaux › Noël | Non (page conservée, saisonnière) |
 | Offres Ramadan | Emplacement saisonnier | Après la saison : **Oui** → Idées cadeaux |
 
-Les URL exactes seront relevées dans la table de redirections quand j'aurai la liste des pages (Wix › Pages et menu).
+> ⚠️ Comme le nouveau site est construit sur Wix Studio, **dans un site séparé**, les produits et les pages auront de nouvelles URL. Avant la bascule du domaine, il faudra relever toutes les anciennes URL (Wix › SEO › Plan du site) et les rediriger une par une vers les nouvelles. Voir le plan de transition, `06-transition-et-recommandations.md`.
 
-## 7. Questions ouvertes
+## 7. Décisions prises
 
-1. Que contient **Salouva** ? Y a-t-il d'autres sous-pages en haut de **Divers**, au-dessus de « Carte cadeau » ?
-2. **Wix Editor ou Wix Studio** ?
-3. Le contenu des pages **Modes de paiement** et **Délais et modes de livraison** (un copier-coller du texte suffit).
+- Salouva supprimé ; Divers n'avait que Carte cadeau et Pour la maison.
+- Nouveau site sur **Wix Studio, dans un site séparé** : le site actuel reste en ligne, intact, jusqu'à la bascule.
+- **Mobile en priorité** pour toutes les décisions.
+- Paiement : CB (Visa, Mastercard, American Express) via SumUp et Wix, PayPal, espèces sur place à Mamoudzou. Pas de paiement en plusieurs fois.
+- Livraison : La Poste avec suivi (partout), livreur sous 48 h (Mayotte), retrait gratuit en boutique à Kavani, Mamoudzou.
 
 ## 8. Ce que montrent les autres captures (page d'accueil mobile)
 
