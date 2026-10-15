@@ -24,6 +24,23 @@
 - **Ton** : phrases courtes, tutoiement, humour discret. Exemple : « Trois choses que je fais avant 7 h. La troisième va te surprendre. »
 - **Ne dit jamais** : qu'il a « testé pendant des mois » un produit ou une expérience vécue inventée. Il présente, montre et explique.
 
+## 2 bis. Voix officielle
+
+| | |
+|---|---|
+| **Outil** | ElevenLabs |
+| **Voix** | **Kenzy — Premium French Narrator** (voix de la bibliothèque ElevenLabs) |
+| **voice_id** | `xclXfpLYbMIBNgiHTm8S` |
+| **Modèle** | `eleven_v4` |
+| **Consigne de jeu** | Commencer le texte par `[calm, slow, intimate]` ; ajouter `[soft smile]` avant les phrases chaleureuses. |
+| **Caractère** | Jeune, élégante, claire, ton moderne et posé. |
+| **Référence** | `videos/voix_01/kenzy.mp3` (validée le 15/10/2026) |
+
+**Règles :**
+- Toujours utiliser cette voix pour Naël, sur toutes les vidéos.
+- Le débit est assez rapide (environ 17 s pour 60 mots) : écrire des textes courts et laisser respirer le montage.
+- Prononciation de « mahorais » et « shimaoré » vérifiée correcte.
+
 ## 3. Apparence de référence (visage)
 
 **Image de référence officielle** (`personnages/NAEL_reference_visage.webp`) : gros plan face caméra, chemise en lin beige, fond de lac et de verdure flou (image choisie le 14/10/2026, génération Higgsfield Soul 2.0).

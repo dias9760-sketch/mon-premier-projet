@@ -182,3 +182,5 @@ La voix Seed Audio n'a pas été retenue. Trois prises ElevenLabs (modèle `elev
 | `kenzy.mp3` | Kenzy — jeune, élégante, premium | `xclXfpLYbMIBNgiHTm8S` | 16,9 s |
 
 Flow ElevenLabs : `r6yzBajnNDgxG4ck0qDb`. La voix Rakoto (`LwXmJOoCvgC7Oo043IW7`) n'a pas pu être générée : quota ElevenLabs épuisé (54 crédits restants, 327 nécessaires par prise).
+
+**Voix retenue : Kenzy** (`xclXfpLYbMIBNgiHTm8S`, fichier `videos/voix_01/kenzy.mp3`). Montage final réalisé par le créateur.
