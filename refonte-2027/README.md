@@ -1,12 +1,14 @@
 # Zarahissi — Refonte 2027
 
+Plateforme : **Wix** (site actuel conservé).
+
 Suivi du brief `PROMPT_REFONTE_ZARAHISSI_2027`.
 
 | Étape | Livrable | État |
 |---|---|---|
 | 0 | [Diagnostic du site actuel](docs/00-diagnostic.md) | ✅ |
-| 1 | [Maquettes : 3 directions artistiques](maquettes/) | ✅ En attente de ton choix |
-| 2 | Arborescence et navigation | ⏸️ Après validation |
+| 1 | [Maquettes : 3 directions artistiques](maquettes/) | ✅ Direction **A · Lagon chic** retenue |
+| 2 | [Arborescence et navigation](docs/02-arborescence.md) | ✅ À valider |
 | 3 | Prototype cliquable (accueil, catégorie, fiche produit, panier, commande, infos) | ⏸️ |
 | 4 | Design system (variables CSS, composants) | ⏸️ |
 | 5 | Animations | ⏸️ |
