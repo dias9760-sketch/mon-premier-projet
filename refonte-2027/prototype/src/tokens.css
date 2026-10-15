@@ -14,14 +14,14 @@
   --zr-ardoise:       #7896A6;  /* accent secondaire, kicker */
   --zr-ardoise-700:   #4F6D7D;  /* ardoise lisible sur fond clair (AA) */
   --zr-or:            #C4A15A;  /* couronne, filets, étoiles (décor uniquement) */
-  --zr-or-700:        #8C6B2A;  /* or lisible sur fond clair (AA) */
+  --zr-or-700:        #7E5F24;  /* or lisible sur fond clair (AA) */
   --zr-terracotta:    #A0442E;  /* Bons plans, prix barrés, alertes */
   --zr-succes:        #2F6B4F;
 
   /* --- Neutres --- */
   --zr-blanc:         #FFFFFF;
   --zr-encre:         #1B2A41;
-  --zr-encre-2:       #4E596B;  /* texte secondaire : 7,0:1 sur ivoire */
+  --zr-encre-2:       #4E596B;  /* texte secondaire : 6,7:1 sur ivoire */
   --zr-ligne:         #E6DECB;
   --zr-ligne-2:       #D6CBAE;
 

@@ -11,11 +11,11 @@ Les valeurs exactes sont dans `prototype/src/tokens.css`.
 | Surface | Crème | `#F6F1E4` | Sections alternées, encarts |
 | Accent doux | Sable | `#E9E0B8` | Pastilles, boutons sur fond marine, emplacement saisonnier |
 | Accent secondaire | Ardoise | `#7896A6` · texte : `#4F6D7D` | Accroches, liens |
-| Élégance | Or couronne | `#C4A15A` · texte : `#8C6B2A` | Filets, étoiles, couronne (décor) |
+| Élégance | Or couronne | `#C4A15A` · texte : `#7E5F24` | Filets, étoiles, couronne (décor) |
 | Promo | Terracotta | `#A0442E` | Bons plans, prix promo (avec parcimonie) |
 | Texte secondaire | Gris encre | `#4E596B` | Descriptions, aides |
 
-**Contrastes WCAG AA vérifiés** : marine sur ivoire 13:1 · gris encre sur ivoire 7:1 · ardoise foncée sur ivoire 5,3:1 · terracotta sur ivoire 6,5:1 · sable sur marine 10:1. L'or clair et l'ardoise clair servent **uniquement de décor**, jamais pour du texte sur fond clair.
+**Contrastes WCAG AA vérifiés** : marine sur ivoire 13,6:1 · gris encre sur ivoire 6,7:1 · ardoise foncée sur ivoire 5,2:1 · terracotta sur ivoire 5,9:1 · sable sur marine 10,9:1 · or foncé sur crème 5,4:1. L'or clair et l'ardoise clair servent **uniquement de décor**, jamais pour du texte sur fond clair.
 
 ## Typographies (2 familles)
 
