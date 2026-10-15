@@ -99,6 +99,17 @@ const inDays = n => { const d = new Date(TODAY); d.setDate(d.getDate()+n); retur
 /* ---------- Connexion au CMS Wix ---------- */
 const WIX_CLIENT_ID='5ead703b-03d1-45f5-8049-74802f2b86f2';
 const API='https://www.wixapis.com';
+// Application de connexion « site web » dédiée aux membres (l'application d'origine refuse les sessions membres : unauthorized_client).
+const AUTH_CLIENT_ID='9690cc23-501a-485e-94f7-a5ba951cb9c8';
+let authVisitorPromise=null;
+function getAuthVisitorToken(){
+  if(!authVisitorPromise){
+    authVisitorPromise=fetch(API+'/oauth2/token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clientId:AUTH_CLIENT_ID,grantType:'anonymous'})})
+      .then(r=>{ if(!r.ok) throw new Error('token '+r.status); return r.json(); }).then(j=>j.access_token);
+    authVisitorPromise.catch(()=>{authVisitorPromise=null;});
+  }
+  return authVisitorPromise;
+}
 let baseCodes=[];
 let bizId={};
 let EVENTS=[];
@@ -129,7 +140,7 @@ const me=()=>AUTH&&AUTH.member;
 async function getToken(){
   if(!AUTH) return getVisitorToken();
   if(AUTH.exp>Date.now()+60000) return AUTH.access;
-  const r=await fetch(API+'/oauth2/token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clientId:WIX_CLIENT_ID,grantType:'refresh_token',refreshToken:AUTH.refresh})});
+  const r=await fetch(API+'/oauth2/token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clientId:AUTH_CLIENT_ID,grantType:'refresh_token',refreshToken:AUTH.refresh})});
   if(!r.ok){ AUTH=null; saveAuth(); return getVisitorToken(); }
   const j=await r.json();
   AUTH.access=j.access_token; AUTH.exp=Date.now()+(j.expires_in||14400)*1000; if(j.refresh_token) AUTH.refresh=j.refresh_token; saveAuth();
@@ -151,7 +162,7 @@ const randomStr=()=>b64url(crypto.getRandomValues(new Uint8Array(32)));
 async function authSession(sessionToken,responseMode,extra){
   const verifier=randomStr(), state=randomStr();
   const challenge=b64url(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(verifier)));
-  const rs=await call('POST','/_api/redirects-api/v1/redirect-session',{auth:{authRequest:Object.assign({clientId:WIX_CLIENT_ID,codeChallenge:challenge,codeChallengeMethod:'S256',responseMode,responseType:'code',scope:'offline_access',state,sessionToken},extra||{})}},await getVisitorToken());
+  const rs=await call('POST','/_api/redirects-api/v1/redirect-session',{auth:{authRequest:Object.assign({clientId:AUTH_CLIENT_ID,codeChallenge:challenge,codeChallengeMethod:'S256',responseMode,responseType:'code',scope:'offline_access',state,sessionToken},extra||{})}},await getAuthVisitorToken());
   return {url:rs.redirectSession.fullUrl,verifier,state};
 }
 const RETURN_URI=location.origin+'/';
@@ -184,7 +195,7 @@ async function resumeRedirectLogin(){
   catch(e){ console.warn(e); loginNotice=`Connexion impossible (${(e.data&&(e.data.error||e.data.message))||e.status||e.message}). Réessayez.`; }
 }
 async function completeLogin(code,verifier,redirectUri){
-  const t=await call('POST','/oauth2/token',Object.assign({clientId:WIX_CLIENT_ID,grantType:'authorization_code',code,codeVerifier:verifier},redirectUri?{redirectUri}:{}),await getVisitorToken());
+  const t=await call('POST','/oauth2/token',Object.assign({clientId:AUTH_CLIENT_ID,grantType:'authorization_code',code,codeVerifier:verifier},redirectUri?{redirectUri}:{}),await getAuthVisitorToken());
   AUTH={access:t.access_token,refresh:t.refresh_token,exp:Date.now()+(t.expires_in||14400)*1000,member:null};
   const m=(await call('GET','/members/v1/members/my',undefined,t.access_token)).member||{};
   const p=m.profile||{};
@@ -1071,7 +1082,7 @@ document.addEventListener('click',async e=>{
     const email=(t.closest('form').querySelector('[name=email]')||{}).value||'';
     if(!email){ toast('Saisissez d’abord votre e-mail'); return; }
     try{
-      await call('POST','/_api/iam/recovery/v1/send-email',{email,redirect:{url:location.origin+'/',clientId:WIX_CLIENT_ID}},await getVisitorToken());
+      await call('POST','/_api/iam/recovery/v1/send-email',{email,redirect:{url:location.origin+'/',clientId:AUTH_CLIENT_ID}},await getAuthVisitorToken());
       toast('E-mail de réinitialisation envoyé');
     }catch(err){ console.warn(err); toast('Envoi impossible. Vérifiez l’adresse e-mail.'); }
   }
@@ -1110,7 +1121,7 @@ document.addEventListener('submit',async e=>{
     const btn=f.querySelector('button[type=submit]'); const label=btn.textContent; btn.disabled=true; btn.textContent='Connexion…';
     const err=document.getElementById('authErr'); if(err) err.textContent='';
     try{
-      const visitor=await getVisitorToken();
+      const visitor=await getAuthVisitorToken();
       const captcha_tokens=await captchaTokens(authMode==='register'?'SIGNUP':'LOGIN');
       const res=authMode==='register'
         ? await call('POST','/_api/iam/authentication/v2/register',{loginId:{email:d.email.trim()},password:d.password,profile:{nickname:d.nick.trim()},captcha_tokens},visitor)
@@ -1130,7 +1141,7 @@ document.addEventListener('submit',async e=>{
     e.preventDefault(); const d=Object.fromEntries(new FormData(f));
     const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Vérification…';
     try{
-      const res=await call('POST','/_api/iam/verification/v1/auth/verify',{code:d.code.trim(),stateToken:pendingState},await getVisitorToken());
+      const res=await call('POST','/_api/iam/verification/v1/auth/verify',{code:d.code.trim(),stateToken:pendingState},await getAuthVisitorToken());
       pendingState=null;
       await afterAuth(res,btn,'Valider');
     }catch(ex){ console.warn(ex); const el=document.getElementById('authErr'); if(el) el.textContent=authError(ex); btn.disabled=false; btn.textContent='Valider'; }
