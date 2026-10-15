@@ -148,14 +148,50 @@ const wix=(path,body)=>call('POST',path,body);
 const b64url=buf=>btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 const randomStr=()=>b64url(crypto.getRandomValues(new Uint8Array(32)));
 // Transforme le sessionToken (connexion ou inscription) en jetons membre, via un iframe invisible (PKCE).
-async function finishLogin(sessionToken){
+async function authSession(sessionToken,responseMode,extra){
   const verifier=randomStr(), state=randomStr();
   const challenge=b64url(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(verifier)));
-  const visitor=await getVisitorToken();
-  const rs=await call('POST','/_api/redirects-api/v1/redirect-session',{auth:{authRequest:{clientId:WIX_CLIENT_ID,codeChallenge:challenge,codeChallengeMethod:'S256',responseMode:'web_message',responseType:'code',scope:'offline_access',state,sessionToken}}},visitor);
+  const rs=await call('POST','/_api/redirects-api/v1/redirect-session',{auth:{authRequest:Object.assign({clientId:WIX_CLIENT_ID,codeChallenge:challenge,codeChallengeMethod:'S256',responseMode,responseType:'code',scope:'offline_access',state,sessionToken},extra||{})}},await getVisitorToken());
+  return {url:rs.redirectSession.fullUrl,verifier,state};
+}
+const RETURN_URI=location.origin+'/';
+async function finishLogin(sessionToken){
+  let got;
+  try{ got=await iframeCode(sessionToken); }
+  catch(e){
+    // Secours : passage par la page Wix puis retour sur le site (?code=…&state=…).
+    console.warn('Connexion par iframe impossible, redirection',e);
+    const s=await authSession(sessionToken,'query',{redirectUri:RETURN_URI});
+    try{ sessionStorage.setItem('bonszahe:pkce',JSON.stringify({verifier:s.verifier,state:s.state,back:location.hash})); }catch(_){}
+    location.href=s.url;
+    await new Promise(()=>{});
+  }
+  await completeLogin(got.code,got.verifier);
+}
+// Retour de la page Wix : échange du code contre les jetons membre.
+async function resumeRedirectLogin(){
+  const q=new URLSearchParams(location.search); const code=q.get('code'), state=q.get('state');
+  if(!code&&!q.get('error')) return;
+  let saved=null; try{ saved=JSON.parse(sessionStorage.getItem('bonszahe:pkce')||'null'); sessionStorage.removeItem('bonszahe:pkce'); }catch(_){}
+  history.replaceState(null,'',RETURN_URI+((saved&&saved.back)||'#/profil'));
+  if(!code||!saved||saved.state!==state){ toast('Connexion interrompue. Réessayez.'); return; }
+  try{ await completeLogin(code,saved.verifier,RETURN_URI); toast(`Bienvenue ${me().name} !`); }
+  catch(e){ console.warn(e); toast('Connexion impossible pour le moment. Réessayez.'); }
+}
+async function completeLogin(code,verifier,redirectUri){
+  const t=await call('POST','/oauth2/token',Object.assign({clientId:WIX_CLIENT_ID,grantType:'authorization_code',code,codeVerifier:verifier},redirectUri?{redirectUri}:{}),await getVisitorToken());
+  AUTH={access:t.access_token,refresh:t.refresh_token,exp:Date.now()+(t.expires_in||14400)*1000,member:null};
+  const m=(await call('GET','/members/v1/members/my',undefined,t.access_token)).member||{};
+  const p=m.profile||{};
+  AUTH.member={id:m.id,name:p.nickname||[p.firstName,p.lastName].filter(Boolean).join(' ')||(m.loginEmail||'').split('@')[0]||'Membre',email:m.loginEmail||''};
+  saveAuth();
+  await loadMine();
+}
+async function iframeCode(sessionToken){
+  const {url,verifier,state}=await authSession(sessionToken,'web_message');
   const code=await new Promise((resolve,reject)=>{
     const frame=document.createElement('iframe'); frame.style.display='none'; frame.title='Connexion';
-    const timer=setTimeout(()=>{ cleanup(); reject(new Error('timeout')); },20000);
+    const timer=setTimeout(()=>{ cleanup(); reject(new Error('timeout')); },12000);
     function cleanup(){ clearTimeout(timer); window.removeEventListener('message',onMsg); frame.remove(); }
     function onMsg(e){
       let d=e.data; if(typeof d==='string'){ try{ d=JSON.parse(d); }catch(_){ return; } }
@@ -163,15 +199,9 @@ async function finishLogin(sessionToken){
       cleanup(); d.code?resolve(d.code):reject(new Error(d.error||'auth'));
     }
     window.addEventListener('message',onMsg);
-    frame.src=rs.redirectSession.fullUrl; document.body.appendChild(frame);
+    frame.src=url; document.body.appendChild(frame);
   });
-  const t=await call('POST','/oauth2/token',{clientId:WIX_CLIENT_ID,grantType:'authorization_code',code,codeVerifier:verifier},visitor);
-  AUTH={access:t.access_token,refresh:t.refresh_token,exp:Date.now()+(t.expires_in||14400)*1000,member:null};
-  const m=(await call('GET','/members/v1/members/my',undefined,t.access_token)).member||{};
-  const p=m.profile||{};
-  AUTH.member={id:m.id,name:p.nickname||[p.firstName,p.lastName].filter(Boolean).join(' ')||(m.loginEmail||'').split('@')[0]||'Membre',email:m.loginEmail||''};
-  saveAuth();
-  await loadMine();
+  return {code,verifier};
 }
 // Gère la réponse de Login V2 / Register V2 / Verify : SUCCESS, vérification e-mail ou approbation.
 async function handleAuthState(res){
@@ -1120,4 +1150,4 @@ document.addEventListener('submit',async e=>{
 });
 
 app.innerHTML='<div class="wrap"><div class="pagehead"><p class="muted">Chargement des bons plans…</p></div></div>';
-loadData().then(loadMine).catch(err=>{ console.warn('CMS Wix indisponible, affichage de la copie locale',err); B.forEach(b=>{ bizId[b.slug]=b.slug; b.owners=b.owners||[]; }); }).finally(route);
+loadData().then(resumeRedirectLogin).then(loadMine).catch(err=>{ console.warn('CMS Wix indisponible, affichage de la copie locale',err); B.forEach(b=>{ bizId[b.slug]=b.slug; b.owners=b.owners||[]; }); }).finally(route);
