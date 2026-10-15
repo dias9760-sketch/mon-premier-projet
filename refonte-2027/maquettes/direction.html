@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zarahissi 2027 · Planche de direction</title>
+<!--
+  Planche de direction artistique (étape 1).
+  Ouvrir avec ?d=A, ?d=B ou ?d=C. Chaque direction partage la même structure
+  de page ; seuls les tokens (couleurs, polices, rayons) et quelques
+  variantes de mise en page changent, via [data-dir].
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;700&family=Playfair+Display:wght@500;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
+<style>
+/* ---------- Palette d'origine Zarahissi (relevée sur le site actuel) ---------- */
+:root{
+  --marine:#1B2A41;   /* en-tête */
+  --marine-900:#111C2E;
+  --sable:#E9E0B8;    /* barre de menu */
+  --creme:#F6F1E4;    /* fond de page */
+  --ivoire:#FBF8F1;
+  --ardoise:#7896A6;  /* onglet actif */
+  --or:#C4A15A;       /* couronne du logo, affinée */
+  --or-clair:#E3CF97;
+}
+/* ---------- Tokens par direction ---------- */
+[data-dir="A"]{ /* Lagon chic */
+  --bg:var(--ivoire); --surface:#fff; --ink:var(--marine); --muted:#5B6678;
+  --head-bg:#fff; --head-ink:var(--marine); --nav-bg:#fff; --nav-ink:var(--marine);
+  --accent:var(--ardoise); --accent-ink:#fff; --line:#E8E1CF; --gold:var(--or);
+  --chip:var(--creme); --tile1:#EEF3F4; --tile2:#F4EFE2; --tile3:#EAF0F2; --tile4:#F7F2E6;
+  --title:'Cormorant Garamond',serif; --text:'DM Sans',sans-serif;
+  --radius:4px; --btn-radius:2px; --title-w:600;
+}
+[data-dir="B"]{ /* Écrin moderne */
+  --bg:var(--marine-900); --surface:#1E2D45; --ink:#F3EEDF; --muted:#AEB7C5;
+  --head-bg:var(--marine-900); --head-ink:#F3EEDF; --nav-bg:var(--marine-900); --nav-ink:#E9E0B8;
+  --accent:var(--or); --accent-ink:var(--marine-900); --line:#2C3D58; --gold:var(--or-clair);
+  --chip:#24344F; --tile1:#22324C; --tile2:#26344A; --tile3:#1F3048; --tile4:#2A3850;
+  --title:'Playfair Display',serif; --text:'Manrope',sans-serif;
+  --radius:2px; --btn-radius:0; --title-w:500;
+}
+[data-dir="C"]{ /* Solaire & joyeux */
+  --bg:var(--creme); --surface:#FFFDF7; --ink:var(--marine); --muted:#56627A;
+  --head-bg:var(--marine); --head-ink:#fff; --nav-bg:var(--sable); --nav-ink:var(--marine);
+  --accent:var(--marine); --accent-ink:#fff; --line:#E3D9B8; --gold:var(--or);
+  --chip:var(--sable); --tile1:#E9E0B8; --tile2:#DCE6EA; --tile3:#F3E3C8; --tile4:#E4EBDF;
+  --title:'Fraunces',serif; --text:'DM Sans',sans-serif;
+  --radius:18px; --btn-radius:999px; --title-w:700;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#E7E4DC;font-family:'DM Sans',sans-serif;color:#1B2A41}
+.board{width:1720px;padding:48px;display:grid;gap:36px}
+.board-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid #C9C3B4;padding-bottom:20px}
+.board-head h1{font-family:'Cormorant Garamond',serif;font-size:46px;font-weight:600;letter-spacing:.5px}
+.board-head h1 small{display:block;font-family:'DM Sans';font-size:14px;letter-spacing:3px;text-transform:uppercase;color:#7A7465;font-weight:500}
+.board-head p{max-width:720px;font-size:16px;line-height:1.55;color:#4A4A4A}
+.row{display:flex;gap:36px;align-items:flex-start}
+.label{font-size:12px;letter-spacing:2.5px;text-transform:uppercase;color:#7A7465;margin-bottom:10px;font-weight:700}
+
+/* ---------- Cadres ---------- */
+.browser{width:1210px;border-radius:12px;overflow:hidden;box-shadow:0 30px 60px -20px rgba(17,28,46,.35);background:#fff}
+.browser-bar{height:34px;background:#ECEAE4;display:flex;align-items:center;gap:7px;padding:0 14px}
+.browser-bar i{width:11px;height:11px;border-radius:50%;background:#D4D0C6}
+.browser-bar span{margin-left:16px;background:#fff;border-radius:6px;font-size:12px;padding:4px 14px;color:#666}
+.phone{width:390px;border-radius:44px;padding:12px;background:#0E1522;box-shadow:0 30px 60px -20px rgba(17,28,46,.45)}
+.phone .screen{border-radius:34px;overflow:hidden;height:820px;position:relative;background:var(--bg)}
+
+/* ---------- Écran du site (partagé) ---------- */
+.site{background:var(--bg);color:var(--ink);font-family:var(--text)}
+.announce{background:var(--marine);color:var(--sable);font-size:12px;text-align:center;padding:8px;letter-spacing:.6px}
+[data-dir="B"] .announce{background:#0B1322;color:var(--or-clair)}
+[data-dir="C"] .announce{background:var(--ardoise);color:#fff}
+.hdr{background:var(--head-bg);color:var(--head-ink);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:16px 36px;border-bottom:1px solid var(--line)}
+.search{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:var(--btn-radius);padding:9px 14px;width:290px;white-space:nowrap;font-size:13px;color:var(--muted);background:var(--surface)}
+[data-dir="C"] .search{background:#fff;border:0}
+.logo{text-align:center;line-height:1}
+.logo .crown{color:var(--gold);display:flex;align-items:center;gap:10px;justify-content:center}
+.logo .crown:before,.logo .crown:after{content:"";height:1px;width:60px;background:currentColor;opacity:.7}
+.logo b{display:block;font-family:'Cormorant Garamond',serif;font-weight:600;font-size:34px;letter-spacing:6px;margin-top:4px}
+.logo em{display:block;font-style:normal;font-size:10.5px;letter-spacing:3px;margin-top:5px;opacity:.8;text-transform:uppercase}
+.icons{display:flex;gap:18px;justify-content:flex-end;align-items:center}
+.ico{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.6}
+.cart{position:relative}
+.cart sup{position:absolute;top:-6px;right:-8px;background:var(--gold);color:var(--marine);font-size:10px;font-weight:700;border-radius:99px;padding:1px 5px}
+.nav{background:var(--nav-bg);color:var(--nav-ink);display:flex;justify-content:center;gap:34px;padding:13px;font-size:13.5px;font-weight:500;border-bottom:1px solid var(--line)}
+.nav .on{border-bottom:1.5px solid var(--gold);padding-bottom:3px}
+[data-dir="C"] .nav{border-radius:0}
+[data-dir="C"] .nav .on{background:var(--marine);color:#fff;border:0;border-radius:99px;padding:3px 14px;margin:-3px 0}
+.nav .promo{color:#A0442E}
+[data-dir="B"] .nav .promo{color:var(--or)}
+
+/* Bannière */
+.hero{position:relative;display:grid;grid-template-columns:1.05fr 1fr;min-height:380px}
+.hero .copy{padding:56px 48px 40px 64px;display:flex;flex-direction:column;justify-content:center;gap:16px}
+.kicker{font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);font-weight:700}
+[data-dir="B"] .kicker{color:var(--gold)}
+.hero h2{font-family:var(--title);font-weight:var(--title-w);font-size:52px;line-height:1.05}
+.hero h2 i{font-style:italic;color:var(--accent)}
+[data-dir="B"] .hero h2 i{color:var(--gold)}
+.hero p{font-size:15.5px;line-height:1.6;color:var(--muted);max-width:420px}
+.btns{display:flex;gap:12px;margin-top:6px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 26px;font-size:14px;font-weight:700;letter-spacing:.4px;border-radius:var(--btn-radius);background:var(--accent);color:var(--accent-ink);border:1.5px solid var(--accent)}
+[data-dir="A"] .btn{background:var(--marine);border-color:var(--marine)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:currentColor}
+.hero .visual{position:relative;overflow:hidden}
+.lagoon{position:absolute;inset:0;background:
+  radial-gradient(120% 70% at 70% 0%,#F4E7C1 0%,transparent 55%),
+  linear-gradient(180deg,#BFD9DE 0%,#7FB8BE 38%,#3E9AA3 60%,#E8DDBF 61%,#F2E9D0 100%)}
+[data-dir="A"] .hero .visual{margin:28px 48px 28px 0;border-radius:220px 220px 6px 6px}
+[data-dir="B"] .lagoon{background:radial-gradient(60% 60% at 50% 45%,#2C4266 0%,#14213A 70%)}
+[data-dir="C"] .hero .visual{margin:24px 36px 24px 0;border-radius:28px}
+[data-dir="C"] .lagoon{background:linear-gradient(160deg,#F4C988 0%,#E9E0B8 45%,#9FC3CC 100%)}
+.hero .jewel{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.shine{position:absolute;inset:0;background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.45) 50%,transparent 60%)}
+.islands{position:absolute;bottom:16px;left:0;right:0;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:0 12px}
+.islands span{background:rgba(255,255,255,.88);color:var(--marine);font-size:11px;font-weight:700;padding:5px 10px;border-radius:99px}
+[data-dir="B"] .islands span{background:rgba(196,161,90,.15);color:var(--or-clair);border:1px solid rgba(227,207,151,.4)}
+
+/* Réassurance */
+.reassure{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--surface)}
+.reassure div{display:flex;gap:12px;align-items:center;padding:18px 24px;font-size:13px;line-height:1.35}
+.reassure div+div{border-left:1px solid var(--line)}
+.reassure b{display:block;font-size:13.5px}
+.reassure span{color:var(--muted);font-size:12px}
+.reassure svg{flex:none;color:var(--gold)}
+[data-dir="C"] .reassure{background:transparent;border:0;gap:12px;padding:18px 36px}
+[data-dir="C"] .reassure div{background:var(--surface);border-radius:16px;border:0}
+[data-dir="C"] .reassure svg{color:var(--ardoise)}
+
+/* Sections */
+.sec{padding:36px 48px}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:20px}
+.sec-h h3{font-family:var(--title);font-weight:var(--title-w);font-size:30px}
+.sec-h a{font-size:13px;font-weight:700;color:var(--ink);text-decoration:underline;text-underline-offset:4px}
+.cats{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
+.cat{text-align:center;font-size:13.5px;font-weight:600}
+.cat .ph{aspect-ratio:1;border-radius:50%;margin-bottom:10px;display:flex;align-items:center;justify-content:center;background:var(--tile1)}
+[data-dir="A"] .cat .ph{border-radius:200px 200px 4px 4px;aspect-ratio:.82}
+[data-dir="B"] .cat .ph{border-radius:2px;aspect-ratio:.82;border:1px solid var(--line)}
+.cat:nth-child(2n) .ph{background:var(--tile2)} .cat:nth-child(3n) .ph{background:var(--tile3)}
+
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+.card{background:var(--surface);border-radius:var(--radius);overflow:hidden;position:relative}
+[data-dir="A"] .card{background:transparent}
+.card .ph{aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:var(--tile1);border-radius:var(--radius);position:relative}
+.card:nth-child(2) .ph{background:var(--tile2)} .card:nth-child(3) .ph{background:var(--tile3)} .card:nth-child(4) .ph{background:var(--tile4)}
+.badge{position:absolute;top:10px;left:10px;font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;padding:4px 8px;border-radius:var(--btn-radius);background:var(--surface);color:var(--ink)}
+.badge.b-perso{background:var(--marine);color:var(--sable)}
+[data-dir="B"] .badge.b-perso{background:var(--or);color:var(--marine-900)}
+.heart{position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center}
+.heart svg{width:15px;height:15px}
+.card .info{padding:12px 4px 4px}
+[data-dir="C"] .card .info{padding:12px 14px 14px}
+[data-dir="B"] .card .info{padding:12px 14px 14px}
+.card .name{font-size:14px;font-weight:500}
+.card .price{display:flex;gap:8px;align-items:baseline;margin-top:4px;font-weight:700;font-size:15px}
+.card .price s{color:var(--muted);font-weight:400;font-size:12.5px}
+.stars{color:var(--gold);font-size:11px;letter-spacing:1px;margin-top:3px}
+.stars span{color:var(--muted);letter-spacing:0}
+
+.perso{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:0;margin:0 48px 36px;background:var(--marine);color:#F3EEDF;border-radius:var(--radius);overflow:hidden}
+[data-dir="B"] .perso{background:#0B1322;border:1px solid var(--line)}
+[data-dir="C"] .perso{background:#3F5E70}
+.perso .txt{padding:36px 44px}
+.perso h3{font-family:var(--title);font-weight:var(--title-w);font-size:32px;margin:8px 0 10px}
+.perso p{font-size:14.5px;line-height:1.6;opacity:.85;margin-bottom:18px}
+.perso .kicker{color:var(--or-clair)}
+.perso .btn{background:var(--sable);color:var(--marine);border-color:var(--sable)}
+.perso .demo{height:100%;min-height:230px;display:flex;align-items:center;justify-content:center;background:radial-gradient(70% 70% at 50% 50%,rgba(255,255,255,.12),transparent)}
+
+/* ---------- Mobile ---------- */
+.m{font-size:14px}
+.m .status{height:40px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font-size:13px;font-weight:700;background:var(--head-bg);color:var(--head-ink)}
+.m .hdr{grid-template-columns:44px 1fr 44px;padding:8px 14px}
+.m .logo b{font-size:21px;letter-spacing:4px}
+.m .logo em{font-size:8.5px;letter-spacing:2px}
+.m .logo .crown:before,.m .logo .crown:after{width:34px}
+.m .msearch{margin:12px 16px 0;display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--surface);border-radius:var(--btn-radius);padding:12px 14px;color:var(--muted);font-size:14px}
+.m .chips{display:flex;gap:8px;padding:12px 16px 4px;overflow:hidden}
+.m .chips span{flex:none;font-size:13px;font-weight:600;padding:8px 14px;border-radius:var(--btn-radius);background:var(--chip);white-space:nowrap}
+.m .chips span.on{background:var(--marine);color:#fff}
+[data-dir="B"] .m .chips span.on{background:var(--or);color:var(--marine-900)}
+.m .mhero{margin:12px 16px;border-radius:var(--radius);overflow:hidden;position:relative;height:300px}
+[data-dir="A"] .m .mhero{border-radius:180px 180px 6px 6px}
+.m .mhero .copy{position:absolute;left:0;right:0;bottom:0;padding:18px;background:linear-gradient(0deg,rgba(17,28,46,.82),rgba(17,28,46,0));color:#fff}
+.m .mhero h2{font-family:var(--title);font-weight:var(--title-w);font-size:28px;line-height:1.08;margin:6px 0 12px}
+.m .mhero .kicker{color:var(--or-clair)}
+.m .mhero .btn{min-height:44px;padding:0 20px;background:var(--sable);color:var(--marine);border-color:var(--sable)}
+.m .mreass{display:flex;gap:16px;padding:6px 16px;font-size:11.5px;font-weight:700;color:var(--muted);overflow:hidden;white-space:nowrap}
+.m .sec{padding:16px}
+.m .sec-h h3{font-size:22px}
+.m .grid{grid-template-columns:1fr 1fr;gap:12px}
+.m .card .name{font-size:13px}
+.m .tabbar{position:absolute;left:0;right:0;bottom:0;height:74px;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding:8px 6px 20px;font-size:10.5px;text-align:center;color:var(--muted)}
+.m .tabbar div{display:flex;flex-direction:column;align-items:center;gap:4px;justify-content:center}
+.m .tabbar .on{color:var(--ink);font-weight:700}
+.m .tabbar .ico{width:21px;height:21px}
+
+/* Fiche produit mobile */
+.pdp .gal{height:370px;position:relative;display:flex;align-items:center;justify-content:center;background:var(--tile2)}
+.pdp .dots{position:absolute;bottom:12px;left:0;right:0;display:flex;gap:6px;justify-content:center}
+.pdp .dots i{width:6px;height:6px;border-radius:50%;background:var(--ink);opacity:.25}
+.pdp .dots i:first-child{opacity:.9;width:18px;border-radius:9px}
+.pdp .back{position:absolute;top:14px;left:14px;width:40px;height:40px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center}
+.pdp .body{padding:16px}
+.pdp h4{font-family:var(--title);font-weight:var(--title-w);font-size:24px;line-height:1.15}
+.pdp .p{display:flex;gap:10px;align-items:baseline;margin:6px 0 2px}
+.pdp .p b{font-size:22px}
+.pdp .p s{color:var(--muted)}
+.pdp .p em{font-style:normal;font-size:11.5px;font-weight:700;background:var(--chip);padding:3px 8px;border-radius:var(--btn-radius)}
+.pdp .opt{margin-top:14px}
+.pdp .opt label{display:block;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.pdp .field{border:1.5px solid var(--ink);border-radius:var(--btn-radius);padding:12px 14px;font-size:15px;display:flex;justify-content:space-between;background:var(--surface)}
+[data-dir="C"] .pdp .field{border-radius:14px}
+.pdp .field span{color:var(--muted);font-size:12px}
+.pdp .sw{display:flex;gap:10px}
+.pdp .sw i{width:36px;height:36px;border-radius:50%;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--line)}
+.pdp .sw i.on{box-shadow:0 0 0 2px var(--ink)}
+.pdp .fonts{display:flex;gap:8px}
+.pdp .fonts span{flex:1;text-align:center;border:1px solid var(--line);border-radius:var(--btn-radius);padding:9px 0;font-size:17px;background:var(--surface)}
+[data-dir="C"] .pdp .fonts span{border-radius:12px}
+.pdp .fonts span.on{border-color:var(--ink);border-width:1.5px}
+.pdp .ship{margin-top:14px;font-size:12.5px;color:var(--muted);display:flex;gap:8px;align-items:center}
+.pdp .sticky{position:absolute;left:0;right:0;bottom:0;padding:12px 16px 26px;background:var(--surface);border-top:1px solid var(--line);display:flex;gap:10px;align-items:center}
+.pdp .sticky .btn{flex:1;min-height:50px}
+[data-dir="A"] .pdp .sticky .btn{background:var(--marine)}
+
+/* ---------- Planche palette / typo ---------- */
+.spec{width:810px;background:#fff;border-radius:12px;padding:30px 34px;box-shadow:0 20px 40px -24px rgba(17,28,46,.3)}
+.swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px}
+.swatch .c{height:92px;border-radius:8px;border:1px solid rgba(0,0,0,.06);display:flex;align-items:flex-end;padding:8px;font-size:11px;font-weight:700}
+.swatch small{display:block;margin-top:6px;font-size:12px;color:#555;line-height:1.35}
+.swatch small b{color:#1B2A41}
+.types{display:grid;grid-template-columns:1fr 1fr;gap:24px;border-top:1px solid #eee;padding-top:22px}
+.types .big{font-size:56px;line-height:1}
+.types p{font-size:13px;color:#555;margin-top:8px;line-height:1.5}
+.comps{display:flex;gap:12px;align-items:center;flex-wrap:wrap;border-top:1px solid #eee;margin-top:22px;padding-top:22px}
+.notes{font-size:14px;line-height:1.6;color:#333;margin-top:22px;border-top:1px solid #eee;padding-top:18px}
+.notes li{margin-left:18px}
+.stack{display:flex;flex-direction:column;gap:36px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ---------- Données des directions ---------- */
+const DIRS = {
+  A:{name:"Lagon chic", tag:"Direction A",
+     pitch:"Épuré et lumineux : beaucoup d'ivoire et de respiration, le marine Zarahissi pour le texte et les boutons, l'or de la couronne en filets fins. Les arches rappellent les fenêtres et le lagon de Mayotte. C'est le plus « bijouterie fine » des trois, et il reste doux et accessible.",
+     sw:[["#1B2A41","Marine","Texte, boutons, logo · principale"],["#FBF8F1","Ivoire","Fond de page"],["#C4A15A","Or couronne","Filets, étoiles, détails"],["#7896A6","Ardoise","Accent secondaire, liens"],["#E9E0B8","Sable","Pastilles, aplats doux"],["#F6F1E4","Crème","Cartes et sections"],["#5B6678","Gris encre","Texte secondaire"],["#A0442E","Terracotta","Prix barrés, promo (très rare)"]],
+     t:["Cormorant Garamond","DM Sans"]},
+  B:{name:"Écrin moderne", tag:"Direction B",
+     pitch:"Le marine de l'en-tête actuel devient l'écrin de tout le site : fonds profonds, photos de bijoux mises en lumière, typographie Playfair, boutons dorés. C'est le rendu le plus premium et le plus « vitrine de joaillier ». Les badges et pastilles prix restent bien visibles pour garder le message petit prix.",
+     sw:[["#111C2E","Marine nuit","Fond principal"],["#1B2A41","Marine","Cartes, surfaces"],["#C4A15A","Or","Boutons, accent principal"],["#E3CF97","Or clair","Titres d'accent, icônes"],["#F3EEDF","Crème","Texte principal"],["#E9E0B8","Sable","Menu, liens"],["#7896A6","Ardoise","États, info"],["#AEB7C5","Gris bleuté","Texte secondaire"]],
+     t:["Playfair Display","Manrope"]},
+  C:{name:"Solaire & joyeux", tag:"Direction C",
+     pitch:"Le plus proche de l'énergie actuelle : en-tête marine, menu sable, fond crème, mais en plus raffiné. Formes arrondies, pastilles des îles en clin d'œil aux stickers de la bannière actuelle, typographie Fraunces chaleureuse. Les fidèles s'y retrouvent immédiatement, en version 2027.",
+     sw:[["#1B2A41","Marine","En-tête, boutons · principale"],["#E9E0B8","Sable","Menu, pastilles"],["#F6F1E4","Crème","Fond de page"],["#7896A6","Ardoise","Bloc perso, icônes"],["#C4A15A","Or","Logo, étoiles"],["#FFFDF7","Blanc chaud","Cartes"],["#F4C988","Soleil","Dégradés de bannière"],["#56627A","Gris encre","Texte secondaire"]],
+     t:["Fraunces","DM Sans"]}
+};
+const d = (new URLSearchParams(location.search).get('d')||'A').toUpperCase();
+const D = DIRS[d];
+document.documentElement.dataset.dir = d;
+
+/* ---------- Illustrations bijoux (SVG, sans photo) ---------- */
+const gold = d==='B' ? '#E3CF97' : '#C4A15A';
+const J = {
+  necklace:(s=150,txt)=>`<svg width="${s}" height="${s}" viewBox="0 0 200 200"><path d="M30 30 Q100 170 170 30" fill="none" stroke="${gold}" stroke-width="2.2"/>${txt?`<text x="100" y="128" text-anchor="middle" font-family="Great Vibes" font-size="44" fill="${gold}">${txt}</text>`:`<circle cx="100" cy="108" r="3" fill="${gold}"/><path d="M100 111 l-10 16 l10 22 l10 -22z" fill="${gold}" opacity=".9"/><path d="M100 111 l-10 16 h20z" fill="#fff" opacity=".35"/>`}</svg>`,
+  ring:(s=130)=>`<svg width="${s}" height="${s}" viewBox="0 0 200 200"><ellipse cx="100" cy="120" rx="52" ry="52" fill="none" stroke="${gold}" stroke-width="10"/><path d="M84 66 l16 -22 l16 22 l-16 14z" fill="#E9F1F3" stroke="${gold}" stroke-width="3"/></svg>`,
+  earring:(s=130)=>`<svg width="${s}" height="${s}" viewBox="0 0 200 200">${[70,130].map(x=>`<path d="M${x} 40 v14" stroke="${gold}" stroke-width="3"/><circle cx="${x}" cy="62" r="8" fill="none" stroke="${gold}" stroke-width="3"/><path d="M${x} 70 q-22 40 0 80 q22 -40 0 -80z" fill="none" stroke="${gold}" stroke-width="3"/>`).join('')}</svg>`,
+  bracelet:(s=140)=>`<svg width="${s}" height="${s}" viewBox="0 0 200 200"><ellipse cx="100" cy="105" rx="70" ry="38" fill="none" stroke="${gold}" stroke-width="4"/>${[0,1,2,3,4,5,6,7].map(i=>{const a=i/8*Math.PI*2;return `<circle cx="${100+70*Math.cos(a)}" cy="${105+38*Math.sin(a)}" r="6" fill="${gold}"/>`}).join('')}</svg>`,
+  watch:(s=130)=>`<svg width="${s}" height="${s}" viewBox="0 0 200 200"><rect x="78" y="20" width="44" height="160" rx="10" fill="none" stroke="${gold}" stroke-width="3"/><circle cx="100" cy="100" r="38" fill="#fff" stroke="${gold}" stroke-width="6"/><path d="M100 100 V76 M100 100 H118" stroke="#1B2A41" stroke-width="3" stroke-linecap="round"/></svg>`,
+  set:(s=130)=>`<svg width="${s}" height="${s}" viewBox="0 0 200 200"><path d="M40 30 Q100 130 160 30" fill="none" stroke="${gold}" stroke-width="2"/><circle cx="100" cy="80" r="7" fill="${gold}"/><circle cx="60" cy="140" r="6" fill="${gold}"/><circle cx="140" cy="140" r="6" fill="${gold}"/><path d="M60 146 v18 M140 146 v18" stroke="${gold}" stroke-width="3"/></svg>`
+};
+const I = {
+  search:'<svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
+  user:'<svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
+  heart:'<svg class="ico" viewBox="0 0 24 24"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/></svg>',
+  bag:'<svg class="ico" viewBox="0 0 24 24"><path d="M5 8h14l-1 13H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>',
+  home:'<svg class="ico" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9H4z"/></svg>',
+  grid:'<svg class="ico" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>',
+  menu:'<svg class="ico" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>',
+  back:'<svg class="ico" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>',
+  truck:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 6h12v10H2zM14 10h4l3 3v3h-7"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>',
+  pen:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 20l4-1 11-11-3-3L5 16z"/></svg>',
+  lock:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>',
+  chat:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 5h16v11H9l-5 4z"/></svg>'
+};
+const crown = `<svg width="22" height="14" viewBox="0 0 22 14"><path d="M1 13 L3 3 L8 8 L11 1 L14 8 L19 3 L21 13 Z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>`;
+const logo = `<div class="logo"><div class="crown">${crown}</div><b>ZA RAHISSI</b><em>Bons plans à petit prix</em></div>`;
+
+const products = [
+  {n:"Collier prénom « Amina »", p:"14,90 €", o:"19,90 €", b:["b-perso","Personnalisable"], j:J.necklace(150,'Amina'), r:"★★★★★ <span>(128)</span>"},
+  {n:"Créoles goutte dorées", p:"9,90 €", b:["","Nouveau"], j:J.earring(), r:"★★★★★ <span>(54)</span>"},
+  {n:"Bague solitaire lagon", p:"7,50 €", b:["","Petit prix"], j:J.ring(), r:"★★★★☆ <span>(31)</span>"},
+  {n:"Bracelet perles de M'tsamboro", p:"12,00 €", b:["b-perso","Gravure"], j:J.bracelet(), r:"★★★★★ <span>(77)</span>"},
+];
+const card = (x)=>`<div class="card"><div class="ph">${x.j}<span class="badge ${x.b[0]}">${x.b[1]}</span><span class="heart">${I.heart}</span></div><div class="info"><div class="name">${x.n}</div><div class="price">${x.p}${x.o?`<s>${x.o}</s>`:''}</div><div class="stars">${x.r}</div></div></div>`;
+
+const navItems = ['Nouveautés','Bijoux','Personnalisés','Montres','Accessoires','Idées cadeaux','<span class="promo">Petits prix</span>','Livraison & infos'];
+
+const heroVisual = `<div class="visual"><div class="lagoon"></div><div class="jewel">${J.necklace(d==='A'?260:300,d==='B'?null:'Zara')}</div><div class="shine"></div>${d!=='A'?`<div class="islands">${['Mayotte','Réunion','Comores','Martinique','Guadeloupe','Madagascar'].map(i=>`<span>♥ ${i}</span>`).join('')}</div>`:''}</div>`;
+
+const heroCopy = {
+  A:["Nouvelle collection · Lagon","Des bijoux qui ont <i>l'éclat</i> du lagon","Pièces dorées, personnalisées à ton prénom, pensées à Mayotte et livrées partout en Outre-mer et en France."],
+  B:["L'écrin Zarahissi","Brillez <i>sans compter</i>","Bijoux, montres et créations personnalisées, à petit prix. Un rendu de joaillier, à partir de 5 €."],
+  C:["Fait avec amour depuis Mayotte","Ton prénom, <i>en or</i>, à petit prix","Colliers, bracelets et bagues personnalisés, livrés à Mayotte, à La Réunion, en France et dans les DOM-TOM."]
+}[d];
+
+const desktop = `
+<div class="browser"><div class="browser-bar"><i></i><i></i><i></i><span>zarahissi.com</span></div>
+<div class="site">
+  <div class="announce">✨ Notre site fait peau neuve · Livraison Mayotte · Réunion · France · DOM-TOM</div>
+  <div class="hdr"><div class="search">${I.search} Rechercher un bijou, un prénom…</div>${logo}<div class="icons">${I.user}${I.heart}<span class="cart">${I.bag}<sup>2</sup></span></div></div>
+  <nav class="nav">${navItems.map((x,i)=>`<span class="${i===2?'on':''}">${x}</span>`).join('')}</nav>
+  <section class="hero"><div class="copy"><div class="kicker">${heroCopy[0]}</div><h2>${heroCopy[1]}</h2><p>${heroCopy[2]}</p><div class="btns"><span class="btn">Personnaliser mon bijou</span><span class="btn ghost">Voir les nouveautés</span></div></div>${heroVisual}</section>
+  <div class="reassure">
+    <div>${I.truck}<p><b>Livraison suivie</b><span>Mayotte · Réunion · France · DOM-TOM</span></p></div>
+    <div>${I.pen}<p><b>Bijoux personnalisés</b><span>Prénom, initiales, gravure</span></p></div>
+    <div>${I.lock}<p><b>Paiement 100 % sécurisé</b><span>CB, PayPal, 3× sans frais</span></p></div>
+    <div>${I.chat}<p><b>Service client réactif</b><span>Sur WhatsApp, 7j/7</span></p></div>
+  </div>
+  <section class="sec"><div class="sec-h"><h3>Nos univers</h3><a>Tout voir</a></div>
+    <div class="cats">${[['Colliers',J.necklace(90)],['Bracelets',J.bracelet(90)],['Boucles',J.earring(84)],['Bagues',J.ring(80)],['Montres',J.watch(84)],['Parures',J.set(84)]].map(([n,s])=>`<div class="cat"><div class="ph">${s}</div>${n}</div>`).join('')}</div>
+  </section>
+  <section class="sec" style="padding-top:8px"><div class="sec-h"><h3>Meilleures ventes</h3><a>Voir tout</a></div><div class="grid">${products.map(card).join('')}</div></section>
+  <div class="perso"><div class="txt"><div class="kicker">Atelier personnalisation</div><h3>Ton prénom, ta gravure, en direct</h3><p>Choisis ta police et ton métal, et vois ton bijou se créer sous tes yeux avant de commander.</p><span class="btn">Créer mon bijou</span></div><div class="demo">${J.necklace(220,'Inaya')}</div></div>
+</div></div>`;
+
+const mobileHome = `
+<div class="phone"><div class="screen"><div class="site m">
+  <div class="status"><span>9:41</span><span>●●● 5G</span></div>
+  <div class="announce" style="font-size:11px">✨ Notre site fait peau neuve</div>
+  <div class="hdr">${I.menu}${logo}<span class="cart" style="justify-self:end">${I.bag}<sup>2</sup></span></div>
+  <div class="msearch">${I.search} Rechercher un bijou, un prénom…</div>
+  <div class="chips">${['Nouveautés','Personnalisés','Colliers','Petits prix','Montres'].map((x,i)=>`<span class="${i===1?'on':''}">${x}</span>`).join('')}</div>
+  <div class="mhero"><div class="lagoon"></div><div class="jewel" style="position:absolute;inset:0 0 140px;display:flex;align-items:center;justify-content:center">${J.necklace(150,d==='B'?null:'Zara')}</div><div class="copy"><div class="kicker">${heroCopy[0]}</div><h2>${heroCopy[1]}</h2><span class="btn">Personnaliser</span></div></div>
+  <div class="mreass"><span>🚚 Livraison DOM-TOM</span><span>✍️ Personnalisés</span><span>🔒 Paiement sécurisé</span></div>
+  <section class="sec"><div class="sec-h"><h3>Meilleures ventes</h3><a>Tout voir</a></div><div class="grid">${products.slice(0,2).map(card).join('')}</div></section>
+  <div class="tabbar"><div class="on">${I.home}Accueil</div><div>${I.grid}Catégories</div><div>${I.search}Recherche</div><div>${I.heart}Favoris</div><div>${I.bag}Panier</div></div>
+</div></div></div>`;
+
+const metals = d==='B' ? ['#E3CF97','#D9D9D9','#E8B7A0'] : ['#D8B56A','#CFCFCF','#E3AE95'];
+const mobilePdp = `
+<div class="phone"><div class="screen"><div class="site m pdp">
+  <div class="status"><span>9:41</span><span>●●● 5G</span></div>
+  <div class="gal"><span class="back">${I.back}</span><span class="heart" style="top:14px;right:14px;width:40px;height:40px">${I.heart}</span>${J.necklace(270,'Amina')}<div class="dots"><i></i><i></i><i></i><i></i></div></div>
+  <div class="body">
+    <div class="stars">★★★★★ <span>4,9 · 128 avis</span></div>
+    <h4>Collier prénom personnalisé</h4>
+    <div class="p"><b>14,90 €</b><s>19,90 €</s><em>Petit prix</em></div>
+    <div class="opt"><label>Ton texte · aperçu en direct</label><div class="field">Amina <span>5/12</span></div></div>
+    <div class="opt" style="display:flex;gap:18px">
+      <div style="flex:1.3"><label>Police</label><div class="fonts"><span class="on" style="font-family:'Great Vibes'">Aa</span><span style="font-family:var(--title)">Aa</span><span style="font-family:var(--text);font-weight:700">Aa</span></div></div>
+      <div><label>Métal</label><div class="sw">${metals.map((c,i)=>`<i class="${i?'':'on'}" style="background:${c}"></i>`).join('')}</div></div>
+    </div>
+    <div class="ship">${I.truck} Mayotte : livré en 24-48 h · Réunion : 4-6 jours</div>
+  </div>
+  <div class="sticky"><span class="btn">Ajouter au panier · 14,90 €</span></div>
+</div></div></div>`;
+
+const spec = `
+<div class="spec">
+  <div class="label">Palette (couleurs actuelles, hiérarchisées)</div>
+  <div class="swatches">${D.sw.map(([h,n,u])=>`<div class="swatch"><div class="c" style="background:${h};color:${['#1B2A41','#111C2E','#A0442E','#56627A','#5B6678','#7896A6'].includes(h)?'#fff':'#1B2A41'}">${h}</div><small><b>${n}</b><br>${u}</small></div>`).join('')}</div>
+  <div class="types">
+    <div><div class="label">Titres</div><div class="big" style="font-family:'${D.t[0]}';font-weight:${getComputedStyle(document.documentElement).getPropertyValue('--title-w')}">Aa Bijoux</div><p>${D.t[0]}, pour les titres, les prix vedettes et les citations.</p></div>
+    <div><div class="label">Texte</div><div class="big" style="font-family:'${D.t[1]}';font-size:44px;padding-top:8px">Aa 16 px</div><p>${D.t[1]}, lisible dès 16 px sur mobile, chiffres nets pour les prix.</p></div>
+  </div>
+  <div class="comps site" style="background:#fff;color:#1B2A41">
+    <span class="btn" style="${d==='A'?'background:#1B2A41;border-color:#1B2A41;color:#fff':''}">Ajouter au panier</span>
+    <span class="btn ghost" style="color:#1B2A41">Voir la collection</span>
+    <span class="badge b-perso" style="position:static">Personnalisable</span>
+    <span class="badge" style="position:static;background:#F6F1E4;color:#1B2A41">Nouveau</span>
+    <span class="badge" style="position:static;background:#E9E0B8;color:#1B2A41">Petit prix</span>
+  </div>
+  <div class="notes"><b>En quelques mots :</b> ${D.pitch}</div>
+</div>`;
+
+document.getElementById('app').innerHTML = `
+<div class="board">
+  <div class="board-head"><h1><small>Zarahissi 2027 · ${D.tag}</small>${D.name}</h1><p>${D.pitch}</p></div>
+  <div class="row">
+    <div><div class="label">Accueil · ordinateur (1440 px)</div>${desktop}</div>
+    <div><div class="label">Accueil · mobile (390 px)</div>${mobileHome}</div>
+  </div>
+  <div class="row">
+    <div><div class="label">Fiche produit · mobile</div>${mobilePdp}</div>
+    <div><div class="label">Palette, typographies et composants</div>${spec}</div>
+  </div>
+</div>`;
+</script>
+</body>
+</html>
