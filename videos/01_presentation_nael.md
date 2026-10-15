@@ -170,3 +170,15 @@ Publier la variante A, puis tester B ou C quelques jours plus tard avec le même
 **Coût** : environ 4 crédits Higgsfield pour la voix et les images, environ 61 pour l'animation des plans et 8 crédits Arcads pour la musique.
 
 **Point à vérifier à l'écoute** : la prononciation de « mahorais » par la voix de synthèse (la transcription automatique l'entend mal). Si elle sonne faux, régénérer la voix off avec l'orthographe phonétique « ma-o-rè ».
+
+## Voix off ElevenLabs (15/10/2026)
+
+La voix Seed Audio n'a pas été retenue. Trois prises ElevenLabs (modèle `eleven_v4`, consigne `[calm, slow, intimate]`) dans `videos/voix_01/` :
+
+| Fichier | Voix | voice_id | Durée |
+|---|---|---|---|
+| `isac.mp3` | Isac — grave, calme, léger accent ivoirien | `SomyDQQmnE7TsltdiDgp` | 21,8 s |
+| `micha.mp3` | Micha — médium-grave, chaude, posée | `qc5bFdt925ro3yydUrYD` | 21,5 s |
+| `kenzy.mp3` | Kenzy — jeune, élégante, premium | `xclXfpLYbMIBNgiHTm8S` | 16,9 s |
+
+Flow ElevenLabs : `r6yzBajnNDgxG4ck0qDb`. La voix Rakoto (`LwXmJOoCvgC7Oo043IW7`) n'a pas pu être générée : quota ElevenLabs épuisé (54 crédits restants, 327 nécessaires par prise).
