@@ -498,3 +498,6 @@ a.chip{text-decoration:none}
 .cmform textarea{width:100%;border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--surface);resize:vertical;min-height:70px}
 .cmformacts{display:flex;justify-content:flex-end;gap:8px}
 .radio{display:flex;align-items:center;gap:8px;font-weight:600}
+a.deallink{text-decoration:none;color:inherit}
+a.deallink:hover{text-decoration:underline}
+.cbtn{width:100%;justify-content:center;margin-top:10px}

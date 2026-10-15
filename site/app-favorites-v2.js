@@ -419,7 +419,7 @@ function coupon(c,{showBiz=true,noLink=false}={}){
         <button class="hb moro" data-moro="${c.id}" data-dir="moro" aria-pressed="${hv==='moro'}" aria-label="Moro : bon plan, ça chauffe !">🔥</button>
       </div>
       ${showBiz?`<a class="bizline" href="#/entreprises/${b.slug}">${logo(b)}<span>${esc(b.name)}</span></a>`:''}
-      <div class="deal">${esc(c.deal)}</div>
+      ${noLink?`<div class="deal">${esc(c.deal)}</div>`:`<a class="deal deallink" href="#/bon-plan/${encodeURIComponent(c.id)}">${esc(c.deal)}</a>`}
       <p class="detail">${esc(c.detail)}</p>
       ${c.cond?`<p class="cond">${esc(c.cond)}</p>`:''}
       <div class="meta">
@@ -429,7 +429,6 @@ function coupon(c,{showBiz=true,noLink=false}={}){
         ${isNew(c)?`<span class="pill wait">Nouveau</span>`:''}
       </div>
       ${c.byName&&!official?`<p class="by">${ic('heart')}Partagé par <strong>${esc(c.byName)}</strong>, merci !</p>`:''}
-      ${noLink?'':`<a class="clink" href="#/bon-plan/${encodeURIComponent(c.id)}">💬 ${countComments(c.id)?countComments(c.id)+' commentaire'+(countComments(c.id)>1?'s':''):'Commenter'} · Partager</a>`}
     </div>
     <div class="perf" aria-hidden="true"></div>
     <div class="stub">
@@ -442,6 +441,7 @@ function coupon(c,{showBiz=true,noLink=false}={}){
         <button class="vote up" data-vote="${c.id}" data-dir="up" aria-pressed="${v==='up'}">${ic('up')}Fonctionne (${c.up})</button>
         <button class="vote down" data-vote="${c.id}" data-dir="down" aria-pressed="${v==='down'}">${ic('down')}Ne fonctionne plus${c.down?' ('+c.down+')':''}</button>
       </div>
+      ${noLink?'':`<a class="btn btn-ghost cbtn" href="#/bon-plan/${encodeURIComponent(c.id)}">💬 ${countComments(c.id)?countComments(c.id)+' commentaire'+(countComments(c.id)>1?'s':'')+' · Voir':'Commenter'} et partager</a>`}
     </div>
   </article>`;
 }
