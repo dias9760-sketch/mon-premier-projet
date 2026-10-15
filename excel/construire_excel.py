@@ -2,10 +2,10 @@
 
 Usage : python construire_excel.py ancien_fichier.xlsx nouveau_fichier.xlsx [annee]
 
-- Regroupe tous les onglets mensuels dans un seul onglet COMMANDES (mêmes colonnes A→Q,
-  mêmes couleurs), avec listes déroulantes, marge, alerte de retard.
-- Ajoute un TABLEAU DE BORD (CA, marge, statuts, sources…) et un onglet À TRAITER
-  qui se remplit tout seul avec les commandes en cours.
+- Garde un onglet par mois (JAN 2026 … DEC 2026), mêmes colonnes A→Q et mêmes couleurs,
+  avec listes déroulantes, marge, alerte de retard et totaux du mois.
+- Ajoute un onglet SUIVI qui rassemble tout seul les commandes en cours de tous les mois,
+  et un TABLEAU DE BORD (CA, marge, statuts, sources…).
 """
 import sys
 
@@ -15,7 +15,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
-from extraire import CHAMPS, extraire
+from extraire import CHAMPS, MOIS, extraire
 
 # --- Couleurs reprises du fichier d'origine (thème Office : accent5 bleu, accent6 vert) ---
 TITRE = "203864"        # bleu foncé (bandeau titre)
@@ -113,13 +113,13 @@ def onglet_listes(wb, produits):
     for i, (s, fond, pol, _) in enumerate(STATUTS, start=2):
         ws.cell(i, 5).fill = fill(fond)
         ws.cell(i, 5).font = font(pol, bold=True)
-    ws.cell(len(STATUTS) + 3, 5, "Colonne F : OUI = la commande apparaît dans « À TRAITER »").font = font("7F7F7F", italic=True)
+    ws.cell(len(STATUTS) + 3, 5, "Colonne F : OUI = la commande apparaît dans l'onglet SUIVI").font = font("7F7F7F", italic=True)
     ws.freeze_panes = "A2"
     return plages
 
 
 
-# ---------------------------------------------------------------- COMMANDES
+# ---------------------------------------------------------------- ONGLETS MENSUELS
 COLONNES = [  # (entête, largeur, bloc)
     ("CONTACT", 12, CLIENT), ("CLIENT", 26, CLIENT), ("N° Facture/commande", 13, CLIENT),
     ("DATE PAIEMENT", 13, CLIENT), ("PAIEMENT", 16, CLIENT), ("NUMERO", 12, CLIENT),
@@ -130,14 +130,31 @@ COLONNES = [  # (entête, largeur, bloc)
     ("MARGE", 10, NOUVEAU), ("JOURS EN COURS", 10, NOUVEAU), ("ALERTE", 13, NOUVEAU), ("NOTES", 30, NOUVEAU),
 ]
 PREMIERE = 5
+DERNIERE = 404          # 400 lignes de saisie par mois (le mois le plus chargé en compte ~230)
+ALERTE = "'TABLEAU DE BORD'!$C$5"
+EUROS = '#,##0.00 "€";-#,##0.00 "€";"-"'
 
 
-def onglet_commandes(wb, lignes, plages, derniere):
-    ws = wb.create_sheet("COMMANDES", 0)
+def nom_onglet(m, annee):
+    return f"{MOIS[m]} {annee}"
+
+
+def ref(onglet, col, abs_=True):
+    """Plage d'une colonne d'un onglet mensuel, ex. 'JAN 2026'!$K$5:$K$404."""
+    return f"'{onglet}'!${col}${PREMIERE}:${col}${DERNIERE}"
+
+
+def somme_mois(onglets, modele):
+    """Additionne une même formule sur les 12 onglets : modele contient {o} pour le nom d'onglet."""
+    return "=" + "+".join(modele.format(o=o) for o in onglets)
+
+
+def onglet_mois(wb, nom, titre, lignes, plages):
+    ws = wb.create_sheet(nom)
     ws.sheet_view.zoomScale = 110
     n = len(COLONNES)
     ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=n)
-    c = ws.cell(2, 1, "ZARAHISSI — COMMANDES 2026 (tous les mois)")
+    c = ws.cell(2, 1, titre)
     c.fill, c.font = fill(TITRE), font("FFFFFF", bold=True, size=16)
     c.alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[2].height = 28
@@ -153,9 +170,8 @@ def onglet_commandes(wb, lignes, plages, derniere):
         ws.column_dimensions[get_column_letter(j)].width = w
     ws.row_dimensions[4].height = 32
 
-    alerte = "'TABLEAU DE BORD'!$C$5"
     statuts, a_traiter = plages["STATUT"], plages["À TRAITER ?"]
-    for i in range(PREMIERE, derniere + 1):
+    for i in range(PREMIERE, DERNIERE + 1):
         for j, (_, _, bloc) in enumerate(COLONNES, start=1):
             c = ws.cell(i, j)
             c.fill = fill(bloc)
@@ -167,15 +183,15 @@ def onglet_commandes(wb, lignes, plages, derniere):
         for j in (3, 6):  # n° de commande et téléphone en texte : évite la perte de chiffres (n° TikTok)
             ws.cell(i, j).number_format = "@"
         for j in (11, 12, 18):
-            ws.cell(i, j).number_format = '#,##0.00 "€";-#,##0.00 "€";"-"'
+            ws.cell(i, j).number_format = EUROS
         ws.cell(i, 18).value = f'=IF(K{i}="","",K{i}-N(L{i}))'
         ws.cell(i, 19).value = (f'=IF(OR(D{i}="",N{i}=""),"",IF(IFERROR(INDEX({a_traiter},'
                                 f'MATCH(N{i},{statuts},0)),"NON")="OUI",TODAY()-D{i},""))')
         ws.cell(i, 19).number_format = '0" j"'
         ws.cell(i, 19).alignment = Alignment(horizontal="center", vertical="top")
-        ws.cell(i, 20).value = f'=IF(S{i}="","",IF(S{i}>{alerte},"⚠ RETARD","En cours"))'
+        ws.cell(i, 20).value = f'=IF(S{i}="","",IF(S{i}>{ALERTE},"⚠ RETARD","En cours"))'
         ws.cell(i, 20).alignment = Alignment(horizontal="center", vertical="top")
-        # V (masquée) : rang de la ligne parmi les commandes à traiter, utilisé par l'onglet À TRAITER
+        # V (masquée) : rang de la ligne parmi les commandes en cours du mois, utilisé par l'onglet SUIVI
         ws.cell(i, 22).value = f'=IF(ISNUMBER(S{i}),COUNT(S${PREMIERE}:S{i}),"")'
 
     for i, l in enumerate(lignes, start=PREMIERE):
@@ -185,8 +201,7 @@ def onglet_commandes(wb, lignes, plages, derniere):
             for j in (1, 2, 3, 6, 17):
                 ws.cell(i, j).font = font("A6A6A6", italic=True)
 
-    zone = lambda L: f"{L}{PREMIERE}:{L}{derniere}"
-    # Listes déroulantes
+    zone = lambda L: f"{L}{PREMIERE}:{L}{DERNIERE}"
     for col, cle, strict in [("A", "CONTACT", True), ("E", "PAIEMENT", True), ("G", "EMBALLAGE", True),
                              ("I", "COULEUR", True), ("N", "STATUT", True), ("P", "RÉCUPÉRATION", True),
                              ("H", "PRODUITS", False)]:
@@ -199,7 +214,7 @@ def onglet_commandes(wb, lignes, plages, derniere):
         ws.add_data_validation(dv)
     dv = DataValidation(type="decimal", operator="greaterThanOrEqual", formula1="0", allow_blank=True,
                         showErrorMessage=True, error="Le prix doit être un nombre (ex : 22,50)")
-    dv.add(f"K{PREMIERE}:L{derniere}")
+    dv.add(f"K{PREMIERE}:L{DERNIERE}")
     ws.add_data_validation(dv)
     dv = DataValidation(type="date", operator="greaterThan", formula1="43831", allow_blank=True,
                         showErrorMessage=True, error="Saisissez une date (ex : 15/10/2026)")
@@ -227,10 +242,34 @@ def onglet_commandes(wb, lignes, plages, derniere):
     # Oubli fréquent : livraison sans adresse
     cf.add(zone("Q"), FormulaRule(formula=[f'AND(LEFT(P{PREMIERE},9)="LIVRAISON",Q{PREMIERE}="")'], fill=fill("F4B084")))
 
+    # Totaux du mois, à droite du tableau (comme vos anciennes cases VENTE SITE WEB / SUR PLACE)
     ws.column_dimensions["V"].hidden = True
+    ws.column_dimensions["W"].width = 3
+    ws.column_dimensions["X"].width = 22
+    ws.column_dimensions["Y"].width = 14
+    entete(ws, 4, 24, "TOTAUX DU MOIS", TITRE)
+    entete(ws, 4, 25, "", TITRE)
+    k, l_, a, n_, h = (f"{x}{PREMIERE}:{x}{DERNIERE}" for x in "KLANH")
+    totaux = [
+        ("TOTAL VENTE", f"=SUM({k})", EUROS),
+        ("TOTAL ACHAT", f"=SUM({l_})", EUROS),
+        ("MARGE", "=Y5-Y6", EUROS),
+        ("VENTE SITE WEB", f'=SUMIF({a},"SITE WEB",{k})', EUROS),
+        ("VENTE SUR PLACE", f'=SUMIF({a},"<>SITE WEB",{k})', EUROS),
+        ("ARTICLES", f"=COUNTA({h})", "0"),
+        ("EN COURS", f"=COUNT(S{PREMIERE}:S{DERNIERE})", "0"),
+        ("EN RETARD", f'=COUNTIF(T{PREMIERE}:T{DERNIERE},"⚠ RETARD")', "0"),
+    ]
+    for i, (lib, f, fmt) in enumerate(totaux, start=5):
+        c1, c2 = ws.cell(i, 24, lib), ws.cell(i, 25, f)
+        c1.font, c1.fill, c1.border = font(bold=True), fill(CLIENT), BORD
+        c2.font, c2.border, c2.number_format = font(bold=True), BORD, fmt
+    ws["Y12"].font = font("FF0000", bold=True)
+
     ws.freeze_panes = f"C{PREMIERE}"
-    ws.auto_filter.ref = f"A4:U{derniere}"
+    ws.auto_filter.ref = f"A4:U{DERNIERE}"
     ws.print_title_rows = "4:4"
+    ws.print_area = f"A1:U{DERNIERE}"
     ws.page_setup.orientation = "landscape"
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0
@@ -238,35 +277,128 @@ def onglet_commandes(wb, lignes, plages, derniere):
     return ws
 
 
+# ---------------------------------------------------------------- SUIVI (commandes en cours, tous mois confondus)
+SUIVI_COLS = [  # (entête, colonne source dans l'onglet du mois, largeur)
+    ("JOURS", "S", 8), ("STATUT", "N", 21), ("CLIENT", "B", 24), ("N°", "C", 13),
+    ("DATE PAIEMENT", "D", 12), ("PRODUIT", "H", 26), ("COULEUR", "I", 10), ("PERSONNALISATION", "J", 34),
+    ("EMBALLAGE", "G", 14), ("RÉCUPÉRATION", "P", 18), ("TÉLÉPHONE", "F", 13), ("NOTES", "U", 22),
+]
+
+
+def onglet_suivi(wb, onglets, nb=250):
+    ws = wb.create_sheet("SUIVI", 0)
+    ws.sheet_view.showGridLines = False
+    ws.sheet_view.zoomScale = 110
+    nvis = 2 + len(SUIVI_COLS)                       # A = MOIS, B..M = colonnes, N = lien
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=nvis)
+    c = ws.cell(1, 1, "SUIVI DES COMMANDES EN COURS — se met à jour tout seul à partir des onglets mensuels")
+    c.fill, c.font = fill(TITRE), font("FFFFFF", bold=True, size=15)
+    c.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 30
+
+    # Compteurs par statut en cours (mêmes couleurs)
+    en_cours = [s for s in STATUTS if s[3]]
+    ws.cell(3, 1, "EN COURS").font = font(bold=True)
+    ws.cell(4, 1, "EN RETARD").font = font("FF0000", bold=True)
+    ws.cell(3, 2, f"=COUNT($Q$7:$Q${6 + nb})")
+    ws.cell(4, 2, f"=COUNTIFS($B$7:$B${6 + nb},\">\"&{ALERTE})")
+    for r in (3, 4):
+        ws.cell(r, 2).font = font("FF0000" if r == 4 else "000000", bold=True, size=14)
+        ws.cell(r, 2).alignment = Alignment(horizontal="center")
+    for j, (s, fond, pol, _) in enumerate(en_cours, start=4):
+        h = ws.cell(3, j, s)
+        h.fill, h.font, h.border = fill(fond), font(pol, bold=True, size=9), BORD
+        h.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        v = ws.cell(4, j, somme_mois(onglets, 'COUNTIF(' + ref("{o}", "N") + f',"{s}")'))
+        v.font, v.border = font(bold=True, size=14), BORD
+        v.alignment = Alignment(horizontal="center")
+    ws.row_dimensions[3].height = 30
+
+    # Table d'aide masquée : nombre de commandes en cours par mois et décalage cumulé
+    # R = nom d'onglet, S = nb en cours, T = nb cumulé avant ce mois
+    ws.cell(5, 18, "ONGLET"), ws.cell(5, 19, "EN COURS"), ws.cell(5, 20, "AVANT")
+    for m, o in enumerate(onglets):
+        r = 6 + m
+        ws.cell(r, 18, o)
+        ws.cell(r, 19, f"=COUNT({ref(o, 'S')})")
+        ws.cell(r, 20, 0 if m == 0 else f"=T{r - 1}+S{r - 1}")
+    total = f"SUM($S$6:$S${5 + len(onglets)})"
+    avant = f"$T$6:$T${5 + len(onglets)}"
+
+    entete(ws, 6, 1, "MOIS")
+    ws.column_dimensions["A"].width = 11
+    for j, (t, _, w) in enumerate(SUIVI_COLS, start=2):
+        entete(ws, 6, j, t)
+        ws.column_dimensions[get_column_letter(j)].width = w
+    entete(ws, 6, nvis, "MODIFIER")
+    ws.column_dimensions[get_column_letter(nvis)].width = 12
+    ws.row_dimensions[6].height = 28
+
+    def choisir(col):
+        return "CHOOSE($P{r}," + ",".join(f"'{o}'!${col}:${col}" for o in onglets) + ")"
+
+    for k in range(1, nb + 1):
+        r = 6 + k
+        # P = n° du mois, Q = n° de ligne dans l'onglet du mois (colonnes masquées)
+        ws.cell(r, 16, f'=IF({k}>{total},"",COUNTIF({avant},"<="&{k - 1}))')
+        ws.cell(r, 17, f'=IF($P{r}="","",MATCH({k}-INDEX({avant},$P{r}),{choisir("V").format(r=r)},0))')
+        ws.cell(r, 1, f'=IF($P{r}="","",INDEX($R$6:$R$17,$P{r}))')
+        for j, (_, src, _) in enumerate(SUIVI_COLS, start=2):
+            val = f"INDEX({choisir(src).format(r=r)},$Q{r})"
+            c = ws.cell(r, j, f'=IF($Q{r}="","",IF({val}="","",{val}))')
+            c.font = font(bold=src in ("N", "J"), size=12 if src == "J" else 11)
+            c.alignment = Alignment(vertical="top", wrap_text=src in ("J", "U"))
+        ws.cell(r, nvis, f'=IF($Q{r}="","",HYPERLINK("#\'"&$A{r}&"\'!N"&$Q{r},"→ ouvrir"))')
+        ws.cell(r, nvis).font = font("0563C1")
+        ws.cell(r, 2).number_format = '0" j"'
+        ws.cell(r, 2).alignment = Alignment(horizontal="center", vertical="top")
+        ws.cell(r, 6).number_format = "DD/MM/YYYY"
+        for j in (1, nvis):
+            ws.cell(r, j).alignment = Alignment(vertical="top")
+        for j in range(1, nvis + 1):
+            ws.cell(r, j).border = BORD
+    for L in "PQRST":
+        ws.column_dimensions[L].hidden = True
+
+    zone = f"A7:{get_column_letter(nvis)}{6 + nb}"
+    cf = ws.conditional_formatting
+    for s, fond, pol, _ in STATUTS:
+        cf.add(f"C7:C{6 + nb}", FormulaRule(formula=[f'$C7="{s}"'], fill=fill(fond), font=Font(color=pol, bold=True)))
+    cf.add(f"B7:B{6 + nb}", FormulaRule(formula=[f"AND(ISNUMBER($B7),$B7>{ALERTE})"],
+                                        fill=fill("FF0000"), font=Font(color="FFFFFF", bold=True)))
+    cf.add(f"J7:J{6 + nb}", FormulaRule(formula=['AND($J7<>"",$J7<>"Aucun")'], font=Font(color="FF0000", bold=True)))
+    cf.add(zone, FormulaRule(formula=['AND($Q7<>"",MOD(ROW(),2)=0)'], fill=fill(CLIENT)))
+    ws.auto_filter.ref = f"A6:{get_column_letter(nvis - 1)}{6 + nb}"
+    ws.freeze_panes = "A7"
+    ws.print_area = f"A1:{get_column_letter(nvis - 1)}{6 + nb}"
+    ws.page_setup.orientation = "landscape"
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    ws.print_title_rows = "6:6"
+    return ws
+
+
 # ---------------------------------------------------------------- TABLEAU DE BORD
-def onglet_tableau(wb, derniere, annee):
+def onglet_tableau(wb, onglets, annee):
     ws = wb.create_sheet("TABLEAU DE BORD", 1)
     ws.sheet_view.showGridLines = False
-    R = lambda L: f"COMMANDES!${L}${PREMIERE}:${L}${derniere}"
-    D, K, L_, Rm, N, A, E, P, H = (R(x) for x in "DKLRNAEPH")
     ws.merge_cells("A2:L2")
-    c = ws.cell(2, 1, "TABLEAU DE BORD — ZARAHISSI")
+    c = ws.cell(2, 1, f"TABLEAU DE BORD {annee} — ZARAHISSI")
     c.fill, c.font = fill(TITRE), font("FFFFFF", bold=True, size=16)
     c.alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[2].height = 28
 
-    ws["A4"], ws["A5"] = "Année suivie", "Alerte retard après (jours)"
-    ws["C4"], ws["C5"] = annee, 7
-    for r in (4, 5):
-        ws.cell(r, 1).font = font(bold=True)
-        ws.cell(r, 3).fill = fill("FFFF00")
-        ws.cell(r, 3).font = font("0000FF", bold=True)
-        ws.cell(r, 3).border = BORD
-    ws["D4"] = "← cellules jaunes modifiables"
-    ws["D4"].font = font("7F7F7F", italic=True)
+    ws["A5"], ws["C5"] = "Alerte retard après (jours)", 7
+    ws["A5"].font = font(bold=True)
+    ws["C5"].fill, ws["C5"].font, ws["C5"].border = fill("FFFF00"), font("0000FF", bold=True), BORD
+    ws["D5"] = "← cellule jaune modifiable"
+    ws["D5"].font = font("7F7F7F", italic=True)
 
-    # Indicateurs clés du mois en cours
-    ws["F4"], ws["F5"] = "Articles à traiter", "dont en retard"
-    ws["H4"] = f'=COUNTIF({R("S")},">=0")'
-    ws["H5"] = f'=COUNTIF({R("T")},"⚠ RETARD")'
+    ws["F4"], ws["F5"] = "Articles en cours", "dont en retard"
+    ws["H4"] = "=SUIVI!B3"
+    ws["H5"] = "=SUIVI!B4"
     ws["J4"], ws["J5"] = "CA de l'année", "Marge de l'année"
-    ws["L4"] = f"=SUM(D11:D22)"
-    ws["L5"] = f"=SUM(F11:F22)"
     for cell in ("F4", "F5", "J4", "J5"):
         ws[cell].font = font(bold=True)
     for cell, coul in (("H4", "FFC000"), ("H5", "FF0000"), ("L4", "00B050"), ("L5", "00B050")):
@@ -275,29 +407,27 @@ def onglet_tableau(wb, derniere, annee):
         ws[cell].alignment = Alignment(horizontal="center")
     ws["L4"].number_format = ws["L5"].number_format = '#,##0 "€"'
 
-    # Tableau mensuel
+    # Résultat mensuel : chaque ligne lit l'onglet du mois
     r0 = 9
     ws.merge_cells(start_row=r0, start_column=1, end_row=r0, end_column=10)
-    entete(ws, r0, 1, "RÉSULTAT MENSUEL (remplace les totaux en bas de chaque onglet mensuel)", TITRE)
+    entete(ws, r0, 1, "RÉSULTAT MENSUEL (lu directement dans chaque onglet mensuel)", TITRE)
     titres = ["MOIS", "ARTICLES", "CA", "PRIX ACHAT", "MARGE", "% MARGE", "VENTE SITE WEB",
               "VENTE SUR PLACE / RÉSEAUX", "REMBOURSEMENTS", "PANIER MOYEN / ARTICLE"]
     for j, t in enumerate(titres, start=1):
         entete(ws, r0 + 1, j, t)
-    for m in range(12):
+    for m, o in enumerate(onglets):
         r = r0 + 2 + m
-        deb = f"DATE($C$4,{m + 1},1)"
-        fin_ = f"DATE($C$4,{m + 2},1)"
-        crit = f'{D},">="&{deb},{D},"<"&{fin_}'
+        K, A, N, H, L_ = (ref(o, x) for x in "KANHL")
         valeurs = [
             MOIS_NOMS[m],
-            f"=COUNTIFS({crit})",
-            f"=SUMIFS({K},{crit})",
-            f"=SUMIFS({L_},{crit})",
+            f"=COUNTA({H})",
+            f"=SUM({K})",
+            f"=SUM({L_})",
             f"=C{r}-D{r}",
             f'=IF(C{r}=0,"",E{r}/C{r})',
-            f'=SUMIFS({K},{crit},{A},"SITE WEB")',
+            f'=SUMIF({A},"SITE WEB",{K})',
             f"=C{r}-G{r}",
-            f'=SUMIFS({K},{crit},{N},"REMBOURSEMENT")',
+            f'=SUMIF({N},"REMBOURSEMENT",{K})',
             f'=IF(B{r}=0,"",C{r}/B{r})',
         ]
         for j, v in enumerate(valeurs, start=1):
@@ -305,7 +435,8 @@ def onglet_tableau(wb, derniere, annee):
             c.border = BORD
             c.font = font(bold=j == 1)
             c.fill = fill(CLIENT if m % 2 == 0 else "FFFFFF")
-            c.number_format = '0.0%' if j == 6 else ('#,##0.00 "€";-#,##0.00 "€";"-"' if j > 2 else "0")
+            c.number_format = '0.0%' if j == 6 else (EUROS if j > 2 else "0")
+        ws.cell(r, 1).hyperlink = f"#'{o}'!A1"
     rt = r0 + 14
     ws.cell(rt, 1, "TOTAL")
     for j in range(2, 11):
@@ -316,97 +447,44 @@ def onglet_tableau(wb, derniere, annee):
         c = ws.cell(rt, j)
         c.fill, c.font, c.border = fill(ENTETE), font("FFFFFF", bold=True), BORD
         c.number_format = ws.cell(r0 + 2, j).number_format
-    # Les références du haut pointent sur ces lignes
     ws["L4"] = f"=C{rt}"
     ws["L5"] = f"=E{rt}"
 
-    # Blocs de répartition (année entière)
+    # Répartitions sur l'année (somme des 12 onglets)
     rb = rt + 3
-    crit_an = f'{D},">="&DATE($C$4,1,1),{D},"<"&DATE($C$4+1,1,1)'
 
-    def bloc(col, titre, valeurs, couleurs=None, avec_ca=True):
-        entete(ws, rb, col, titre, TITRE)
-        entete(ws, rb, col + 1, "NB", TITRE)
+    def nb_(col, crit):
+        return somme_mois(onglets, f'COUNTIF({ref("{o}", col)},{crit})')
+
+    def ca_(col, crit):
+        return somme_mois(onglets, f'SUMIF({ref("{o}", col)},{crit},{ref("{o}", "K")})')
+
+    def bloc(r_deb, col, titre, src, valeurs, couleurs=None, avec_ca=True):
+        entete(ws, r_deb, col, titre, TITRE)
+        entete(ws, r_deb, col + 1, "NB", TITRE)
         if avec_ca:
-            entete(ws, rb, col + 2, "CA", TITRE)
-        for i, v in enumerate(valeurs, start=1):
-            r = rb + i
-            Lc = get_column_letter(col)
-            c = ws.cell(r, col, v)
+            entete(ws, r_deb, col + 2, "CA", TITRE)
+        for i, (lib, crit) in enumerate(valeurs, start=1):
+            r = r_deb + i
+            c = ws.cell(r, col, lib)
             c.border = BORD
-            if couleurs and couleurs[i - 1]:
+            if couleurs:
                 fo, po = couleurs[i - 1]
                 c.fill, c.font = fill(fo), font(po, bold=True)
-            plage = {"STATUT": N, "CONTACT": A, "PAIEMENT": E, "RÉCUPÉRATION": P, "CATÉGORIE": H}[titre]
-            ws.cell(r, col + 1, f'=COUNTIFS({crit_an},{plage},{Lc}{r})').border = BORD
+            ws.cell(r, col + 1, nb_(src, crit)).border = BORD
             if avec_ca:
-                ca = ws.cell(r, col + 2, f'=SUMIFS({K},{crit_an},{plage},{Lc}{r})')
+                ca = ws.cell(r, col + 2, ca_(src, crit))
                 ca.border, ca.number_format = BORD, '#,##0 "€";-#,##0 "€";"-"'
 
-    bloc(1, "STATUT", [s[0] for s in STATUTS], [(s[1], s[2]) for s in STATUTS], avec_ca=False)
-    bloc(4, "CONTACT", [c_ for c_, _ in CONTACTS])
-    bloc(8, "PAIEMENT", PAIEMENTS)
-    rb_cat = rb + len(CONTACTS) + 3
-    # Catégories de produits (recherche par début de nom, ex. « Collier* »)
-    rb_save = rb
-    rb = rb_cat
-    entete(ws, rb, 4, "CATÉGORIE", TITRE)
-    entete(ws, rb, 5, "NB", TITRE)
-    entete(ws, rb, 6, "CA", TITRE)
-    for i, (nom, motif) in enumerate(CATEGORIES, start=1):
-        r = rb + i
-        ws.cell(r, 4, nom).border = BORD
-        ws.cell(r, 5, f'=COUNTIFS({crit_an},{H},"{motif}")').border = BORD
-        c = ws.cell(r, 6, f'=SUMIFS({K},{crit_an},{H},"{motif}")')
-        c.border, c.number_format = BORD, '#,##0 "€";-#,##0 "€";"-"'
-    rb = rb_save + len(PAIEMENTS) + 3
-    bloc(8, "RÉCUPÉRATION", [r_ for r_, _ in RECUPERATIONS], avec_ca=False)
+    lit = lambda v: [(x, f'"{x}"') for x in v]
+    bloc(rb, 1, "STATUT", "N", lit([s[0] for s in STATUTS]), [(s[1], s[2]) for s in STATUTS], avec_ca=False)
+    bloc(rb, 4, "CONTACT", "A", lit([c_ for c_, _ in CONTACTS]))
+    bloc(rb + len(CONTACTS) + 3, 4, "CATÉGORIE", "H", [(nom, f'"{motif}"') for nom, motif in CATEGORIES])
+    bloc(rb, 8, "PAIEMENT", "E", lit(PAIEMENTS))
+    bloc(rb + len(PAIEMENTS) + 3, 8, "RÉCUPÉRATION", "P", lit([r_ for r_, _ in RECUPERATIONS]), avec_ca=False)
 
-    for L, w in zip("ABCDEFGHIJKL", (16, 10, 12, 18, 12, 12, 16, 20, 12, 14, 12, 14)):
+    for L, w in zip("ABCDEFGHIJKL", (24, 10, 12, 18, 12, 12, 16, 20, 12, 14, 12, 14)):
         ws.column_dimensions[L].width = w
-    ws.column_dimensions["A"].width = 24
-    return ws
-
-
-# ---------------------------------------------------------------- À TRAITER
-def onglet_a_traiter(wb, derniere, nb=150):
-    ws = wb.create_sheet("À TRAITER", 1)
-    ws.sheet_view.showGridLines = False
-    ws.merge_cells("A2:J2")
-    c = ws.cell(2, 1, "À TRAITER — se met à jour tout seul (commandes non expédiées, de la plus ancienne à la plus récente)")
-    c.fill, c.font = fill(TITRE), font("FFFFFF", bold=True, size=14)
-    c.alignment = Alignment(horizontal="center", vertical="center")
-    ws.row_dimensions[2].height = 26
-    cols = [("JOURS", "S", 8), ("STATUT", "N", 20), ("CLIENT", "B", 24), ("N°", "C", 12),
-            ("PRODUIT", "H", 26), ("COULEUR", "I", 10), ("PERSONNALISATION", "J", 34),
-            ("EMBALLAGE", "G", 14), ("RÉCUPÉRATION", "P", 18), ("TÉLÉPHONE", "F", 13)]
-    for j, (t, _, w) in enumerate(cols, start=1):
-        entete(ws, 4, j, t)
-        ws.column_dimensions[get_column_letter(j)].width = w
-    ws.column_dimensions["K"].hidden = True
-    for k in range(1, nb + 1):
-        r = 4 + k
-        # K = n° de ligne de la k-ième commande à traiter dans COMMANDES
-        ws.cell(r, 11, f'=IFERROR(MATCH({k},COMMANDES!$V:$V,0),"")')
-        for j, (_, src, _) in enumerate(cols, start=1):
-            c = ws.cell(r, j, f'=IF($K{r}="","",IF(INDEX(COMMANDES!${src}:${src},$K{r})="","",INDEX(COMMANDES!${src}:${src},$K{r})))')
-            c.border = BORD
-            c.font = font(bold=j in (2, 7), size=12 if j == 7 else 11)
-            c.alignment = Alignment(vertical="top", wrap_text=j == 7)
-        ws.cell(r, 1).number_format = '0" j"'
-    zone = f"A5:J{4 + nb}"
-    cf = ws.conditional_formatting
-    for s, fond, pol, _ in STATUTS:
-        cf.add(f"B5:B{4 + nb}", FormulaRule(formula=[f'$B5="{s}"'], fill=fill(fond), font=Font(color=pol, bold=True)))
-    cf.add(f"A5:A{4 + nb}", FormulaRule(formula=["AND(ISNUMBER($A5),$A5>'TABLEAU DE BORD'!$C$5)"],
-                                        fill=fill("FF0000"), font=Font(color="FFFFFF", bold=True)))
-    cf.add(zone, FormulaRule(formula=['AND($K5<>"",MOD(ROW(),2)=0)'], fill=fill(CLIENT)))
-    ws.freeze_panes = "A5"
-    ws.page_setup.orientation = "landscape"
-    ws.sheet_properties.pageSetUpPr.fitToPage = True
-    ws.page_setup.fitToWidth = 1
-    ws.page_setup.fitToHeight = 0
-    ws.print_title_rows = "4:4"
     return ws
 
 
@@ -415,41 +493,54 @@ def onglet_aide(wb):
     ws = wb.create_sheet("MODE D'EMPLOI")
     ws.sheet_view.showGridLines = False
     ws.column_dimensions["A"].width = 3
-    ws.column_dimensions["B"].width = 110
+    ws.column_dimensions["B"].width = 115
     textes = [
         ("COMMENT UTILISER CE FICHIER", True),
         ("", False),
-        ("1. Une seule feuille COMMANDES pour toute l'année : plus besoin de créer un onglet par mois.", False),
-        ("   → Filtrer un mois : flèche de la colonne DATE PAIEMENT ▸ choisir le mois.", False),
+        ("1. Un onglet par mois, comme avant (JAN 2026 … DEC 2026). Les mois à venir sont déjà prêts (400 lignes chacun).", False),
         ("2. Saisissez uniquement les colonnes A à Q (fond bleu / vert) et NOTES. Les colonnes jaunes R à T se calculent seules.", False),
-        ("3. Les colonnes CONTACT, PAIEMENT, Emballage, Couleur, STATUT, RÉCUPÉRATION ont une liste déroulante : fini les fautes de frappe.", False),
+        ("   → Les totaux du mois (vente, achat, marge, site web / sur place, en cours, en retard) sont à droite, colonnes X-Y.", False),
+        ("3. Listes déroulantes sur CONTACT, PAIEMENT, Emballage, Couleur, STATUT, RÉCUPÉRATION : fini les fautes de frappe.", False),
         ("   → PRODUIT propose la liste aussi, mais accepte un nouveau nom (ajoutez-le ensuite dans l'onglet LISTES).", False),
-        ("4. Commande avec plusieurs articles : une ligne par article. Les infos client sont recopiées en gris clair sur les lignes suivantes.", False),
-        ("5. Les couleurs de STATUT sont les mêmes qu'avant (VENTE FINALISÉE vert, A COMMANDER rouge, ENVOYE YT bleu ciel…).", False),
-        ("6. L'onglet À TRAITER liste seul les commandes en cours (statuts marqués OUI dans LISTES). Le nombre de jours passe en rouge", False),
-        ("   au-delà du délai d'alerte (réglable dans TABLEAU DE BORD, cellule jaune C5).", False),
-        ("7. Le TABLEAU DE BORD calcule CA, achats, marge, ventes site web / sur place, par mois, statut, réseau, paiement et catégorie.", False),
-        ("   → Pour passer à 2027 : changez l'année en C4 et continuez à saisir dans la même feuille.", False),
-        ("8. Repères visuels : ADRESSE en orange = livraison sans adresse ; ALERTE rouge = commande en retard ; PAIEMENT rouge = NON PAYE.", False),
+        ("4. Commande avec plusieurs articles : une ligne par article (infos client en gris clair sur les lignes suivantes).", False),
         ("", False),
-        ("Lien avec RÉSULTAT 2026 (ancien fichier) : les totaux mensuels sont dans TABLEAU DE BORD, colonnes CA (C11:C22) et PRIX ACHAT (D11:D22).", False),
+        ("ONGLET SUIVI", True),
+        ("5. SUIVI rassemble tout seul les commandes en cours de TOUS les mois (statuts marqués OUI dans LISTES : A COMMANDER,", False),
+        ("   EN PRODUCTION, ERREUR ÉCRITURE, PRÊT POUR ENVOI, EN ATTENTE D'ENVOI, ATTENTE PAIEMENT), de la plus ancienne à la plus récente.", False),
+        ("6. En haut : le nombre de commandes par statut. Le nombre de jours passe en rouge au-delà du délai d'alerte", False),
+        ("   (7 jours par défaut, réglable dans TABLEAU DE BORD, cellule jaune C5).", False),
+        ("7. Pour changer un statut : cliquez « → ouvrir » (dernière colonne), Excel vous emmène sur la bonne ligne du bon mois.", False),
+        ("   Dès que le statut passe à « PRODUIT ENVOYE … » ou « VENTE FINALISÉE », la commande disparaît du SUIVI.", False),
+        ("", False),
+        ("TABLEAU DE BORD", True),
+        ("8. CA, achats, marge, ventes site web / sur place mois par mois (lus dans chaque onglet), et répartition par statut,", False),
+        ("   réseau, paiement, récupération et catégorie de produit. Cliquez sur un mois pour ouvrir son onglet.", False),
+        ("9. Repères visuels : ADRESSE en orange = livraison sans adresse ; ALERTE rouge = en retard ; PAIEMENT rouge = NON PAYE.", False),
+        ("", False),
+        ("Lien avec RÉSULTAT 2026 : total vente du mois = cellule Y5 de chaque onglet, total achat = Y6", False),
+        ("(ou TABLEAU DE BORD, colonnes CA C11:C22 et PRIX ACHAT D11:D22).", False),
+        ("Important : ne renommez pas les onglets mensuels, le SUIVI et le TABLEAU DE BORD s'appuient sur leurs noms.", False),
     ]
     for i, (t, gras) in enumerate(textes, start=2):
         c = ws.cell(i, 2, t)
-        c.font = font(TITRE if gras else "000000", bold=gras, size=16 if gras else 11)
+        c.font = font(TITRE if gras else "000000", bold=gras, size=15 if gras else 11)
     return ws
 
 
 def construire(source, cible, annee=2026):
     lignes = extraire(source, annee)
     produits = sorted({l["produit"] for l in lignes if l["produit"]}, key=str.casefold)
-    derniere = PREMIERE + len(lignes) + 1500
+    onglets = [nom_onglet(m, annee) for m in range(12)]
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
     plages = onglet_listes(wb, produits)
-    onglet_commandes(wb, lignes, plages, derniere)
-    onglet_tableau(wb, derniere, annee)
-    onglet_a_traiter(wb, derniere)
+    for m, o in enumerate(onglets):
+        du_mois = [l for l in lignes if l["mois"] == m + 1]
+        assert len(du_mois) <= DERNIERE - PREMIERE + 1, o
+        onglet_mois(wb, o, f"{MOIS_NOMS[m]} {annee} : COMMANDES PERSONNALISÉES", du_mois, plages)
+    wb.move_sheet("LISTES", offset=len(wb.sheetnames))
+    onglet_suivi(wb, onglets)
+    onglet_tableau(wb, onglets, annee)
     onglet_aide(wb)
     wb.active = 0
     wb.calculation.fullCalcOnLoad = True

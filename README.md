@@ -15,11 +15,11 @@ Trois solutions pour gagner du temps sur le suivi des commandes personnalisées.
 Fichier généré : `Commandes_2026_ZARAHISSI.xlsx` (il contient vos données clients, il n'est donc **pas** stocké dans ce dépôt).
 
 Ce qui change :
-- **Un seul onglet `COMMANDES` pour toute l'année** au lieu d'un onglet par mois. Mêmes colonnes A → Q, mêmes couleurs (blocs bleus client et commande, adresse en vert, couleurs des statuts identiques).
+- **Les onglets par mois sont conservés** (JAN 2026 … DEC 2026, mois à venir déjà prêts). Mêmes colonnes A → Q, mêmes couleurs (blocs bleus client et commande, adresse en vert, couleurs des statuts identiques). Les totaux du mois sont à droite (colonnes X-Y).
+- **Onglet `SUIVI`** : il rassemble tout seul les commandes en cours de **tous** les mois (A COMMANDER, EN PRODUCTION, EN ATTENTE D'ENVOI…), de la plus ancienne à la plus récente. En haut, le nombre par statut et le nombre en retard. Le lien « → ouvrir » emmène sur la bonne ligne du bon mois pour changer le statut ; une commande expédiée ou finalisée sort du suivi automatiquement.
 - **Listes déroulantes** sur CONTACT, PAIEMENT, Emballage, Couleur, STATUT, RÉCUPÉRATION (et suggestions sur PRODUIT).
 - **Colonnes calculées** : MARGE, JOURS EN COURS, ALERTE « ⚠ RETARD ».
-- **Onglet `À TRAITER`** : se remplit tout seul avec les commandes non expédiées, de la plus ancienne à la plus récente.
-- **Onglet `TABLEAU DE BORD`** : CA, achats, marge, ventes site web / sur place par mois, plus la répartition par statut, réseau, paiement, récupération et catégorie de produit.
+- **Onglet `TABLEAU DE BORD`** : CA, achats, marge, ventes site web / sur place lus dans chaque onglet mensuel, plus la répartition par statut, réseau, paiement, récupération et catégorie de produit.
 - Repères visuels : adresse manquante en orange, NON PAYE en rouge.
 
 Régénérer le fichier depuis l'ancien classeur :
