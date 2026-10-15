@@ -648,7 +648,7 @@ async function importerExcel(f) {
       let prec = null, nb = 0;
       for (const r of rows.slice(iEntete + 1)) {
         if (!r) continue;
-        if (r.some(c => norm(c) === "TOTAL VENTE")) break;
+        if (norm(r[map.perso]) === "TOTAL VENTE") break; // ligne de total en bas des anciens onglets mensuels
         const l = {};
         for (const [k, i] of Object.entries(map)) {
           let v = r[i];
