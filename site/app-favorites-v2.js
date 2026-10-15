@@ -209,15 +209,18 @@ async function showVisibleCaptcha(){
 }
 const isCaptchaError=err=>/CAPTCHA/i.test(JSON.stringify(err&&err.data||{})+String(err&&err.message||''));
 
+// Traduit l'erreur Wix (details.applicationError.code) en message clair.
 function authError(err){
-  const code=JSON.stringify(err&&err.data||{});
-  if(/CAPTCHA/i.test(code)||/recaptcha/i.test(String(err&&err.message||''))) return 'Cochez la case « Je ne suis pas un robot » ci-dessus, puis réessayez.';
-  if(/IDENTITY_NOT_FOUND|not.?found/i.test(code)) return 'Aucun compte avec cet e-mail. Créez votre compte.';
-  if(/INVALID_PASSWORD|wrong.?password|credentials/i.test(code)) return 'E-mail ou mot de passe incorrect.';
-  if(/ALREADY_EXISTS|EMAIL_ALREADY/i.test(code)) return 'Un compte existe déjà avec cet e-mail. Connectez-vous.';
-  if(/PASSWORD/i.test(code)) return 'Mot de passe trop faible : 6 caractères minimum.';
-  if(/RESET_PASSWORD|CODE/i.test(code)) return 'Code incorrect ou expiré.';
-  return 'Connexion impossible pour le moment. Réessayez dans un instant.';
+  const d=err&&err.data||{}; const app=(d.details&&d.details.applicationError)||{};
+  const code=String(app.code||d.code||''); const k=(code+' '+(app.description||d.message||'')).toUpperCase();
+  if(/CAPTCHA/.test(k)||/recaptcha/i.test(String(err&&err.message||''))) return 'Cochez la case « Je ne suis pas un robot » ci-dessus, puis réessayez.';
+  if(/NOT_FOUND|NOT_EXIST|NO_IDENTITY|NO_MEMBER/.test(k)) return 'Aucun compte avec cet e-mail. Choisissez « Créer un compte ».';
+  if(/ALREADY/.test(k)) return 'Un compte existe déjà avec cet e-mail. Choisissez « Se connecter » (ou « Mot de passe oublié ? »).';
+  if(/INVALID_PASSWORD|WRONG_PASSWORD|INCORRECT|INVALID_CREDENTIALS|INVALID_LOGIN/.test(k)) return 'E-mail ou mot de passe incorrect.';
+  if(/PASSWORD/.test(k)) return 'Mot de passe refusé : choisissez-en un plus long, avec des lettres et des chiffres.';
+  if(/VERIFICATION|INVALID_CODE|CODE_EXPIRED|EXPIRED/.test(k)) return 'Code incorrect ou expiré.';
+  if(/BLOCK|DENIED|PERMISSION|FORBIDDEN/.test(k)) return 'Ce compte ne peut pas se connecter au site. Contactez Bonszahé.';
+  return `Connexion impossible pour le moment (${code||err&&err.status||'erreur'}). Réessayez dans un instant.`;
 }
 
 async function queryAll(collection,filter){
