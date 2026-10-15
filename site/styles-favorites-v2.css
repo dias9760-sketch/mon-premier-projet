@@ -449,3 +449,24 @@ a.chip{text-decoration:none}
 .captcha{min-height:78px}
 .captcha[hidden]{display:none}
 @media (max-width:899px){.grecaptcha-badge{bottom:96px!important}}
+
+/* ---------- Moro / Maji ---------- */
+.heat{display:inline-flex;align-items:center;gap:4px;padding:3px;border-radius:999px;border:1px solid var(--line);background:var(--surface);margin-bottom:10px;align-self:flex-start}
+.heat .hb{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--soft);font-size:1.05rem;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0}
+.heat .hb[aria-pressed="true"]{border-width:2px}
+.heat .hb.moro[aria-pressed="true"]{background:#FFE3D6;border-color:var(--corail)}
+.heat .hb.maji[aria-pressed="true"]{background:#DDF1FB;border-color:#1597D6}
+.heat .hv{display:grid;justify-items:center;min-width:54px;line-height:1.05}
+.heat .hv b{font-family:var(--display);font-size:1.2rem}
+.heat .hv small{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.heat-moro .hv{color:var(--corail)}
+.heat-maji .hv{color:#1597D6}
+.heat-volcan{border-color:#E4502F;background:linear-gradient(90deg,#FFF1E8,#FFE0D2)}
+.heat-volcan .hv{color:#C2271B}
+.heat-volcan .hv b{animation:volcan 1.6s ease-in-out infinite}
+@keyframes volcan{50%{text-shadow:0 0 10px rgba(228,80,47,.55)}}
+@media (prefers-reduced-motion:reduce){.heat-volcan .hv b{animation:none}}
+.vlabel{font-size:.78rem;color:var(--muted);margin:10px 0 4px;font-weight:600}
+.seg a{text-decoration:none;border-radius:10px;padding:8px 12px;font-weight:600;color:var(--muted);white-space:nowrap}
+.seg a[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.mainnav a{white-space:nowrap}

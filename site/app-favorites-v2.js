@@ -114,6 +114,7 @@ let baseCodes=[];
 let bizId={};
 let EVENTS=[];
 let VOTES=[];
+let MOROS=[];
 let dataSource='snapshot';
 let tokenPromise=null;
 function getVisitorToken(){
@@ -306,10 +307,12 @@ function imgUrl(v){
   return /^https?:\/\//.test(s)?s:'';
 }
 const refId=v=>typeof v==='object'&&v?v._id:v;
+// Date et heure complètes d'un champ système Wix ({$date:…}), pour le classement Tendance.
+const stamp=v=>{ const d=new Date(typeof v==='object'&&v?v.$date:v); return isNaN(d)?new Date(TODAY):d; };
 async function loadData(){
-  const [ents,codes,votes,events]=await Promise.all([
+  const [ents,codes,votes,events,moros]=await Promise.all([
     queryAll('Entreprises'),queryAll('CodesPromo'),
-    queryAll('Votes').catch(()=>[]),queryAll('Evenements').catch(()=>[])
+    queryAll('Votes').catch(()=>[]),queryAll('Evenements').catch(()=>[]),queryAll('Moro').catch(()=>[])
   ]);
   const idToSlug={}; const used=new Set();
   const list=ents.filter(e=>e.publiee!==false&&e.nom).map(e=>{
@@ -321,9 +324,10 @@ async function loadData(){
   }).sort((a,b)=>a.name.localeCompare(b.name,'fr'));
   B=list; bizId={}; Object.keys(idToSlug).forEach(id=>bizId[idToSlug[id]]=id);
   VOTES=votes.filter(v=>v.code&&(v.sens==='up'||v.sens==='down')).map(v=>({id:v._id,code:v.code,dir:v.sens,owner:v._owner,at:dateFrom(v._updatedDate||v._createdDate)||TODAY}));
+  MOROS=moros.filter(v=>v.code&&(v.sens==='moro'||v.sens==='maji')).map(v=>({id:v._id,code:v.code,dir:v.sens,owner:v._owner,at:stamp(v._updatedDate||v._createdDate)}));
   baseCodes=codes.filter(c=>c.code&&idToSlug[refId(c.entreprise)]).map(c=>{
     const exp=dateFrom(c.dateExpiration);
-    return {id:c._id,biz:idToSlug[refId(c.entreprise)],deal:c.avantage||'Bon plan',detail:c.detail||'',code:String(c.code).trim(),cond:c.conditions||'',exp:exp||inDays(3650),noExp:!exp,verified:!!c.verifie,baseUp:+c.votesOui||0,baseDown:+c.votesNon||0,added:dateFrom(c._createdDate)||TODAY,status:statutFrom(c.statut),link:c.lienOffre||'',by:c.contributeur||'',byName:c.contributeurNom||''};
+    return {id:c._id,biz:idToSlug[refId(c.entreprise)],deal:c.avantage||'Bon plan',detail:c.detail||'',code:String(c.code).trim(),cond:c.conditions||'',exp:exp||inDays(3650),noExp:!exp,verified:!!c.verifie,baseUp:+c.votesOui||0,baseDown:+c.votesNon||0,added:dateFrom(c._createdDate)||TODAY,addedAt:stamp(c._createdDate),status:statutFrom(c.statut),link:c.lienOffre||'',by:c.contributeur||'',byName:c.contributeurNom||''};
   });
   EVENTS=events.filter(e=>e.publie!==false&&e.titre&&dateFrom(e.date)).map(e=>({
     id:e._id,title:e.titre,date:dateFrom(e.date),end:dateFrom(e.dateFin),time:e.heure||'',commune:communeFrom(e.commune),communeName:e.commune||'',place:e.lieu||'',desc:e.description||'',img:imgUrl(e.image),link:e.lien||'',biz:idToSlug[refId(e.entreprise)]||''
@@ -358,19 +362,27 @@ try{ const raw=localStorage.getItem(KEY); if(raw) S.favs=JSON.parse(raw).favs||[
 const save=()=>{ try{localStorage.setItem(KEY,JSON.stringify({favs:S.favs}))}catch(e){} };
 
 // Un avis par membre et par code : on garde le plus récent.
-function voteMap(){
+function voteMap(list=VOTES){
   const last={};
-  VOTES.forEach(v=>{ const k=v.code+'|'+v.owner; if(!last[k]||last[k].at<=v.at) last[k]=v; });
+  list.forEach(v=>{ const k=v.code+'|'+v.owner; if(!last[k]||last[k].at<=v.at) last[k]=v; });
   const out={};
-  Object.values(last).forEach(v=>{ const o=out[v.code]||(out[v.code]={up:0,down:0}); o[v.dir]++; });
+  Object.values(last).forEach(v=>{ const o=out[v.code]||(out[v.code]={}); o[v.dir]=(o[v.dir]||0)+1; });
   return out;
 }
-const myVote=codeId=>me()&&VOTES.filter(v=>v.code===codeId&&v.owner===me().id).sort((a,b)=>b.at-a.at)[0];
+const myVoteIn=(list,codeId)=>me()&&list.filter(v=>v.code===codeId&&v.owner===me().id).sort((a,b)=>b.at-a.at)[0];
+const myVote=codeId=>myVoteIn(VOTES,codeId);
+const myMoro=codeId=>myVoteIn(MOROS,codeId);
+// Chaleur = Moro − Maji. Paliers : Maji (négatif), Moro, Volcan (30 et plus).
+const VOLCAN=30;
+const heatLevel=h=>h<0?{k:'maji',name:'Maji'}:h>=VOLCAN?{k:'volcan',name:'Volcan'}:{k:'moro',name:'Moro'};
+// Tendance : la chaleur compte, mais un bon plan récent passe devant un ancien.
+const hotScore=c=>{ const hours=Math.max(0,(Date.now()-c.addedAt)/36e5); return (c.heat+1)/Math.pow(hours+2,1.3); };
 // Masqué automatiquement quand la communauté le signale : au moins 3 « ne fonctionne plus » et plus de non que de oui.
 const flagged=c=>c.down>=3&&c.down>c.up;
 function allCodes(){
-  const vm=voteMap();
-  return baseCodes.map(c=>{ const v=vm[c.id]||{up:0,down:0}; return Object.assign({},c,{up:c.baseUp+v.up,down:c.baseDown+v.down}); });
+  const vm=voteMap(), hm=voteMap(MOROS);
+  return baseCodes.map(c=>{ const v=vm[c.id]||{}, h=hm[c.id]||{}; const moro=h.moro||0, maji=h.maji||0;
+    return Object.assign({},c,{up:c.baseUp+(v.up||0),down:c.baseDown+(v.down||0),moro,maji,heat:moro-maji}); });
 }
 const daysLeft = c => Math.round((c.exp - TODAY)/864e5);
 const activeCodes = () => allCodes().filter(c=>c.status==='valide' && daysLeft(c)>=0 && !flagged(c));
@@ -390,10 +402,16 @@ const coverStyle = b => { const c=catBy(b.cat).c; return `--c1:${c[0]};--c2:${c[
 
 function coupon(c,{showBiz=true}={}){
   const b=bizBy(c.biz); const left=daysLeft(c); const mv=myVote(c.id); const v=mv&&mv.dir;
+  const mm=myMoro(c.id); const hv=mm&&mm.dir; const lv=heatLevel(c.heat||0);
   const soon = !c.noExp && left<=7;
   const official = c.by && b.owners && b.owners.includes(c.by);
   return `<article class="coupon">
     <div class="main">
+      <div class="heat heat-${lv.k}" role="group" aria-label="Chaleur du bon plan : ${c.heat||0} (${lv.name})">
+        <button class="hb maji" data-moro="${c.id}" data-dir="maji" aria-pressed="${hv==='maji'}" aria-label="Maji : bof, ça refroidit">💧</button>
+        <span class="hv"><b>${c.heat||0}</b><small>${lv.k==='volcan'?'🌋 ':''}${lv.name}</small></span>
+        <button class="hb moro" data-moro="${c.id}" data-dir="moro" aria-pressed="${hv==='moro'}" aria-label="Moro : bon plan, ça chauffe !">🔥</button>
+      </div>
       ${showBiz?`<a class="bizline" href="#/entreprises/${b.slug}">${logo(b)}<span>${esc(b.name)}</span></a>`:''}
       <div class="deal">${esc(c.deal)}</div>
       <p class="detail">${esc(c.detail)}</p>
@@ -412,6 +430,7 @@ function coupon(c,{showBiz=true}={}){
         <span class="code" aria-label="Code promo">${esc(c.code)}</span>
         <button class="btn btn-primary btn-sm" data-copy="${esc(c.code)}" data-copybiz="${b.slug}" data-copyid="${esc(c.id)}">${ic('copy')}Copier le code</button>
       </div>
+      <p class="vlabel">Le code marche ?</p>
       <div class="votes" role="group" aria-label="Ce code a-t-il fonctionné ?">
         <button class="vote up" data-vote="${c.id}" data-dir="up" aria-pressed="${v==='up'}">${ic('up')}Fonctionne (${c.up})</button>
         <button class="vote down" data-vote="${c.id}" data-dir="down" aria-pressed="${v==='down'}">${ic('down')}Ne fonctionne plus${c.down?' ('+c.down+')':''}</button>
@@ -466,7 +485,7 @@ const SCENE = `<svg class="scene" viewBox="0 0 400 380" aria-hidden="true">
 
 function pageHome(){
   const act=activeCodes();
-  const moment=[...act].sort((a,b)=>(b.verified-a.verified)||(b.up-a.up)).slice(0,6);
+  const moment=[...act].sort((a,b)=>hotScore(b)-hotScore(a)).slice(0,6);
   const news=[...act].sort((a,b)=>b.added-a.added).slice(0,6);
   const popular=[...B].map(b=>({b,score:codesOf(b.slug).reduce((s,c)=>s+c.up,0)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,6).map(x=>x.b);
   const discover=B.filter(b=>!popular.includes(b)).slice(0,6);
@@ -502,7 +521,7 @@ function pageHome(){
 
   <section class="block alt">
     <div class="wrap">
-      <div class="head"><div><h2>Bons plans du moment</h2><p class="muted">Les codes les plus utilisés par la communauté.</p></div><a class="link" href="#/codes">Tous les codes</a></div>
+      <div class="head"><div><h2>🔥 Ça chauffe en ce moment</h2><p class="muted">Les bons plans qui récoltent le plus de Moro.</p></div><a class="link" href="#/tendances">Voir les tendances</a></div>
       <div class="coupons">${moment.map(c=>coupon(c)).join('')}</div>
     </div>
   </section>
@@ -685,6 +704,26 @@ function drawCodes(){
     `<div class="u5">${empty('Aucun code ne correspond','Changez de filtre ou proposez un code que vous connaissez.',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}</div>`;
 }
 
+/* ---------- Tendances (Moro / Maji) ---------- */
+function pageTrends(params){
+  const f=params.get('f')||'tendance';
+  const tabs=[['tendance','🔥 Tendance'],['chauds','🌋 Les + chauds'],['nouveautes','Nouveautés']];
+  let list=activeCodes();
+  if(f==='chauds') list.sort((a,b)=>b.heat-a.heat||b.addedAt-a.addedAt);
+  else if(f==='nouveautes') list.sort((a,b)=>b.addedAt-a.addedAt);
+  else list.sort((a,b)=>hotScore(b)-hotScore(a));
+  const intro={tendance:'Les bons plans qui chauffent en ce moment : les Moro récents comptent le plus.',chauds:'Le classement des bons plans les plus chauds de Bonszahé.',nouveautes:'Les derniers bons plans partagés : donnez-leur du Moro 🔥 ou du Maji 💧.'}[f]||'';
+  return `<div class="wrap">
+    <div class="pagehead"><h1>Tendances</h1><p class="muted">Donnez du <strong>Moro 🔥</strong> aux bons plans qui valent le coup, du <strong>Maji 💧</strong> à ceux qui déçoivent. Au-delà de ${VOLCAN}, un bon plan devient <strong>Volcan 🌋</strong>.</p></div>
+    <div class="toolbar"><div class="seg" role="group" aria-label="Classement">${tabs.map(([k,l])=>`<a href="#/tendances?f=${k}" aria-pressed="${f===k}">${l}</a>`).join('')}</div></div>
+    <p class="results">${esc(intro)}</p>
+    <div class="u13">${list.length?`<div class="coupons">${list.map(c=>coupon(c)).join('')}</div>`:
+      empty('Aucun bon plan pour le moment','Partagez le premier !',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}</div>
+    <p class="note u13"><a class="link" href="#/codes">Rechercher dans tous les codes promo</a></p>
+    <div class="u8"></div>
+  </div>`;
+}
+
 function pageCategories(){
   return `<div class="wrap">
     <div class="pagehead"><h1>Catégories</h1><p class="muted">Parcourez les entreprises de Mayotte par activité.</p></div>
@@ -721,15 +760,17 @@ function pageFavs(){
 }
 
 /* ---------- Points, niveaux et badges ---------- */
-// Barème : 10 points par code publié, 2 points par « fonctionne » reçu sur ses codes, 1 point par avis donné.
+// Barème : 10 points par code publié, 2 par Moro reçu, 1 par « fonctionne » reçu, 1 par avis donné (Moro/Maji ou « ça marche »).
 const LEVELS=[[0,'Nouveau membre'],[25,'Débrouillard'],[100,'Chasseur de bons plans'],[250,'Expert des bons plans'],[500,'Légende de l’île']];
 function statsFor(memberId){
   const codes=allCodes().filter(c=>c.by===memberId&&c.status==='valide');
   const upReceived=codes.reduce((s,c)=>s+c.up,0);
-  const votesGiven=new Set(VOTES.filter(v=>v.owner===memberId).map(v=>v.code)).size;
+  const moroReceived=codes.reduce((s,c)=>s+c.moro,0);
+  const bestHeat=codes.reduce((m,c)=>Math.max(m,c.heat),0);
+  const votesGiven=new Set(VOTES.filter(v=>v.owner===memberId).map(v=>v.code)).size+new Set(MOROS.filter(v=>v.owner===memberId).map(v=>v.code)).size;
   const cats=new Set(codes.map(c=>bizBy(c.biz).cat)).size;
   const best=codes.reduce((m,c)=>Math.max(m,c.up),0);
-  return {codes,upReceived,votesGiven,cats,best,points:codes.length*10+upReceived*2+votesGiven};
+  return {codes,upReceived,moroReceived,bestHeat,votesGiven,cats,best,points:codes.length*10+moroReceived*2+upReceived+votesGiven};
 }
 const BADGES=[
   {name:'Premier bon plan',desc:'Partager 1 code',icon:'plus',val:s=>[s.codes.length,1]},
@@ -738,7 +779,8 @@ const BADGES=[
   {name:'Code en or',desc:'Un de vos codes confirmé 10 fois',icon:'up',val:s=>[s.best,10]},
   {name:'Voix de la communauté',desc:'Donner 10 avis',icon:'check',val:s=>[s.votesGiven,10]},
   {name:'Pilier Bonszahé',desc:'Donner 50 avis',icon:'heart',val:s=>[s.votesGiven,50]},
-  {name:'Explorateur',desc:'Des codes dans 3 catégories',icon:'grid',val:s=>[s.cats,3]}
+  {name:'Explorateur',desc:'Des codes dans 3 catégories',icon:'grid',val:s=>[s.cats,3]},
+  {name:'Volcan',desc:'Un de vos bons plans atteint '+VOLCAN+' de chaleur',icon:'sun',val:s=>[s.bestHeat,VOLCAN]}
 ];
 function levelOf(p){ let i=0; LEVELS.forEach((l,j)=>{ if(p>=l[0]) i=j; }); return {name:LEVELS[i][1],next:LEVELS[i+1]}; }
 function leaderboard(){
@@ -809,11 +851,11 @@ function pageProfile(){
     <div class="card level">
       <div class="lvhead"><span class="lvic">${ic('badge')}</span><div><small class="muted">Votre niveau</small><strong>${esc(lv.name)}</strong></div><b class="pts">${s.points} pts</b></div>
       <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></div>
-      <p class="note">${lv.next?`Encore ${lv.next[0]-s.points} points pour devenir « ${esc(lv.next[1])} ».`:'Niveau maximum atteint, bravo !'} 10 pts par code publié, 2 pts par « fonctionne » reçu, 1 pt par avis donné.</p>
+      <p class="note">${lv.next?`Encore ${lv.next[0]-s.points} points pour devenir « ${esc(lv.next[1])} ».`:'Niveau maximum atteint, bravo !'} 10 pts par code publié, 2 pts par Moro 🔥 reçu, 1 pt par « fonctionne » reçu, 1 pt par avis donné.</p>
     </div>
     <div class="stats four">
       <div class="stat"><b>${s.codes.length}</b><span>Codes partagés</span></div>
-      <div class="stat"><b>${s.upReceived}</b><span>« Fonctionne » reçus</span></div>
+      <div class="stat"><b>${s.moroReceived}</b><span>Moro 🔥 reçus</span></div>
       <div class="stat"><b>${s.votesGiven}</b><span>Avis donnés</span></div>
       <div class="stat"><b>${S.favs.length}</b><span>Favoris</span></div>
     </div>
@@ -850,7 +892,7 @@ async function drawPro(){
       <div class="lvhead">${logo(b,'md')}<div><strong>${esc(b.name)}</strong><small class="muted">30 derniers jours</small></div><a class="btn btn-ghost btn-sm" href="#/entreprises/${b.slug}">Voir ma fiche</a></div>
       <div class="stats four">${tile('vue','Vues de la fiche')}${tile('copie','Codes copiés')}${tile('site','Clics vers le site')}${tile('appel','Appels')}</div>
       <h3>Vos codes</h3>
-      ${codes.length?`<div class="list">${codes.map(({c,copies})=>`<div class="li"><div class="grow"><strong>${esc(c.code)}</strong> ${esc(c.deal)}<small>${copies} copie${copies>1?'s':''} · ${c.up} « fonctionne » · ${c.down} « ne fonctionne plus »${daysLeft(c)<0?' · expiré':flagged(c)?' · masqué (signalé)':''}</small></div></div>`).join('')}</div>`:'<p class="muted">Aucun code pour le moment.</p>'}
+      ${codes.length?`<div class="list">${codes.map(({c,copies})=>`<div class="li"><div class="grow"><strong>${esc(c.code)}</strong> ${esc(c.deal)}<small>${copies} copie${copies>1?'s':''} · chaleur ${c.heat} (${c.moro} Moro, ${c.maji} Maji) · ${c.up} « fonctionne » · ${c.down} « ne fonctionne plus »${daysLeft(c)<0?' · expiré':flagged(c)?' · masqué (signalé)':''}</small></div></div>`).join('')}</div>`:'<p class="muted">Aucun code pour le moment.</p>'}
       <div class="bandbtns"><button class="btn btn-sun btn-sm" data-propose="${b.slug}">${ic('plus')}Publier une offre officielle</button><button class="btn btn-ghost btn-sm" data-toast="Envoyez votre événement à Bonszahé via « Revendiquer / contact » : il sera publié dans l’onglet Événements.">Annoncer un événement</button></div>
     </div>`;
   }));
@@ -862,7 +904,7 @@ function pageRanking(){
   const lb=leaderboard().slice(0,50);
   const mine=me()&&lb.findIndex(x=>x.id===me().id);
   return `<div class="wrap">
-    <div class="pagehead"><h1>Classement de la communauté</h1><p class="muted">Merci à celles et ceux qui partagent leurs bons plans ! 10 pts par code publié, 2 pts par « fonctionne » reçu, 1 pt par avis donné.</p></div>
+    <div class="pagehead"><h1>Classement de la communauté</h1><p class="muted">Merci à celles et ceux qui partagent leurs bons plans ! 10 pts par code publié, 2 pts par Moro 🔥 reçu, 1 pt par « fonctionne » reçu, 1 pt par avis donné.</p></div>
     <div class="u13">${lb.length?`<ol class="ranking">${lb.map((x,i)=>`<li class="${me()&&x.id===me().id?'me':''}"><span class="rk">${i+1}</span><div class="grow"><strong>${esc(x.name)}</strong><small>${esc(levelOf(x.points).name)} · ${x.codes.length} code${x.codes.length>1?'s':''} partagé${x.codes.length>1?'s':''}</small></div><b>${x.points} pts</b></li>`).join('')}</ol>`:
       empty('Le classement attend ses premiers chasseurs de bons plans','Partagez un code pour y apparaître.',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}
     ${me()&&mine<0?`<p class="note">Vous n’apparaissez pas encore : partagez votre premier code !</p>`:''}</div>
@@ -961,6 +1003,7 @@ function route(){
   let html='', nav=p, title='Bonszahé — Acheter malin à Mayotte';
   if(p==='home') html=pageHome();
   else if(p==='entreprises' && parts[1]){ html=pageBusiness(parts[1]); nav='entreprises'; const b=bizBy(parts[1]); if(b) title=`${b.name} : codes promo et bons plans | Bonszahé`; track('vue',parts[1]); }
+  else if(p==='tendances'){ html=pageTrends(params); title='Tendances : les bons plans qui chauffent | Bonszahé'; }
   else if(p==='evenements'){ html=pageEvents(params); title='Événements à Mayotte | Bonszahé'; }
   else if(p==='classement'){ html=pageRanking(); nav='profil'; title='Classement de la communauté | Bonszahé'; }
   else if(p==='entreprises') html=pageDirectory(params);
@@ -1046,6 +1089,20 @@ async function vote(id,dir){
   VOTES.push({id:r.dataItem&&r.dataItem.id,code:id,dir,owner:me().id,at:new Date()});
   return dir;
 }
+async function moroVote(id,dir){
+  const mv=myMoro(id);
+  if(mv&&mv.dir===dir){
+    await call('DELETE',`/wix-data/v2/items/${encodeURIComponent(mv.id)}?dataCollectionId=Moro`);
+    MOROS=MOROS.filter(v=>v.id!==mv.id); return 'retire';
+  }
+  if(mv){
+    await call('PUT',`/wix-data/v2/items/${encodeURIComponent(mv.id)}`,{dataCollectionId:'Moro',dataItem:{data:{code:id,sens:dir}}});
+    mv.dir=dir; mv.at=new Date(); return dir;
+  }
+  const r=await sendToWix('Moro',{code:id,sens:dir});
+  MOROS.push({id:r.dataItem&&r.dataItem.id,code:id,dir,owner:me().id,at:new Date()});
+  return dir;
+}
 async function reloadAll(){ try{ await loadData(); await loadMine(); }catch(e){ console.warn(e); } refresh(); }
 
 document.addEventListener('click',async e=>{
@@ -1064,6 +1121,15 @@ document.addEventListener('click',async e=>{
     try{
       const res=await vote(id,dir); refresh();
       toast(res==='up'?'Merci ! Votre avis aide la communauté.':res==='down'?'Merci, le code est signalé. Il disparaît s’il est signalé plusieurs fois.':'Avis retiré');
+    }catch(err){ console.warn(err); t.disabled=false; toast('Avis non enregistré. Réessayez dans un instant.'); }
+  }
+  else if(t.dataset.moro){
+    const id=t.dataset.moro, dir=t.dataset.dir;
+    if(!requireLogin('Connectez-vous pour donner du Moro 🔥 ou du Maji 💧 aux bons plans.',()=>refresh())) return;
+    t.disabled=true;
+    try{
+      const res=await moroVote(id,dir); refresh();
+      toast(res==='moro'?'🔥 Moro ! Le bon plan chauffe.':res==='maji'?'💧 Maji, le bon plan refroidit.':'Avis retiré');
     }catch(err){ console.warn(err); t.disabled=false; toast('Avis non enregistré. Réessayez dans un instant.'); }
   }
   else if(t.dataset.fav){
