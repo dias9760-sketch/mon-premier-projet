@@ -504,24 +504,24 @@ const SCENE = `<svg class="scene" viewBox="0 0 400 380" aria-hidden="true">
 </svg>`;;
 
 /* ---------- Accueil : « Ça chauffe en ce moment » ---------- */
-// Aperçu des trois présentations : ?hot=podium | carrousel | mix (podium par défaut).
-const HOT_STYLE=(()=>{ const v=new URLSearchParams(location.search).get('hot'); return ['podium','carrousel','mix'].includes(v)?v:'podium'; })();
+// Les 3 premiers en coupon complet, les suivants en lignes compactes.
+const HOT_BIG=3, HOT_SMALL=4;
 const hotCopyBtn=c=>c.store?`<button class="btn btn-primary btn-sm" data-caisse="${esc(c.id)}" data-copybiz="${c.biz}">${ic('store')}En caisse</button>`:`<button class="btn btn-primary btn-sm" data-copy="${esc(c.code)}" data-copybiz="${c.biz}" data-copyid="${esc(c.id)}">${ic('copy')}Copier</button>`;
 function hotRow(c,rank){
   const b=bizBy(c.biz), lv=heatLevel(c.heat);
   return `<li class="prow"><a class="pmain" href="#/bon-plan/${encodeURIComponent(c.id)}"><span class="rk rk${rank}">${rank}</span>${logo(b)}<span class="grow"><strong>${esc(b.name)}</strong><small>${esc(c.deal)}${c.store?' · en magasin':''}</small></span></a><span class="pheat ${lv.k}" title="${c.moro} Moro, ${c.maji} Maji">${lv.k==='volcan'?'🌋':'🔥'} ${c.heat}</span>${hotCopyBtn(c)}</li>`;
 }
 const hotMore=`<a class="btn btn-sun hotmore" href="#/tendances">🔥 Voir toutes les tendances</a>`;
+const MEDALS=['🥇','🥈','🥉'];
 function hotBlock(hot){
   if(!hot.length) return `<div class="u5">${empty('Aucun bon plan ne chauffe encore','Donnez du Moro 🔥 à vos bons plans préférés pour les faire monter ici.','<a class="btn btn-sun" href="#/codes">Voir les bons plans</a>')}</div>`;
-  if(HOT_STYLE==='carrousel') return `<div class="hotrail" id="hotRail" aria-label="Bons plans qui chauffent, faites glisser">${hot.map(c=>coupon(c)).join('')}<a class="hotlast" href="#/tendances"><span>🔥</span><strong>Voir toutes les tendances</strong><small>Le classement complet des bons plans</small></a></div>
-    <div class="hotdots" aria-hidden="true">${hot.map((_,i)=>`<span class="${i?'':'on'}"></span>`).join('')}<span></span></div>`;
-  if(HOT_STYLE==='mix') return `<div class="hotmix"><div class="hottop"><span class="toprank">${hot[0].heat>=VOLCAN?'🌋':'🏆'} N°1 du moment</span>${coupon(hot[0])}</div>${hot.length>1?`<ol class="podium" start="2">${hot.slice(1).map((c,i)=>hotRow(c,i+2)).join('')}</ol>`:''}</div>${hotMore}`;
-  return `<ol class="podium">${hot.map((c,i)=>hotRow(c,i+1)).join('')}</ol>${hotMore}`;
+  const big=hot.slice(0,HOT_BIG), small=hot.slice(HOT_BIG);
+  return `<div class="hottop3">${big.map((c,i)=>`<div class="hotbig"><span class="toprank">${MEDALS[i]} N°${i+1}${c.heat>=VOLCAN?' · 🌋 Volcan':''}</span>${coupon(c)}</div>`).join('')}</div>
+    ${small.length?`<ol class="podium u10" start="${HOT_BIG+1}">${small.map((c,i)=>hotRow(c,i+HOT_BIG+1)).join('')}</ol>`:''}${hotMore}`;
 }
 function pageHome(){
   const act=activeCodes();
-  const hot=act.filter(c=>c.heat>0).sort((a,b)=>b.heat-a.heat||hotScore(b)-hotScore(a)).slice(0,5);
+  const hot=act.filter(c=>c.heat>0).sort((a,b)=>b.heat-a.heat||hotScore(b)-hotScore(a)).slice(0,HOT_BIG+HOT_SMALL);
   const news=[...act].sort((a,b)=>b.added-a.added).slice(0,6);
   const popular=[...B].map(b=>({b,score:codesOf(b.slug).reduce((s,c)=>s+c.up,0)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,6).map(x=>x.b);
   const discover=B.filter(b=>!popular.includes(b)).slice(0,6);
@@ -1701,11 +1701,6 @@ document.addEventListener('change',e=>{
   if(e.target.name==='typeVente'&&e.target.closest('#editBizForm')){ const box=document.getElementById('posBox'); box.hidden=e.target.value==='en-ligne'; if(!box.hidden&&posMap) setTimeout(()=>posMap.invalidateSize(),50); }
   if(e.target.name==='biz'&&e.target.closest('#claimForm')){ const nb=document.querySelector('#claimForm .newbiz'); if(nb){ nb.hidden=e.target.value!=='__new__'; nb.querySelector('input').required=!nb.hidden; } }
 });
-document.addEventListener('scroll',e=>{
-  const r=e.target; if(!r||r.id!=='hotRail') return;
-  const cards=[...r.children]; const i=cards.reduce((best,c,k)=>Math.abs(c.offsetLeft-r.scrollLeft-r.offsetLeft)<Math.abs(cards[best].offsetLeft-r.scrollLeft-r.offsetLeft)?k:best,0);
-  document.querySelectorAll('.hotdots span').forEach((d,k)=>d.classList.toggle('on',k===i));
-},true);
 document.addEventListener('input',e=>{
   if(e.target.id==='dirQ'){ dirState.q=e.target.value; drawDirectory(); }
   if(e.target.id==='codeQ'){ codeState.q=e.target.value; drawCodes(); }
