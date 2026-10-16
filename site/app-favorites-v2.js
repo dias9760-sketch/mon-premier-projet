@@ -504,20 +504,20 @@ const SCENE = `<svg class="scene" viewBox="0 0 400 380" aria-hidden="true">
 </svg>`;;
 
 /* ---------- Accueil : « Ça chauffe en ce moment » ---------- */
-// Les 3 premiers en coupon complet, les suivants en lignes compactes.
+// Les 3 premiers en coupon complet (2 seulement sur mobile : le 3e passe alors en ligne compacte), les suivants en lignes compactes.
 const HOT_BIG=3, HOT_SMALL=4;
 const hotCopyBtn=c=>c.store?`<button class="btn btn-primary btn-sm" data-caisse="${esc(c.id)}" data-copybiz="${c.biz}">${ic('store')}En caisse</button>`:`<button class="btn btn-primary btn-sm" data-copy="${esc(c.code)}" data-copybiz="${c.biz}" data-copyid="${esc(c.id)}">${ic('copy')}Copier</button>`;
-function hotRow(c,rank){
+function hotRow(c,rank,cls=''){
   const b=bizBy(c.biz), lv=heatLevel(c.heat);
-  return `<li class="prow"><a class="pmain" href="#/bon-plan/${encodeURIComponent(c.id)}"><span class="rk rk${rank}">${rank}</span>${logo(b)}<span class="grow"><strong>${esc(b.name)}</strong><small>${esc(c.deal)}${c.store?' · en magasin':''}</small></span></a><span class="pheat ${lv.k}" title="${c.moro} Moro, ${c.maji} Maji">${lv.k==='volcan'?'🌋':'🔥'} ${c.heat}</span>${hotCopyBtn(c)}</li>`;
+  return `<li class="prow${cls}"><a class="pmain" href="#/bon-plan/${encodeURIComponent(c.id)}"><span class="rk rk${rank}">${rank}</span>${logo(b)}<span class="grow"><strong>${esc(b.name)}</strong><small>${esc(c.deal)}${c.store?' · en magasin':''}</small></span></a><span class="pheat ${lv.k}" title="${c.moro} Moro, ${c.maji} Maji">${lv.k==='volcan'?'🌋':'🔥'} ${c.heat}</span>${hotCopyBtn(c)}</li>`;
 }
 const hotMore=`<a class="btn btn-sun hotmore" href="#/tendances">🔥 Voir toutes les tendances</a>`;
 const MEDALS=['🥇','🥈','🥉'];
 function hotBlock(hot){
   if(!hot.length) return `<div class="u5">${empty('Aucun bon plan ne chauffe encore','Donnez du Moro 🔥 à vos bons plans préférés pour les faire monter ici.','<a class="btn btn-sun" href="#/codes">Voir les bons plans</a>')}</div>`;
-  const big=hot.slice(0,HOT_BIG), small=hot.slice(HOT_BIG);
-  return `<div class="hottop3">${big.map((c,i)=>`<div class="hotbig"><span class="toprank">${MEDALS[i]} N°${i+1}${c.heat>=VOLCAN?' · 🌋 Volcan':''}</span>${coupon(c)}</div>`).join('')}</div>
-    ${small.length?`<ol class="podium u10" start="${HOT_BIG+1}">${small.map((c,i)=>hotRow(c,i+HOT_BIG+1)).join('')}</ol>`:''}${hotMore}`;
+  const big=hot.slice(0,HOT_BIG), small=hot.slice(HOT_BIG-1);
+  return `<div class="hottop3">${big.map((c,i)=>`<div class="hotbig${i===HOT_BIG-1?' desk-only':''}"><span class="toprank">${MEDALS[i]} N°${i+1}${c.heat>=VOLCAN?' · 🌋 Volcan':''}</span>${coupon(c)}</div>`).join('')}</div>
+    ${small.length?`<ol class="podium u10">${small.map((c,i)=>hotRow(c,i+HOT_BIG,i===0&&big.length===HOT_BIG?' mob-only':'')).join('')}</ol>`:''}${hotMore}`;
 }
 function pageHome(){
   const act=activeCodes();
