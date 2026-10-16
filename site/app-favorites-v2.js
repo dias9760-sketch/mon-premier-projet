@@ -99,6 +99,13 @@ const inDays = n => { const d = new Date(TODAY); d.setDate(d.getDate()+n); retur
 /* ---------- Connexion au CMS Wix ---------- */
 const WIX_CLIENT_ID='5ead703b-03d1-45f5-8049-74802f2b86f2';
 const API='https://www.wixapis.com';
+// Adresses : vraies URL (/entreprises/x) sur bonszahe.com, adresses « #/… » sur la copie de secours Wix.
+const PATHMODE=/(^|\.)bonszahe\.com$|^bonszahe\.pages\.dev$/.test(location.hostname);
+const curH=()=>PATHMODE?'#'+(location.pathname||'/')+location.search:(location.hash||'#/');
+const toUrl=h=>PATHMODE?h.slice(1):'/'+h;
+const pageUrl=h=>location.origin+toUrl(h);
+let routedH='';
+if(PATHMODE&&location.hash.startsWith('#/')) history.replaceState(null,'',location.hash.slice(1));
 // Application de connexion « site web » dédiée aux membres (l'application d'origine refuse les sessions membres : unauthorized_client).
 const AUTH_CLIENT_ID='9690cc23-501a-485e-94f7-a5ba951cb9c8';
 let authVisitorPromise=null;
@@ -176,7 +183,7 @@ async function finishLogin(sessionToken){
     // Secours : passage par la page Wix puis retour sur le site (?code=…&state=…).
     console.warn('Connexion par iframe impossible, redirection',e);
     const s=await authSession(sessionToken,'query',{redirectUri:RETURN_URI});
-    try{ localStorage.setItem('bonszahe:pkce',JSON.stringify({verifier:s.verifier,state:s.state,back:location.hash})); }catch(_){}
+    try{ localStorage.setItem('bonszahe:pkce',JSON.stringify({verifier:s.verifier,state:s.state,back:curH()})); }catch(_){}
     location.href=s.url;
     await new Promise(()=>{});
   }
@@ -190,7 +197,7 @@ async function resumeRedirectLogin(){
   const code=q.get('code'), state=q.get('state'), error=q.get('error');
   if(!code&&!error) return;
   let saved=null; try{ saved=JSON.parse(localStorage.getItem('bonszahe:pkce')||'null'); localStorage.removeItem('bonszahe:pkce'); }catch(_){}
-  history.replaceState(null,'',RETURN_URI+((saved&&saved.back&&saved.back.startsWith('#/'))?saved.back:'#/profil'));
+  history.replaceState(null,'',toUrl((saved&&saved.back&&saved.back.startsWith('#/'))?saved.back:'#/profil'));
   if(error){ loginNotice=`Wix a refusé la connexion (${error}${q.get('error_description')?' : '+q.get('error_description'):''}). Réessayez ou envoyez une capture à Bonszahé.`; return; }
   if(!saved){ loginNotice='Connexion interrompue (session de connexion introuvable). Réessayez.'; return; }
   if(saved.state!==state){ loginNotice='Connexion interrompue (vérification de sécurité différente). Réessayez.'; return; }
@@ -421,7 +428,7 @@ const norm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-
 
 /* ---------- Composants ---------- */
 function logo(b,size=''){
-  if(b.logo) return `<span class="logo ${size} haslogo" aria-hidden="true"><img src="${esc(b.logo)}" alt="" loading="lazy"></span>`;
+  if(b.logo) return size==='lg'?`<span class="logo lg haslogo"><img src="${esc(b.logo)}" alt="Logo ${esc(b.name)}" width="96" height="96" decoding="async"></span>`:`<span class="logo ${size} haslogo" aria-hidden="true"><img src="${esc(b.logo)}" alt="" loading="lazy" decoding="async"></span>`;
   const initials=b.name.replace(/[^A-Za-zÀ-ÿ0-9 ]/g,' ').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
   return `<span class="logo ${size} lg-${b.cat}" aria-hidden="true">${esc(initials)}</span>`;
 }
@@ -638,7 +645,7 @@ let dirState={q:'',cat:'',com:'',sort:'az',deals:false};
 function pageDirectory(params){
   dirState={q:params.get('q')||'',cat:params.get('cat')||'',com:params.get('c')||'',sort:params.get('tri')==='codes'?'codes':'az',deals:params.get('bonsplans')==='1'};
   return `<div class="wrap">
-    ${backBtn('#/')}<div class="pagehead"><h1>Entreprises</h1><p class="muted">Toutes les entreprises référencées sur Bonszahé.</p></div>
+    ${backBtn('#/')}<div class="pagehead"><h1>${dirState.cat&&catBy(dirState.cat)?esc(catBy(dirState.cat).name)+' à Mayotte':dirState.com&&comBy(dirState.com)?'Entreprises à '+esc(comBy(dirState.com).name):'Entreprises de Mayotte'}</h1><p class="muted">${dirState.cat||dirState.com?'Leurs codes promo, offres en magasin et coordonnées.':'Toutes les entreprises référencées sur Bonszahé.'}</p></div>
     <div class="toolbar">
       <label class="field">${ic('search')}<span class="sr">Rechercher une entreprise</span><input id="dirQ" type="search" placeholder="Nom, activité…" value="${esc(dirState.q)}"></label>
       <div class="filters">
@@ -693,7 +700,7 @@ function pageBusiness(slug){
         ${b.phone?`<a class="btn btn-ghost" href="tel:${esc(b.phone.replace(/\s/g,''))}" data-track="appel" data-trackbiz="${slug}">${ic('call')}Appeler</a>`:''}
         ${b.email?`<a class="btn btn-ghost" href="mailto:${esc(b.email)}">${ic('mail')}Contacter</a>`:''}
         ${followBtn('entreprise',slug,'Suivre')}
-        <a class="btn btn-wa" href="${waHref(`Découvrez ${b.name} et ses bons plans sur Bonszahé 👉 ${location.origin}/#/entreprises/${slug}`)}" target="_blank" rel="noopener">Partager</a>
+        <a class="btn btn-wa" href="${waHref(`Découvrez ${b.name} et ses bons plans sur Bonszahé 👉 ${pageUrl('#/')}entreprises/${slug}`)}" target="_blank" rel="noopener">Partager</a>
         <button class="iconbtn" data-fav="${slug}" aria-pressed="${fav}" aria-label="${fav?'Retirer des':'Ajouter aux'} favoris">${ic('heart')}</button>
       </div>
     </div>
@@ -931,7 +938,7 @@ function commentsBlock(c){
     ${top.length?`<ul class="cmlist">${top.map(cm=>commentItem(cm,c,false)).join('')}</ul>`:`<p class="muted">${dm?'Pas encore de réponse. Vous avez un code ou une astuce ? Partagez-la !':'Aucun commentaire pour l’instant. Donnez votre avis sur ce bon plan !'}</p>`}
   </section>`;
 }
-const dealUrl=c=>location.origin+'/#/bon-plan/'+encodeURIComponent(c.id);
+const dealUrl=c=>pageUrl('#/bon-plan/'+encodeURIComponent(c.id));
 function pageDeal(id){
   const c=allCodes().find(x=>x.id===id);
   if(!c) return notFound('Ce bon plan n’existe plus','Il a peut-être expiré ou été retiré.','<a class="btn btn-primary" href="#/tendances">Voir les tendances</a>','#/tendances');
@@ -1214,7 +1221,7 @@ function proTips(b,all,live,views,actions){
   if(!b.pos&&b.sale!=='en-ligne') t.push(`Votre magasin n’est pas encore sur la carte : les clients ne peuvent pas demander l’itinéraire. <button class="linkbtn link" data-editbiz="${b.slug}">Placer mon magasin</button>`);
   if(!b.hours||String(b.desc||'').length<80) t.push(`Complétez votre fiche (${[!b.hours&&'horaires',String(b.desc||'').length<80&&'description'].filter(Boolean).join(', ')}) : une fiche complète inspire confiance. <button class="linkbtn link" data-editbiz="${b.slug}">Modifier ma fiche</button>`);
   if(views>=5&&!actions) t.push('Votre fiche est vue mais personne ne passe à l’action : une offre réservée aux membres Bonszahé peut faire la différence.');
-  if(!views) t.push(`Votre fiche n’a pas encore été vue sur cette période. Partagez-la sur WhatsApp ou sur vos réseaux : <a class="link" href="${waHref(`Retrouvez nos bons plans sur Bonszahé 👉 ${location.origin}/#/entreprises/${b.slug}`)}" target="_blank" rel="noopener">partager ma fiche</a>.`);
+  if(!views) t.push(`Votre fiche n’a pas encore été vue sur cette période. Partagez-la sur WhatsApp ou sur vos réseaux : <a class="link" href="${waHref(`Retrouvez nos bons plans sur Bonszahé 👉 ${pageUrl('#/')}entreprises/${b.slug}`)}" target="_blank" rel="noopener">partager ma fiche</a>.`);
   return t.slice(0,4);
 }
 async function drawPro(){
@@ -1313,7 +1320,7 @@ function pageRanking(){
   const lb=leaderboard().slice(0,50);
   const mine=me()&&lb.findIndex(x=>x.id===me().id);
   return `<div class="wrap">
-    ${backBtn('#/profil')}<div class="pagehead"><h1>Classement de la communauté</h1><a class="btn btn-wa btn-sm u13" href="${waHref(`🏆 Le classement des chasseurs de bons plans de Mayotte sur Bonszahé 👉 ${location.origin}/#/classement`)}" target="_blank" rel="noopener">Partager le classement</a><p class="muted">Merci à celles et ceux qui partagent leurs bons plans ! 10 pts par code publié, 2 pts par Moro 🔥 reçu, 1 pt par « fonctionne » reçu, 1 pt par avis donné, 1 pt par commentaire (5 par jour max.) et par « j’aime » reçu, 15 pts par filleul actif.</p></div>
+    ${backBtn('#/profil')}<div class="pagehead"><h1>Classement de la communauté</h1><a class="btn btn-wa btn-sm u13" href="${waHref(`🏆 Le classement des chasseurs de bons plans de Mayotte sur Bonszahé 👉 ${pageUrl('#/')}classement`)}" target="_blank" rel="noopener">Partager le classement</a><p class="muted">Merci à celles et ceux qui partagent leurs bons plans ! 10 pts par code publié, 2 pts par Moro 🔥 reçu, 1 pt par « fonctionne » reçu, 1 pt par avis donné, 1 pt par commentaire (5 par jour max.) et par « j’aime » reçu, 15 pts par filleul actif.</p></div>
     <div class="u13">${lb.length?`<ol class="ranking">${lb.map((x,i)=>`<li class="${me()&&x.id===me().id?'me':''}"><span class="rk">${i+1}</span><div class="grow"><strong>${esc(x.name)}</strong><small>${esc(levelOf(x.points).name)} · ${x.codes.length} code${x.codes.length>1?'s':''} partagé${x.codes.length>1?'s':''}</small></div><b>${x.points} pts</b></li>`).join('')}</ol>`:
       empty('Le classement attend ses premiers chasseurs de bons plans','Partagez un code pour y apparaître.',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}
     ${me()&&mine<0?`<p class="note">Vous n’apparaissez pas encore : partagez votre premier code !</p>`:''}</div>
@@ -1339,7 +1346,7 @@ function eventCard(e){
         <div class="evacts">
           ${b?`<a class="bizline" href="#/entreprises/${b.slug}">${logo(b)}<span>${esc(b.name)}</span></a>`:''}
           ${e.link?`<a class="btn btn-ghost btn-sm" href="${esc(e.link)}" target="_blank" rel="noopener">${ic('ext')}En savoir plus</a>`:''}
-          <a class="btn btn-wa btn-sm" href="${waHref(`📅 ${e.title} – ${when}${where?' – '+where:''} 👉 ${location.origin}/#/evenements`)}" target="_blank" rel="noopener">Partager</a>
+          <a class="btn btn-wa btn-sm" href="${waHref(`📅 ${e.title} – ${when}${where?' – '+where:''} 👉 ${pageUrl('#/')}evenements`)}" target="_blank" rel="noopener">Partager</a>
         </div>
       </div>
     </div>
@@ -1653,7 +1660,7 @@ function pageDemande(id){
     <div class="dealpage"><div class="stack">
       ${dmCard(d,false)}
       <div class="bandbtns">${mine?`${d.status!=='resolue'?`<button class="btn btn-primary btn-sm" data-dmresolve="${esc(d.id)}">${ic('check')}Marquer comme résolue</button>`:''}<button class="btn btn-ghost btn-sm" data-dmdel="${esc(d.id)}">Supprimer</button>`:`<button class="btn btn-sun btn-sm" data-propose="${d.biz||''}">${ic('plus')}J’ai un code : le partager</button>`}
-        <a class="btn btn-wa btn-sm" href="${waHref(`🙋 ${d.text} — aidez sur Bonszahé 👉 ${location.origin}/#/demandes/${encodeURIComponent(d.id)}`)}" target="_blank" rel="noopener">Partager</a></div>
+        <a class="btn btn-wa btn-sm" href="${waHref(`🙋 ${d.text} — aidez sur Bonszahé 👉 ${pageUrl('#/')}demandes/${encodeURIComponent(d.id)}`)}" target="_blank" rel="noopener">Partager</a></div>
       ${commentsBlock({id:'dm:'+d.id,biz:d.biz})}
     </div></div>
     <div class="u7"></div>
@@ -1665,7 +1672,7 @@ async function saveDemande(d,statut){
 }
 
 /* ---------- Parrainage ---------- */
-const inviteUrl=()=>`${location.origin}/#/invite/${encodeURIComponent(me().id)}?n=${encodeURIComponent(me().name)}`;
+const inviteUrl=()=>`${pageUrl('#/')}invite/${encodeURIComponent(me().id)}?n=${encodeURIComponent(me().name)}`;
 const isActiveMember=id=>baseCodes.some(c=>c.by===id)||VOTES.some(v=>v.owner===id)||MOROS.some(v=>v.owner===id)||COMMENTS.some(x=>x.owner===id&&!isHidden(x));
 const filleulsOf=id=>PARRAINAGES.filter(p=>p.parrain===id).map(p=>Object.assign({active:isActiveMember(p.filleul)},p));
 function pageInvite(id,params){
@@ -1786,7 +1793,8 @@ function syncTabbar(){
 const app=document.getElementById('app');
 let lastDeal='';
 function route(){
-  const h=location.hash.slice(1)||'/';
+  routedH=curH();
+  const h=routedH.slice(1)||'/';
   const [path,qs]=h.split('?');
   const parts=path.split('/').filter(Boolean);
   const params=new URLSearchParams(qs||'');
@@ -1820,7 +1828,7 @@ function route(){
   else { html=notFound('Cette page n’existe pas','Le lien est peut-être incomplet ou ancien.','<a class="btn btn-primary" href="#/">Retour à l’accueil</a>','#/'); nav=''; title='Page introuvable | Bonszahé'; }
   storeMap=dropMap(storeMap); meMarker=null;
   app.innerHTML=html;
-  document.title=title;
+  applySeo(path,params,title);
   if(p==='entreprises'&&!parts[1]) drawDirectory();
   if(p==='codes') drawCodes();
   syncTabbar();
@@ -1832,12 +1840,41 @@ function route(){
   if(p==='carte') drawMap();
   if(!quietRender){ pageIn(); reveal(app); }
   checkRewards();
-  window.scrollTo(0,!quietRender&&navBack&&scrollMemo[location.hash]||0);
+  window.scrollTo(0,!quietRender&&navBack&&scrollMemo[curH()]||0);
   if(p==='recherche'&&!params.get('q')) document.getElementById('sq')?.focus();
 }
+// Référencement : titre, description, adresse canonique, aperçus de partage et données structurées de la page.
+const INDEXABLE_HOST=location.hostname==='bonszahe.com';
+function applySeo(path,params,fallbackTitle){
+  if(!window.BZSEO){ document.title=fallbackTitle; return; }
+  let m; try{ m=BZSEO.meta(path||'/',params,{biz:B,codes:activeCodes(),tf:TEMPS},{today:TODAY,withoutBody:true}); }catch(e){ console.warn(e); document.title=fallbackTitle; return; }
+  document.title=m.title;
+  const set=(sel,attr,val)=>{ const el=document.head.querySelector(sel); if(el) el.setAttribute(attr,val); };
+  set('meta[name="description"]','content',m.desc);
+  set('meta[name="robots"]','content',INDEXABLE_HOST?m.robots:'noindex,follow');
+  set('link[rel="canonical"]','href',m.canonical);
+  set('meta[property="og:title"]','content',m.title); set('meta[name="twitter:title"]','content',m.title);
+  set('meta[property="og:description"]','content',m.desc); set('meta[name="twitter:description"]','content',m.desc);
+  set('meta[property="og:url"]','content',m.canonical);
+  set('meta[property="og:image"]','content',m.image); set('meta[name="twitter:image"]','content',m.image);
+  const ld=document.getElementById('ld'); if(ld) ld.textContent=JSON.stringify(m.ld);
+}
 function refresh(){ const y=window.scrollY; quietRender=true; try{ route(); }finally{ quietRender=false; } window.scrollTo(0,y); }
-window.addEventListener('hashchange',()=>{ trackNav(location.hash||'#/'); if(dlg.open){ dlgByNav=true; dlg.close(); } route(); });
-let scrollT; window.addEventListener('scroll',()=>{ clearTimeout(scrollT); scrollT=setTimeout(()=>{ scrollMemo[location.hash||'#/']=window.scrollY; },120); },{passive:true});
+function onNav(){ trackNav(curH()); if(dlg.open){ dlgByNav=true; dlg.close(); } route(); }
+function go(h){ if(!PATHMODE){ if(location.hash===h) onNav(); else location.hash=h; return; } if(h!==curH()) history.pushState(null,'',toUrl(h)); onNav(); }
+window.addEventListener('hashchange',()=>{ if(PATHMODE){ if(!location.hash.startsWith('#/')) return; history.replaceState(null,'',location.hash.slice(1)); } onNav(); });
+if(PATHMODE){
+  // Liens internes en vraies adresses (lisibles par Google) et navigation sans rechargement.
+  const fixA=a=>a.setAttribute('href',a.getAttribute('href').slice(1));
+  const fixAll=root=>root.querySelectorAll('a[href^="#/"]').forEach(fixA);
+  fixAll(document);
+  new MutationObserver(ms=>ms.forEach(m=>{
+    if(m.type==='attributes'){ if(m.target.matches('a[href^="#/"]')) fixA(m.target); return; }
+    m.addedNodes.forEach(n=>{ if(n.nodeType!==1) return; if(n.matches('a[href^="#/"]')) fixA(n); fixAll(n); });
+  })).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['href']});
+  window.addEventListener('popstate',()=>{ if(curH()!==routedH) onNav(); });
+}
+let scrollT; window.addEventListener('scroll',()=>{ clearTimeout(scrollT); scrollT=setTimeout(()=>{ scrollMemo[curH()]=window.scrollY; },120); },{passive:true});
 
 /* ---------- Animations (légères, coupées si « réduire les animations ») ---------- */
 const CALM=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -2082,13 +2119,13 @@ document.addEventListener('click',async e=>{
   }
   else if(t.dataset.dmdel){
     if(!confirm('Supprimer cette demande ?')) return; t.disabled=true;
-    try{ await call('DELETE',`/wix-data/v2/items/${encodeURIComponent(t.dataset.dmdel)}?dataCollectionId=Demandes`); DEMANDES=DEMANDES.filter(x=>x.id!==t.dataset.dmdel); location.hash='#/demandes'; toast('Demande supprimée'); }
+    try{ await call('DELETE',`/wix-data/v2/items/${encodeURIComponent(t.dataset.dmdel)}?dataCollectionId=Demandes`); DEMANDES=DEMANDES.filter(x=>x.id!==t.dataset.dmdel); go('#/demandes'); toast('Demande supprimée'); }
     catch(err){ console.warn(err); t.disabled=false; toast('Suppression impossible. Réessayez.'); }
   }
   else if(t.id==='nearMe'){ nearMe(t); }
   else if(t.dataset.proevent){ proEventDialog(t.dataset.proevent); }
-  else if(t.id==='codeReset'){ location.hash='#/codes'; route(); }
-  else if(t.id==='dirReset'){ location.hash='#/entreprises'; route(); }
+  else if(t.id==='codeReset'){ go('#/codes'); }
+  else if(t.id==='dirReset'){ go('#/entreprises'); }
   else if(t.hasAttribute('data-close')){ dlg.close(); }
   else if(t.dataset.toast){ e.preventDefault(); toast(t.dataset.toast); }
   else if(t.dataset.authmode){ authMode=t.dataset.authmode; pendingState=null; redrawAuth(); }
@@ -2144,7 +2181,7 @@ async function afterAuth(res,btn,label){
 
 document.addEventListener('submit',async e=>{
   const f=e.target;
-  if(f.matches('[data-search]')){ e.preventDefault(); const q=f.querySelector('input').value.trim(); location.hash='#/recherche'+(q?'?q='+encodeURIComponent(q):''); }
+  if(f.matches('[data-search]')){ e.preventDefault(); const q=f.querySelector('input').value.trim(); go('#/recherche'+(q?'?q='+encodeURIComponent(q):'')); }
   else if(f.id==='authForm'){
     e.preventDefault(); const d=Object.fromEntries(new FormData(f));
     const btn=f.querySelector('button[type=submit]'); const label=btn.textContent; btn.disabled=true; btn.textContent='Connexion…';
@@ -2225,7 +2262,7 @@ document.addEventListener('submit',async e=>{
     const ent=d.entreprise?(bizId[d.entreprise]||''):'';
     try{ const r=await sendToWix('Demandes',{texte,entreprise:ent,categorie:d.categorie||'',pseudo:me().name,statut:'ouverte'});
       const id=r.dataItem&&r.dataItem.id; DEMANDES.unshift({id,text:texte,entId:ent,biz:d.entreprise||'',cat:d.categorie||'',name:me().name,status:'ouverte',owner:me().id,at:new Date()});
-      location.hash='#/demandes/'+encodeURIComponent(id); toast('Demande publiée ! La communauté va vous répondre.'); }
+      go('#/demandes/'+encodeURIComponent(id)); toast('Demande publiée ! La communauté va vous répondre.'); }
     catch(err){ console.warn(err); btn.disabled=false; btn.textContent='Publier ma demande'; toast(err.status===401||err.status===403?'Session expirée : reconnectez-vous.':'Publication impossible. Réessayez.'); }
   }
   else if(f.id==='editBizForm'){
@@ -2235,7 +2272,7 @@ document.addEventListener('submit',async e=>{
     if(!online&&t('position')&&!pos){ document.getElementById('editErr').textContent='Position GPS non reconnue : placez le point sur la carte ou utilisez le format « -12.78, 45.22 ».'; return; }
     const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Envoi…';
     sendToWix('ModificationsFiches',{typeVente:d.typeVente||'',position:posStr(pos),nomEntreprise:b.name,entreprise:b.id,statut:'En attente',description:t('description'),adresse:t('adresse'),commune:d.commune?comBy(d.commune).name:'',telephone:t('telephone'),siteWeb:t('siteWeb'),email:t('email'),horaires:t('horaires'),membreId:me().id,membreNom:me().name})
-      .then(()=>{ dlg.close(); toast('Merci ! Vos modifications seront en ligne après vérification.'); loadMine().then(()=>{ if(location.hash.startsWith('#/profil')) refresh(); }); })
+      .then(()=>{ dlg.close(); toast('Merci ! Vos modifications seront en ligne après vérification.'); loadMine().then(()=>{ if(curH().startsWith('#/profil')) refresh(); }); })
       .catch(ex=>{ console.warn(ex); btn.disabled=false; btn.textContent='Envoyer les modifications'; toast(ex.status===401||ex.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'); });
   }
   else if(f.id==='proEventForm'){
@@ -2244,7 +2281,7 @@ document.addEventListener('submit',async e=>{
     if(d.dateFin&&d.dateFin<d.date){ document.getElementById('evErr').textContent='La date de fin doit être après la date de début.'; return; }
     const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Envoi…';
     sendToWix('EvenementsProposes',Object.assign({titre:t('titre'),date:d.date,heure:t('heure'),commune:d.commune?comBy(d.commune).name:'',lieu:t('lieu'),description:t('description'),lien:t('lien'),entreprise:b.id,membreId:me().id,membreNom:me().name},d.dateFin?{dateFin:d.dateFin}:{}))
-      .then(()=>{ dlg.close(); toast('Merci ! Votre événement sera publié après vérification.'); loadMine().then(()=>{ if(location.hash.startsWith('#/profil')) refresh(); }); })
+      .then(()=>{ dlg.close(); toast('Merci ! Votre événement sera publié après vérification.'); loadMine().then(()=>{ if(curH().startsWith('#/profil')) refresh(); }); })
       .catch(ex=>{ console.warn(ex); btn.disabled=false; btn.textContent='Envoyer l’événement'; toast(ex.status===401||ex.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'); });
   }
   else if(f.id==='retireForm'){ e.preventDefault(); retireCode(f); }
@@ -2260,10 +2297,17 @@ document.addEventListener('submit',async e=>{
     const indices=[domaine?'✅ E-mail du domaine officiel':'— E-mail hors domaine officiel',u.verified?'✅ E-mail du compte vérifié':'— E-mail du compte non vérifié',dejaGeree?'⚠️ Fiche déjà gérée par un autre compte':'',isNew?'🆕 Entreprise absente de Bonszahé : fiche à créer':''].filter(Boolean).join(' · ');
     const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Envoi…';
     sendToWix('DemandesEntreprises',Object.assign({nomEntreprise:name,contact:d.contact,telephone:d.phone,email:u.email,siret,message:d.msg||'',membreId:u.id,emailDomaine:domaine,emailVerifie:!!u.verified,dejaGeree,indices,statut:'Nouvelle'},b?{entreprise:b.id}:{}))
-      .then(()=>{ dlg.close(); toast('Demande envoyée. Votre espace pro s’ouvrira dès sa validation.'); loadMine().then(()=>{ if(location.hash.startsWith('#/profil')) refresh(); }); })
+      .then(()=>{ dlg.close(); toast('Demande envoyée. Votre espace pro s’ouvrira dès sa validation.'); loadMine().then(()=>{ if(curH().startsWith('#/profil')) refresh(); }); })
       .catch(ex=>{ console.warn(ex); btn.disabled=false; btn.textContent='Envoyer la demande'; err.textContent=ex.status===401||ex.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'; });
   }
 });
 
 app.innerHTML=`<div class="wrap skel" aria-busy="true"><p class="sr">Chargement des bons plans…</p><div class="sk sk-title"></div><div class="sk sk-line"></div><div class="sk sk-search"></div><div class="skgrid">${'<div class="sk sk-card"></div>'.repeat(3)}</div></div>`;
-loadData().then(resumeRedirectLogin).then(loadMine).catch(err=>{ console.warn('CMS Wix indisponible, affichage de la copie locale',err); B.forEach(b=>{ bizId[b.slug]=b.slug; b.owners=b.owners||[]; }); }).finally(()=>{ trackNav(location.hash||'#/'); route(); });
+loadData().then(resumeRedirectLogin).then(loadMine).catch(err=>{ console.warn('CMS Wix indisponible, affichage de la copie locale',err); B.forEach(b=>{ bizId[b.slug]=b.slug; b.owners=b.owners||[]; }); }).finally(()=>{ trackNav(curH()); route(); });
+// Vraies adresses : les liens internes changent de page sans recharger le site (enregistré en dernier, après les autres clics).
+if(PATHMODE) document.addEventListener('click',e=>{
+  if(e.defaultPrevented||e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey) return;
+  const a=e.target.closest('a[href^="/"]'); if(!a||a.target||a.hasAttribute('download')) return;
+  const href=a.getAttribute('href'); if(href.startsWith('//')) return;
+  e.preventDefault(); go('#'+href);
+});

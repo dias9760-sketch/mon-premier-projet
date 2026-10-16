@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /profil
+Disallow: /favoris
+Disallow: /alertes
+Disallow: /recherche
+Disallow: /invite
+
+Sitemap: https://bonszahe.com/sitemap.xml
