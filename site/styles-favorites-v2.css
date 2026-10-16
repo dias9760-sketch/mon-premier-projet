@@ -732,3 +732,17 @@ dialog[open]::backdrop{animation:fadeIn .25s ease}
 body:has(.fab) #app{padding-bottom:72px}
 @media (min-width:1200px){body:has(.fab) #app{padding-bottom:0}}
 @media (max-width:699px){.seg.full>*{font-size:.86rem;padding:8px 4px}}
+
+/* ---------- v21 : liste compacte des entreprises sur mobile ---------- */
+@media (max-width:699px){
+  .bizgrid.compact{grid-template-columns:1fr;gap:10px}
+  .bizgrid.compact .biz{border-radius:16px}
+  .bizgrid.compact .biz .cover{display:none}
+  .bizgrid.compact .biz .body{margin-top:0;padding:10px 6px 10px 12px;display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:12px;row-gap:0;align-items:center}
+  .bizgrid.compact .biz .body .logo{grid-row:1 / span 3;border:1px solid var(--line)}
+  .bizgrid.compact .biz .biz-title{margin-top:0}
+  .bizgrid.compact .biz h3{font-size:1.02rem}
+  .bizgrid.compact .biz p.u4{margin:0;font-size:.84rem}
+  .bizgrid.compact .biz .row{margin-top:2px}
+  .bizgrid.compact .biz-title .fav{flex-basis:40px;width:40px;height:40px}
+}

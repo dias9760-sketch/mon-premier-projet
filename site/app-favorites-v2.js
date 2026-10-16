@@ -653,7 +653,7 @@ function pageDirectory(params){
       </div>
     </div>
     <p class="results" id="dirCount" aria-live="polite"></p>
-    <div class="bizgrid" id="dirList"></div>
+    <div class="bizgrid compact" id="dirList"></div>
     <div class="u7"></div>
   </div>`;
 }
@@ -1007,7 +1007,7 @@ function pageSearch(params){
     <form class="u15 field" data-search>${ic('search')}<label class="sr" for="sq">Rechercher</label><input id="sq" name="q" type="search" placeholder="Une entreprise ou un bon plan" value="${esc(q)}" autocomplete="off"></form>
     ${!q?`<div class="cats">${CATS.map(catCard).join('')}</div>`:`
       ${codes.length?`<div class="head"><h2>Bons plans</h2></div><div class="coupons">${codes.map(c=>coupon(c)).join('')}</div><div class="u6"></div>`:''}
-      ${biz.length?`<div class="head"><h2>Entreprises</h2></div><div class="bizgrid">${biz.map(bizCard).join('')}</div>`:''}
+      ${biz.length?`<div class="head"><h2>Entreprises</h2></div><div class="bizgrid compact">${biz.map(bizCard).join('')}</div>`:''}
       ${!codes.length&&!biz.length?empty(`Aucun résultat pour « ${esc(q)} »`,'Vérifiez l’orthographe, ou demandez à la communauté.','<a class="btn btn-primary" href="#/demandes">Demander un bon plan</a>'):''}
       <div class="card u13 followcard"><p><strong>Être prévenu des prochains bons plans « ${esc(q)} » ?</strong></p>${followBtn('mot',q.slice(0,40),'Créer une alerte','btn btn-primary btn-sm')}</div>
     `}
@@ -1309,7 +1309,7 @@ function pageEvents(params){
   const groups={};
   list.forEach(e=>{ const k=e.date.toLocaleDateString('fr-FR',{month:'long',year:'numeric'}); (groups[k]=groups[k]||[]).push(e); });
   return `<div class="wrap">
-    <div class="pagehead"><h1>Événements à Mayotte</h1><p class="muted">Marchés, ventes privées, fêtes, concerts et animations des entreprises de l’île.</p></div>
+    ${all.length?'':backBtn('#/')}<div class="pagehead"><h1>Événements à Mayotte</h1><p class="muted">Marchés, ventes privées, fêtes, concerts et animations des entreprises de l’île.</p></div>
     ${coms.length>1?`<div class="chips" role="group" aria-label="Filtrer par commune"><a class="chip" href="#/evenements" aria-pressed="${!sel}">Toutes les communes</a>${coms.map(c=>`<a class="chip" href="#/evenements?c=${c.slug}" aria-pressed="${sel===c.slug}">${esc(c.name)}</a>`).join('')}</div>`:''}
     <div class="u13">${list.length?Object.keys(groups).map(k=>`<h2 class="evmonth">${esc(k.charAt(0).toUpperCase()+k.slice(1))}</h2><div class="events">${groups[k].map(eventCard).join('')}</div>`).join(''):
       empty('Aucun événement à venir pour l’instant','Vous organisez un marché, une vente privée ou une animation ? Faites-le savoir à la communauté.',`<button class="btn btn-primary" data-claim="">Annoncer un événement</button>`)}</div>
@@ -1587,7 +1587,7 @@ function pageDemandes(params){
   dmFilter=params.get('f')==='toutes'?'toutes':'ouvertes';
   const list=DEMANDES.filter(d=>dmFilter==='toutes'||d.status!=='resolue');
   return `<div class="wrap">
-    ${backBtn('#/')}<div class="pagehead"><h1>🙋 Demandes</h1><p class="muted">Vous cherchez un code ou un bon plan ? Demandez à la communauté, et aidez les autres en répondant.</p></div>
+    ${upcomingEvents().length?backBtn('#/'):''}<div class="pagehead"><h1>🙋 Demandes</h1><p class="muted">Vous cherchez un code ou un bon plan ? Demandez à la communauté, et aidez les autres en répondant.</p></div>
     ${me()?`<form class="form card" id="demandeForm">
       <label>Votre demande<textarea name="texte" required maxlength="300" rows="3" placeholder="Ex. Quelqu’un a un code pour une livraison gratuite chez… ?"></textarea></label>
       <div class="two"><label>Entreprise <span class="opt">(facultatif)</span><select name="entreprise"><option value="">Aucune en particulier</option>${[...B].sort((a,z)=>a.name.localeCompare(z.name,'fr')).map(b=>`<option value="${b.slug}">${esc(b.name)}</option>`).join('')}</select></label>
@@ -1705,6 +1705,17 @@ function trackNav(h){
 const backBtn=(fallback,label='Retour')=>`<a class="back" href="${fallback}" data-back>${ic('left')}${label}</a>`;
 const notFound=(t,txt,cta,fallback)=>`<div class="wrap">${backBtn(fallback)}<h1 class="sr">${t}</h1><div class="u20">${empty(t,txt,cta)}</div><div class="u8"></div></div>`;
 
+// Barre du bas : « Agenda » tant qu'il y a des événements à venir, sinon « Demandes ».
+const TAB_AGENDA=['#/evenements','evenements','Agenda','<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>'];
+const TAB_DEMANDES=['#/demandes','demandes','Demandes','<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M9 11h.01M12 11h.01M15 11h.01"/>'];
+function syncTabbar(){
+  const a=document.querySelector('.bottomnav a[data-nav="evenements"],.bottomnav a[data-nav="demandes"]'); if(!a) return;
+  const [href,nav,label,icon]=upcomingEvents().length?TAB_AGENDA:TAB_DEMANDES;
+  if(a.dataset.nav===nav) return;
+  a.setAttribute('href',href); a.dataset.nav=nav;
+  a.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icon}</svg>${label}`;
+}
+
 /* ---------- Routeur ---------- */
 const app=document.getElementById('app');
 let lastDeal='';
@@ -1746,6 +1757,7 @@ function route(){
   document.title=title;
   if(p==='entreprises'&&!parts[1]) drawDirectory();
   if(p==='codes') drawCodes();
+  syncTabbar();
   document.querySelectorAll('[data-nav]').forEach(a=>{ a.getAttribute('data-nav')===nav?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current'); });
   document.getElementById('loginBtn').textContent=me()?me().name:'Connexion';
   const nAlert=p==='alertes'?0:alertDeals(true).length;
