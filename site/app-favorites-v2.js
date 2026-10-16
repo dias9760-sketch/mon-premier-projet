@@ -683,9 +683,10 @@ function pageBusiness(slug){
     <div class="bcover cv cv-${b.cat}" role="img" aria-label="Couverture ${esc(b.name)}"></div>
     <div class="bhead">
       ${logo(b,'lg')}
-      <div>
+      <div class="bmain">
         <h1>${esc(b.name)} ${verified?`<span title="Entreprise avec codes vérifiés">${ic('badge','class="verif"')}</span>`:''}</h1>
-        <p class="tagline muted">${esc(cat.name)}${b.sale?' &nbsp;|&nbsp; '+esc(SALES[b.sale]):''} &nbsp;|&nbsp; ${esc(b.desc)}</p>
+        <p class="tagline muted">${esc(cat.name)}${b.sale?' &nbsp;|&nbsp; '+esc(SALES[b.sale]):''}</p>
+        ${b.desc?`<p class="bdesc">${esc(b.desc)}</p>`:''}
       </div>
       <div class="bactions">
         ${b.web?`<a class="btn btn-primary" href="${esc(b.web)}" target="_blank" rel="noopener" data-track="site" data-trackbiz="${slug}">${ic('ext')}Visiter le site</a>`:''}

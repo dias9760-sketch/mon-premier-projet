@@ -746,3 +746,12 @@ body:has(.fab) #app{padding-bottom:72px}
   .bizgrid.compact .biz .row{margin-top:2px}
   .bizgrid.compact .biz-title .fav{flex-basis:40px;width:40px;height:40px}
 }
+
+/* ---------- v22 : en-tête des fiches entreprise avec description longue ---------- */
+.bhead .bdesc{margin-top:8px;max-width:72ch;line-height:1.55;color:var(--ink)}
+@media (min-width:900px){
+  .bhead{grid-template-columns:auto minmax(0,1fr);align-items:start}
+  .bhead>.logo{align-self:start}
+  .bhead .bmain{padding-top:64px}
+  .bhead .bactions{grid-column:2}
+}
