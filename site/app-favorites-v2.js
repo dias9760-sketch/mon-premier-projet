@@ -116,6 +116,7 @@ let EVENTS=[];
 let VOTES=[];
 let MOROS=[];
 let COMMENTS=[], LIKES=[], REPORTS=[], MODERATION={};
+let DEMANDES=[], PARRAINAGES=[], RECOMPENSES=[], TEMPS=[];
 let dataSource='snapshot';
 let tokenPromise=null;
 function getVisitorToken(){
@@ -204,6 +205,7 @@ async function completeLogin(code,verifier,redirectUri){
   AUTH.member={id:m.id,name:p.nickname||[p.firstName,p.lastName].filter(Boolean).join(' ')||(m.loginEmail||'').split('@')[0]||'Membre',email:m.loginEmail||'',verified:!!m.loginEmailVerified};
   saveAuth();
   await loadMine();
+  await recordReferral(m.createdDate||m._createdDate);
 }
 async function iframeCode(sessionToken){
   const {url,verifier,state}=await authSession(sessionToken,'web_message');
@@ -229,7 +231,7 @@ async function handleAuthState(res){
   return 'error';
 }
 let pendingState=null;
-function logout(){ AUTH=null; saveAuth(); MINE={proposals:[],claims:[],edits:[],events:[]}; }
+function logout(){ AUTH=null; saveAuth(); MINE={proposals:[],claims:[],edits:[],events:[],alerts:[]}; }
 
 // reCAPTCHA exigé par Wix pour l'inscription et la connexion (clés Wix, script « enterprise »).
 const RC_INVISIBLE='6LdoPaUfAAAAAJphvHoUoOob7mx0KDlXyXlgrx5v', RC_VISIBLE='6Ld0J8IcAAAAANyrnxzrRlX1xrrdXsOmsepUYosy';
@@ -316,10 +318,11 @@ const SALES={boutique:'Boutique physique','en-ligne':'Vente en ligne / livraison
 // Date et heure complètes d'un champ système Wix ({$date:…}), pour le classement Tendance.
 const stamp=v=>{ const d=new Date(typeof v==='object'&&v?v.$date:v); return isNaN(d)?new Date(TODAY):d; };
 async function loadData(){
-  const [ents,codes,votes,events,moros,comms,likes,reports,moder]=await Promise.all([
+  const [ents,codes,votes,events,moros,comms,likes,reports,moder,dms,parr,recs,tfs]=await Promise.all([
     queryAll('Entreprises'),queryAll('CodesPromo'),
     queryAll('Votes').catch(()=>[]),queryAll('Evenements').catch(()=>[]),queryAll('Moro').catch(()=>[]),
-    queryAll('Commentaires').catch(()=>[]),queryAll('JaimeCommentaires').catch(()=>[]),queryAll('Signalements').catch(()=>[]),queryAll('Moderation').catch(()=>[])
+    queryAll('Commentaires').catch(()=>[]),queryAll('JaimeCommentaires').catch(()=>[]),queryAll('Signalements').catch(()=>[]),queryAll('Moderation').catch(()=>[]),
+    queryAll('Demandes').catch(()=>[]),queryAll('Parrainages').catch(()=>[]),queryAll('Recompenses').catch(()=>[]),queryAll('TempsForts').catch(()=>[])
   ]);
   const idToSlug={}; const used=new Set();
   const list=ents.filter(e=>e.publiee!==false&&e.nom).map(e=>{
@@ -338,11 +341,16 @@ async function loadData(){
   MOROS=moros.filter(v=>v.code&&(v.sens==='moro'||v.sens==='maji')).map(v=>({id:v._id,code:v.code,dir:v.sens,owner:v._owner,at:stamp(v._updatedDate||v._createdDate)}));
   baseCodes=codes.filter(c=>(c.code||c.typeOffre==='magasin')&&idToSlug[refId(c.entreprise)]).map(c=>{
     const exp=dateFrom(c.dateExpiration);
-    return {id:c._id,biz:idToSlug[refId(c.entreprise)],deal:c.avantage||'Bon plan',detail:c.detail||'',code:String(c.code||'').trim(),store:c.typeOffre==='magasin',cond:c.conditions||'',exp:exp||inDays(3650),noExp:!exp,verified:!!c.verifie,baseUp:+c.votesOui||0,baseDown:+c.votesNon||0,added:dateFrom(c._createdDate)||TODAY,addedAt:stamp(c._createdDate),status:statutFrom(c.statut),link:c.lienOffre||'',by:c.contributeur||'',byName:c.contributeurNom||''};
+    return {id:c._id,biz:idToSlug[refId(c.entreprise)],deal:c.avantage||'Bon plan',detail:c.detail||'',code:String(c.code||'').trim(),store:c.typeOffre==='magasin',cond:c.conditions||'',exp:exp||inDays(3650),noExp:!exp,verified:!!c.verifie,baseUp:+c.votesOui||0,baseDown:+c.votesNon||0,added:dateFrom(c._createdDate)||TODAY,addedAt:stamp(c._createdDate),status:statutFrom(c.statut),link:c.lienOffre||'',by:c.contributeur||'',byName:c.contributeurNom||'',tf:String(c.tempsForts||'').split(/[\s,;]+/).filter(Boolean)};
   });
   EVENTS=events.filter(e=>e.publie!==false&&e.titre&&dateFrom(e.date)).map(e=>({
     id:e._id,title:e.titre,date:dateFrom(e.date),end:dateFrom(e.dateFin),time:e.heure||'',commune:communeFrom(e.commune),communeName:e.commune||'',place:e.lieu||'',desc:e.description||'',img:imgUrl(e.image),link:e.lien||'',biz:idToSlug[refId(e.entreprise)]||''
   })).sort((a,b)=>a.date-b.date);
+  DEMANDES=dms.filter(x=>x.texte&&!x.masquee).map(x=>({id:x._id,text:String(x.texte).slice(0,300),entId:x.entreprise||'',biz:idToSlug[x.entreprise]||'',cat:x.categorie||'',name:x.pseudo||'Membre',status:x.statut==='resolue'?'resolue':'ouverte',owner:x._owner,at:stamp(x._createdDate)})).sort((a,b)=>b.at-a.at);
+  const seenF=new Set();
+  PARRAINAGES=parr.filter(x=>x.parrain&&x._owner&&x.parrain!==x._owner).map(x=>({parrain:x.parrain,filleul:x._owner,name:x.filleulNom||'',at:stamp(x._createdDate)})).sort((a,b)=>a.at-b.at).filter(x=>!seenF.has(x.filleul)&&seenF.add(x.filleul));
+  RECOMPENSES=recs.filter(x=>x.mois&&x.titre).map(x=>({mois:String(x.mois).slice(0,7),rang:+x.rang||0,titre:x.titre,desc:x.description||'',biz:idToSlug[x.entreprise]||'',img:imgUrl(x.image),gagnant:x.gagnant||''}));
+  TEMPS=tfs.filter(x=>x.slug&&x.titre).map(x=>({slug:x.slug,title:x.titre,emoji:x.emoji||'⭐',desc:x.description||'',start:dateFrom(x.debut),end:dateFrom(x.fin),cats:String(x.categories||'').split(/[\s,;]+/).filter(Boolean),ordre:+x.ordre||0})).sort((a,b)=>a.ordre-b.ordre);
   dataSource='wix';
 }
 async function sendToWix(collection,data){
@@ -350,9 +358,9 @@ async function sendToWix(collection,data){
 }
 
 /* ---------- Données du membre connecté ---------- */
-let MINE={proposals:[],claims:[],edits:[],events:[]};
+let MINE={proposals:[],claims:[],edits:[],events:[],alerts:[]};
 async function loadMine(){
-  if(!me()){ MINE={proposals:[],claims:[],edits:[],events:[]}; return; }
+  if(!me()){ MINE={proposals:[],claims:[],edits:[],events:[],alerts:[]}; return; }
   try{
     const items=await queryAll('PropositionsCodes');
     MINE.proposals=items.map(p=>({id:p._id,biz:B.find(b=>b.id===refId(p.entreprise))?.slug||'',code:p.code,deal:p.avantage||'',exp:p.dateExpiration||'',status:statutFrom(p.statut==='Traité'?'valide':p.statut),created:dateFrom(p._createdDate)||TODAY})).sort((a,b)=>b.created-a.created);
@@ -361,7 +369,8 @@ async function loadMine(){
     const cl=await queryAll('DemandesEntreprises');
     MINE.claims=cl.map(c=>({id:c._id,name:c.nomEntreprise||'',entreprise:refId(c.entreprise)||'',status:c.statut||'Nouvelle',at:stamp(c._createdDate)})).sort((a,b)=>b.at-a.at);
   }catch(e){ console.warn('Demandes indisponibles',e); }
-  const [edits,evs]=await Promise.all([queryAll('ModificationsFiches').catch(()=>[]),queryAll('EvenementsProposes').catch(()=>[])]);
+  const [edits,evs,alerts]=await Promise.all([queryAll('ModificationsFiches').catch(()=>[]),queryAll('EvenementsProposes').catch(()=>[]),queryAll('Alertes').catch(()=>[])]);
+  MINE.alerts=alerts.filter(a=>ALERT_TYPES[a.type]&&a.valeur).map(a=>({id:a._id,type:a.type,valeur:a.valeur,label:a.libelle||'',at:stamp(a._createdDate)}));
   MINE.edits=edits.map(x=>({id:x._id,entreprise:refId(x.entreprise)||'',status:x.statut||'En attente',at:stamp(x._createdDate)})).sort((a,b)=>b.at-a.at);
   MINE.events=evs.map(x=>({id:x._id,entreprise:refId(x.entreprise)||'',title:x.titre||'',date:dateFrom(x.date),at:stamp(x._createdDate)})).sort((a,b)=>b.at-a.at);
 }
@@ -438,7 +447,7 @@ function coupon(c,{showBiz=true,noLink=false}={}){
         ${c.verified?`<span class="pill ok">${ic('check')}Code vérifié</span>`:''}
         ${soon?`<span class="pill soon">${ic('clock')}${left===0?'Dernier jour':left===1?'Plus qu’1 jour':'Plus que '+left+' jours'}</span>`:(c.noExp?`<span class="pill">${ic('clock')}Sans date limite</span>`:`<span class="pill">${ic('clock')}Expire le ${fmt(c.exp)}</span>`)}
         ${official?`<span class="pill ok">${ic('store')}Offre officielle</span>`:''}
-        ${isNew(c)?`<span class="pill wait">Nouveau</span>`:''}
+        ${isNew(c)?`<span class="pill wait">Nouveau</span>`:''}${c.tf.map(tfBy).filter(t=>t&&tfActive(t)).map(t=>`<span class="pill tfpill">${esc(t.emoji)} ${esc(t.title)}</span>`).join('')}
       </div>
       ${c.byName&&!official?`<p class="by">${ic('heart')}Partagé par <strong>${esc(c.byName)}</strong>, merci !</p>`:''}
     </div>
@@ -548,6 +557,9 @@ function pageHome(){
   </section>
   <svg class="sea" viewBox="0 0 1440 70" preserveAspectRatio="none" aria-hidden="true"><path d="M0 24C180 4 360 4 540 18s360 28 540 16 270-26 360-18v54H0z" fill="#1FB5C9"/><path d="M0 40c200-18 400-14 600 0s420 18 600 4 190-12 240-8v34H0z" fill="#1597D6" opacity=".55"/><path d="M0 52C240 36 480 38 720 50s480 12 720-2v22H0z" fill="var(--bg)"/></svg>
 
+  ${(()=>{ const n=me()?alertDeals(true).length:0; const tb=tfBanner(); return n||tb?`<section class="block homeflash"><div class="wrap stack">
+    ${n?`<a class="tfband alertband" href="#/alertes"><span class="tfemo">🔔</span><span class="grow"><strong>${n} nouveau${n>1?'x':''} bon${n>1?'s':''} plan${n>1?'s':''} pour vos alertes</strong><small>Ils correspondent à ce que vous suivez.</small></span>${ic('left','class="flip"')}</a>`:''}${tb}
+  </div></section>`:''; })()}
   <section class="u18 block">
     <div class="wrap">
       <div class="head"><div><h2>Catégories</h2></div><a class="link" href="#/categories">Toutes les catégories</a></div>
@@ -559,6 +571,13 @@ function pageHome(){
     <div class="wrap">
       <div class="head"><div><h2>🔥 Ça chauffe en ce moment</h2><p class="muted">Les bons plans qui récoltent le plus de Moro.</p></div><a class="link" href="#/tendances">Voir les tendances</a></div>
       ${hotBlock(hot)}
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="wrap commu">
+      <a class="commucard" href="#/demandes"><span class="tfemo">🙋</span><strong>Vous cherchez un code ?</strong><small>${DEMANDES.filter(d=>d.status!=='resolue').length?DEMANDES.filter(d=>d.status!=='resolue').length+' demande(s) en cours. ':''}Demandez à la communauté.</small></a>
+      <a class="commucard" href="#/recompenses"><span class="tfemo">🎁</span><strong>Récompenses du mois</strong><small>Les 3 meilleurs contributeurs gagnent des lots.</small></a>
     </div>
   </section>
 
@@ -672,6 +691,7 @@ function pageBusiness(slug){
         ${b.web?`<a class="btn btn-primary" href="${esc(b.web)}" target="_blank" rel="noopener" data-track="site" data-trackbiz="${slug}">${ic('ext')}Visiter le site</a>`:''}
         ${b.phone?`<a class="btn btn-ghost" href="tel:${esc(b.phone.replace(/\s/g,''))}" data-track="appel" data-trackbiz="${slug}">${ic('call')}Appeler</a>`:''}
         ${b.email?`<a class="btn btn-ghost" href="mailto:${esc(b.email)}">${ic('mail')}Contacter</a>`:''}
+        ${followBtn('entreprise',slug,'Suivre')}
         <a class="btn btn-wa" href="${waHref(`Découvrez ${b.name} et ses bons plans sur Bonszahé 👉 ${location.origin}/#/entreprises/${slug}`)}" target="_blank" rel="noopener">Partager</a>
         <button class="iconbtn" data-fav="${slug}" aria-pressed="${fav}" aria-label="${fav?'Retirer des':'Ajouter aux'} favoris">${ic('heart')}</button>
       </div>
@@ -875,7 +895,7 @@ function isHidden(cm){
 const countComments=codeId=>commentsOf(codeId).filter(cm=>!isHidden(cm)).length;
 let commentSort='anciens', replyTo='';
 function commentItem(cm,c,isReply){
-  const b=bizBy(c.biz); const pro=b.owners&&b.owners.includes(cm.owner); const mine=me()&&cm.owner===me().id;
+  const b=bizBy(c.biz)||{owners:[]}; const pro=b.owners.includes(cm.owner); const mine=me()&&cm.owner===me().id;
   const replies=isReply?[]:commentsOf(c.id).filter(r=>r.parent===cm.id).sort((a,z)=>a.at-z.at);
   const hidden=isHidden(cm); const n=likesOf(cm.id);
   const lvl=levelOf(statsFor(cm.owner).points).name;
@@ -962,7 +982,7 @@ function pageTrends(params){
     <p class="results">${esc(intro)}</p>
     <div class="u13">${list.length?`<div class="coupons">${list.map(c=>coupon(c)).join('')}</div>`:
       empty('Aucun bon plan pour le moment','Partagez le premier !',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}</div>
-    <p class="note u13"><a class="link" href="#/codes">Rechercher dans tous les codes promo</a></p>
+    <p class="note u13"><a class="link" href="#/codes">Rechercher dans tous les codes promo</a> · <a class="link" href="#/demandes">Vous cherchez un code ? Demandez à la communauté</a></p>
     <div class="u8"></div>
   </div>`;
 }
@@ -986,7 +1006,8 @@ function pageSearch(params){
     ${!q?`<div class="cats">${CATS.map(catCard).join('')}</div>`:`
       ${codes.length?`<div class="head"><h2>Bons plans</h2></div><div class="coupons">${codes.map(c=>coupon(c)).join('')}</div><div class="u6"></div>`:''}
       ${biz.length?`<div class="head"><h2>Entreprises</h2></div><div class="bizgrid">${biz.map(bizCard).join('')}</div>`:''}
-      ${!codes.length&&!biz.length?empty(`Aucun résultat pour « ${esc(q)} »`,'Vérifiez l’orthographe ou parcourez les catégories.','<a class="btn btn-primary" href="#/categories">Voir les catégories</a>'):''}
+      ${!codes.length&&!biz.length?empty(`Aucun résultat pour « ${esc(q)} »`,'Vérifiez l’orthographe, ou demandez à la communauté.','<a class="btn btn-primary" href="#/demandes">Demander un bon plan</a>'):''}
+      <div class="card u13 followcard"><p><strong>Être prévenu des prochains bons plans « ${esc(q)} » ?</strong></p>${followBtn('mot',q.slice(0,40),'Créer une alerte','btn btn-primary btn-sm')}</div>
     `}
     <div class="u8"></div>
   </div>`;
@@ -1018,7 +1039,8 @@ function statsFor(memberId){
   const votesGiven=new Set(VOTES.filter(v=>v.owner===memberId).map(v=>v.code)).size+new Set(MOROS.filter(v=>v.owner===memberId).map(v=>v.code)).size;
   const cats=new Set(codes.map(c=>bizBy(c.biz).cat)).size;
   const best=codes.reduce((m,c)=>Math.max(m,c.up),0);
-  return {codes,upReceived,moroReceived,bestHeat,votesGiven,cats,best,comments:myComments.length,likesReceived,bestComment,points:codes.length*10+moroReceived*2+upReceived+votesGiven+commentPts+likesReceived};
+  const filleuls=filleulsOf(memberId).filter(x=>x.active).length;
+  return {filleuls,codes,upReceived,moroReceived,bestHeat,votesGiven,cats,best,comments:myComments.length,likesReceived,bestComment,points:codes.length*10+moroReceived*2+upReceived+votesGiven+commentPts+likesReceived+filleuls*15};
 }
 const BADGES=[
   {name:'Premier bon plan',desc:'Partager 1 code',icon:'plus',val:s=>[s.codes.length,1]},
@@ -1030,11 +1052,12 @@ const BADGES=[
   {name:'Explorateur',desc:'Des codes dans 3 catégories',icon:'grid',val:s=>[s.cats,3]},
   {name:'Volcan',desc:'Un de vos bons plans atteint '+VOLCAN+' de chaleur',icon:'sun',val:s=>[s.bestHeat,VOLCAN]},
   {name:'Bavard',desc:'Écrire 20 commentaires',icon:'mail',val:s=>[s.comments,20]},
-  {name:'Bon conseil',desc:'Un commentaire aimé 10 fois',icon:'up',val:s=>[s.bestComment,10]}
+  {name:'Bon conseil',desc:'Un commentaire aimé 10 fois',icon:'up',val:s=>[s.bestComment,10]},
+  {name:'Ambassadeur',desc:'Parrainer 3 membres actifs',icon:'heart',val:s=>[s.filleuls,3]}
 ];
 function levelOf(p){ let i=0; LEVELS.forEach((l,j)=>{ if(p>=l[0]) i=j; }); return {name:LEVELS[i][1],next:LEVELS[i+1]}; }
 function leaderboard(){
-  const ids=[...new Set([...baseCodes.filter(c=>c.by).map(c=>c.by),...COMMENTS.map(x=>x.owner)])];
+  const ids=[...new Set([...baseCodes.filter(c=>c.by).map(c=>c.by),...COMMENTS.map(x=>x.owner),...PARRAINAGES.map(x=>x.parrain)])];
   return ids.map(id=>{ const s=statsFor(id); const name=(baseCodes.find(c=>c.by===id&&c.byName)||{}).byName||(COMMENTS.find(x=>x.owner===id&&x.name)||{}).name||'Membre'; return Object.assign({id,name},s); })
     .filter(x=>x.points>0).sort((a,b)=>b.points-a.points);
 }
@@ -1101,7 +1124,7 @@ function pageProfile(){
     <div class="card level">
       <div class="lvhead"><span class="lvic">${ic('badge')}</span><div><small class="muted">Votre niveau</small><strong>${esc(lv.name)}</strong></div><b class="pts">${s.points} pts</b></div>
       <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></div>
-      <p class="note">${lv.next?`Encore ${lv.next[0]-s.points} points pour devenir « ${esc(lv.next[1])} ».`:'Niveau maximum atteint, bravo !'} 10 pts par code publié, 2 pts par Moro 🔥 reçu, 1 pt par « fonctionne » reçu, 1 pt par avis donné, 1 pt par commentaire (5 par jour max.) et par « j’aime » reçu.</p>
+      <p class="note">${lv.next?`Encore ${lv.next[0]-s.points} points pour devenir « ${esc(lv.next[1])} ».`:'Niveau maximum atteint, bravo !'} 10 pts par code publié, 2 pts par Moro 🔥 reçu, 1 pt par « fonctionne » reçu, 1 pt par avis donné, 1 pt par commentaire (5 par jour max.) par « j’aime » reçu, et 15 pts par filleul actif.</p>
     </div>
     <div class="stats four">
       <div class="stat"><b>${s.codes.length}</b><span>Codes partagés</span></div>
@@ -1111,6 +1134,8 @@ function pageProfile(){
     </div>
     <div class="stack">
       <a class="btn btn-wa" href="${waHref(`Je suis « ${lv.name} » sur Bonszahé avec ${s.points} points 🔥 Rejoins la communauté des bons plans de Mayotte 👉 ${location.origin}/`)}" target="_blank" rel="noopener">Partager mon niveau sur WhatsApp</a>
+      <div class="quick"><a href="#/alertes">🔔<span>Mes alertes${MINE.alerts.length?' ('+MINE.alerts.length+')':''}</span></a><a href="#/demandes">🙋<span>Demandes</span></a><a href="#/recompenses">🎁<span>Récompenses</span></a></div>
+      ${referralCard()}
       <div><div class="head"><h2>Mes badges</h2><a class="link" href="#/classement">Voir le classement</a></div>${badgeGrid(s)}</div>
       <div>
         <div class="head"><h2>Mes codes partagés</h2><button class="btn btn-sun btn-sm" data-propose="">${ic('plus')}Proposer</button></div>
@@ -1242,7 +1267,7 @@ function pageRanking(){
   const lb=leaderboard().slice(0,50);
   const mine=me()&&lb.findIndex(x=>x.id===me().id);
   return `<div class="wrap">
-    <div class="pagehead"><h1>Classement de la communauté</h1><a class="btn btn-wa btn-sm u13" href="${waHref(`🏆 Le classement des chasseurs de bons plans de Mayotte sur Bonszahé 👉 ${location.origin}/#/classement`)}" target="_blank" rel="noopener">Partager le classement</a><p class="muted">Merci à celles et ceux qui partagent leurs bons plans ! 10 pts par code publié, 2 pts par Moro 🔥 reçu, 1 pt par « fonctionne » reçu, 1 pt par avis donné, 1 pt par commentaire (5 par jour max.) et par « j’aime » reçu.</p></div>
+    <div class="pagehead"><h1>Classement de la communauté</h1><a class="btn btn-wa btn-sm u13" href="${waHref(`🏆 Le classement des chasseurs de bons plans de Mayotte sur Bonszahé 👉 ${location.origin}/#/classement`)}" target="_blank" rel="noopener">Partager le classement</a><p class="muted">Merci à celles et ceux qui partagent leurs bons plans ! 10 pts par code publié, 2 pts par Moro 🔥 reçu, 1 pt par « fonctionne » reçu, 1 pt par avis donné, 1 pt par commentaire (5 par jour max.) par « j’aime » reçu, et 15 pts par filleul actif.</p></div>
     <div class="u13">${lb.length?`<ol class="ranking">${lb.map((x,i)=>`<li class="${me()&&x.id===me().id?'me':''}"><span class="rk">${i+1}</span><div class="grow"><strong>${esc(x.name)}</strong><small>${esc(levelOf(x.points).name)} · ${x.codes.length} code${x.codes.length>1?'s':''} partagé${x.codes.length>1?'s':''}</small></div><b>${x.points} pts</b></li>`).join('')}</ol>`:
       empty('Le classement attend ses premiers chasseurs de bons plans','Partagez un code pour y apparaître.',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}
     ${me()&&mine<0?`<p class="note">Vous n’apparaissez pas encore : partagez votre premier code !</p>`:''}</div>
@@ -1459,6 +1484,215 @@ async function initPosPicker(start){
   setTimeout(()=>posMap&&posMap.invalidateSize(),150);
 }
 
+/* ---------- Temps forts : pages spéciales (Noël, Ramadan, rentrée…) ---------- */
+const tfBy=s=>TEMPS.find(t=>t.slug===s);
+const tfActive=t=>t.start&&t.end&&TODAY>=t.start&&TODAY<=t.end;
+const tfNow=()=>TEMPS.find(tfActive);
+const tfSoon=()=>TEMPS.filter(t=>t.start&&t.start>TODAY&&(t.start-TODAY)/864e5<=21).sort((a,z)=>a.start-z.start)[0];
+const dayMonth=d=>d.toLocaleDateString('fr-FR',{day:'numeric',month:'long'});
+function tfStatus(t){
+  if(tfActive(t)) return `<span class="pill ok">En ce moment, jusqu’au ${dayMonth(t.end)}</span>`;
+  if(t.start&&t.start>TODAY) return `<span class="pill">À partir du ${dayMonth(t.start)}</span>`;
+  return `<span class="pill">Période terminée</span>`;
+}
+function tfBanner(){
+  const t=tfNow()||tfSoon(); if(!t) return '';
+  return `<a class="tfband${tfActive(t)?' on':''}" href="#/temps-forts/${t.slug}"><span class="tfemo">${esc(t.emoji)}</span><span class="grow"><strong>${tfActive(t)?esc(t.title)+' : les bons plans du moment':'Bientôt : '+esc(t.title)}</strong><small>${esc(t.desc)}</small></span>${ic('left','class="flip"')}</a>`;
+}
+function pageTempsForts(){
+  return `<div class="wrap">
+    <div class="pagehead"><h1>Temps forts à Mayotte</h1><p class="muted">Les grandes périodes de l’année et leurs bons plans.</p></div>
+    <div class="tfgrid u13">${TEMPS.map(t=>`<a class="tfcard" href="#/temps-forts/${t.slug}"><span class="tfemo">${esc(t.emoji)}</span><strong>${esc(t.title)}</strong><small>${esc(t.desc)}</small>${tfStatus(t)}</a>`).join('')||empty('Aucun temps fort pour l’instant','','')}</div>
+    <div class="u8"></div>
+  </div>`;
+}
+function pageTempsFort(slug){
+  const t=tfBy(slug);
+  if(!t) return `<div class="u20 wrap">${empty('Cette page n’existe pas','','<a class="btn btn-primary" href="#/temps-forts">Voir les temps forts</a>')}</div>`;
+  const act=activeCodes();
+  const tagged=act.filter(c=>c.tf.includes(slug)).sort((a,z)=>hotScore(z)-hotScore(a));
+  const useful=act.filter(c=>!c.tf.includes(slug)&&t.cats.includes(bizBy(c.biz).cat)).sort((a,z)=>hotScore(z)-hotScore(a)).slice(0,12);
+  const evs=t.start&&t.end?upcomingEvents().filter(e=>e.date<=t.end&&(e.end||e.date)>=t.start):[];
+  return `<div class="wrap">
+    <a class="back" href="#/temps-forts">${ic('left')}Tous les temps forts</a>
+    <div class="tfhero"><span class="tfemo big">${esc(t.emoji)}</span><div><h1>${esc(t.title)}</h1><p>${esc(t.desc)}</p>${tfStatus(t)}</div></div>
+    <div class="head u13"><div><h2>Offres spéciales ${esc(t.title)}</h2><p class="muted">Les bons plans publiés pour cette période.</p></div></div>
+    ${tagged.length?`<div class="coupons">${tagged.map(c=>coupon(c)).join('')}</div>`:empty('Pas encore d’offre spéciale','Vous connaissez une promo pour cette période ? Partagez-la.',`<button class="btn btn-sun" data-propose="" data-tf="${t.slug}">${ic('plus')}Proposer une offre ${esc(t.title)}</button>`)}
+    ${evs.length?`<div class="head u13"><h2>Événements pendant la période</h2></div><div class="events">${evs.map(eventCard).join('')}</div>`:''}
+    ${useful.length?`<div class="head u13"><div><h2>Aussi utiles en ce moment</h2><p class="muted">Des bons plans dans les catégories de la période.</p></div></div><div class="coupons">${useful.map(c=>coupon(c)).join('')}</div>`:''}
+    <div class="card u13"><h3>Vous êtes une entreprise ?</h3><p class="muted">Publiez une offre « ${esc(t.title)} » : elle apparaîtra sur cette page.</p><button class="btn btn-sun btn-sm" data-propose="" data-tf="${t.slug}">${ic('plus')}Publier une offre spéciale</button></div>
+    <div class="u8"></div>
+  </div>`;
+}
+
+/* ---------- Alertes : être prévenu des nouveaux bons plans ---------- */
+const ALERT_TYPES={mot:'Mot-clé',entreprise:'Entreprise',categorie:'Catégorie'};
+function alertLabel(a){ return a.type==='entreprise'?(bizBy(a.valeur)||{name:a.label||a.valeur}).name:a.type==='categorie'?(catBy(a.valeur)||{name:a.valeur}).name:'« '+a.valeur+' »'; }
+function alertMatch(a,c){
+  if(a.type==='entreprise') return c.biz===a.valeur;
+  if(a.type==='categorie') return bizBy(c.biz).cat===a.valeur;
+  const b=bizBy(c.biz); return norm(b.name+' '+c.deal+' '+c.detail+' '+c.code+' '+catBy(b.cat).name).includes(norm(a.valeur));
+}
+const alertSeenKey=()=>'bonszahe:alertes-vu:'+me().id;
+function alertSeen(){ let v=0; try{ v=+localStorage.getItem(alertSeenKey())||0; }catch(e){} if(!v){ v=Date.now(); try{ localStorage.setItem(alertSeenKey(),v); }catch(e){} } return v; }
+function alertDeals(onlyNew){
+  if(!me()||!MINE.alerts.length) return [];
+  const seen=onlyNew?alertSeen():0;
+  return activeCodes().filter(c=>c.by!==me().id&&+c.addedAt>seen&&MINE.alerts.some(a=>+c.addedAt>=+a.at-864e5&&alertMatch(a,c))).sort((a,z)=>z.addedAt-a.addedAt);
+}
+const followed=(type,valeur)=>MINE.alerts.find(a=>a.type===type&&a.valeur===valeur);
+const followBtn=(type,valeur,label,cls='btn btn-ghost')=>{ const on=!!(me()&&followed(type,valeur)); return `<button class="${cls}" data-follow="${type}" data-val="${esc(valeur)}" data-label="${esc(label)}" aria-pressed="${on}">🔔 ${on?'Alerte activée':label}</button>`; };
+async function toggleFollow(type,valeur,label){
+  const a=followed(type,valeur);
+  if(a){ await call('DELETE',`/wix-data/v2/items/${encodeURIComponent(a.id)}?dataCollectionId=Alertes`); MINE.alerts=MINE.alerts.filter(x=>x!==a); return false; }
+  if(MINE.alerts.length>=20) throw Object.assign(new Error('max'),{max:true});
+  const r=await sendToWix('Alertes',{type,valeur,libelle:label});
+  MINE.alerts.push({id:r.dataItem&&r.dataItem.id,type,valeur,label,at:new Date()}); return true;
+}
+function pageAlertes(){
+  if(!me()) return `<div class="u16 wrap"><div class="pagehead"><h1>🔔 Mes alertes</h1><p class="muted">Connectez-vous pour être prévenu dès qu’un bon plan correspond à ce que vous cherchez.</p></div>${authBox()}<div class="u8"></div></div>`;
+  const seen=alertSeen(), deals=alertDeals(false);
+  const html=`<div class="wrap">
+    <div class="pagehead"><h1>🔔 Mes alertes</h1><p class="muted">Suivez un mot-clé, une entreprise ou une catégorie : les nouveaux bons plans qui correspondent apparaissent ici, et une pastille 🔔 vous prévient à votre prochaine visite.</p></div>
+    <form class="form card" id="alertForm">
+      <div class="two"><label>Je veux suivre<select name="type">${Object.entries(ALERT_TYPES).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select></label>
+      <label class="af af-mot">Mot-clé<input name="mot" maxlength="40" placeholder="Ex. canapé, livraison, iPhone…"></label>
+      <label class="af af-entreprise" hidden>Entreprise<select name="entreprise">${[...B].sort((a,z)=>a.name.localeCompare(z.name,'fr')).map(b=>`<option value="${b.slug}">${esc(b.name)}</option>`).join('')}</select></label>
+      <label class="af af-categorie" hidden>Catégorie<select name="categorie">${CATS.map(c=>`<option value="${c.slug}">${c.name}</option>`).join('')}</select></label></div>
+      <button class="btn btn-primary" type="submit">🔔 Créer l’alerte</button>
+    </form>
+    ${MINE.alerts.length?`<div class="chips u13 wrapchips">${MINE.alerts.map(a=>`<span class="chip on">${esc(ALERT_TYPES[a.type]||'')} : ${esc(alertLabel(a))}<button class="chipx" data-delalert="${esc(a.id)}" aria-label="Supprimer l’alerte">${ic('x')}</button></span>`).join('')}</div>`:''}
+    <div class="head u13"><div><h2>Pour vous</h2><p class="muted">${MINE.alerts.length?'Les bons plans en ligne qui correspondent à vos alertes.':'Créez votre première alerte ci-dessus.'}</p></div></div>
+    ${deals.length?`<div class="coupons">${deals.map(c=>(+c.addedAt>seen?coupon(c).replace('<article class="coupon','<article class="coupon isnew'):coupon(c))).join('')}</div>`:MINE.alerts.length?empty('Rien de nouveau pour l’instant','Vous serez prévenu dès qu’un bon plan correspondra.',''):''}
+    <p class="note u13">Les notifications sur téléphone arriveront avec l’application Bonszahé.</p>
+    <div class="u8"></div>
+  </div>`;
+  try{ localStorage.setItem(alertSeenKey(),Date.now()); }catch(e){}
+  return html;
+}
+
+/* ---------- Demandes : « quelqu’un a un code pour… ? » ---------- */
+let dmFilter='ouvertes';
+const dmReplies=id=>countComments('dm:'+id);
+function dmCard(d,link=true){
+  const b=d.biz&&bizBy(d.biz), cat=d.cat&&catBy(d.cat), n=dmReplies(d.id);
+  const inner=`<div class="dmhead"><strong>${esc(d.name)}</strong><small class="muted">· ${ago(d.at)}</small>${d.status==='resolue'?'<span class="pill ok">✓ Résolue</span>':''}</div>
+    <p class="dmtext">${esc(d.text)}</p>
+    <div class="dmtags">${b?`<span class="pill">${esc(b.name)}</span>`:''}${cat?`<span class="pill">${esc(cat.name)}</span>`:''}<span class="dmn">💬 ${n} réponse${n>1?'s':''}</span></div>`;
+  return link?`<a class="dm card" href="#/demandes/${encodeURIComponent(d.id)}">${inner}</a>`:`<div class="dm card">${inner}</div>`;
+}
+function pageDemandes(params){
+  dmFilter=params.get('f')==='toutes'?'toutes':'ouvertes';
+  const list=DEMANDES.filter(d=>dmFilter==='toutes'||d.status!=='resolue');
+  return `<div class="wrap">
+    <div class="pagehead"><h1>🙋 Demandes</h1><p class="muted">Vous cherchez un code ou un bon plan ? Demandez à la communauté, et aidez les autres en répondant.</p></div>
+    ${me()?`<form class="form card" id="demandeForm">
+      <label>Votre demande<textarea name="texte" required maxlength="300" rows="3" placeholder="Ex. Quelqu’un a un code pour une livraison gratuite chez… ?"></textarea></label>
+      <div class="two"><label>Entreprise <span class="opt">(facultatif)</span><select name="entreprise"><option value="">Aucune en particulier</option>${[...B].sort((a,z)=>a.name.localeCompare(z.name,'fr')).map(b=>`<option value="${b.slug}">${esc(b.name)}</option>`).join('')}</select></label>
+      <label>Catégorie <span class="opt">(facultatif)</span><select name="categorie"><option value="">Toutes</option>${CATS.map(c=>`<option value="${c.slug}">${c.name}</option>`).join('')}</select></label></div>
+      <button class="btn btn-primary" type="submit">Publier ma demande</button>
+    </form>`:`<div class="card"><p class="muted">Connectez-vous pour publier une demande ou y répondre.</p><button class="btn btn-primary btn-sm" data-needlogin="demande">Se connecter</button></div>`}
+    <div class="toolbar u13"><div class="seg" role="group" aria-label="Filtrer les demandes"><a href="#/demandes" aria-pressed="${dmFilter==='ouvertes'}">Ouvertes</a><a href="#/demandes?f=toutes" aria-pressed="${dmFilter==='toutes'}">Toutes</a></div></div>
+    <div class="dmlist">${list.length?list.map(d=>dmCard(d)).join(''):empty('Aucune demande pour l’instant','Soyez le premier à demander un bon plan !','')}</div>
+    <div class="u8"></div>
+  </div>`;
+}
+function pageDemande(id){
+  const d=DEMANDES.find(x=>x.id===id);
+  if(!d) return `<div class="u20 wrap">${empty('Cette demande n’existe plus','','<a class="btn btn-primary" href="#/demandes">Voir les demandes</a>')}</div>`;
+  const mine=me()&&d.owner===me().id;
+  return `<div class="wrap">
+    <a class="back" href="#/demandes">${ic('left')}Toutes les demandes</a>
+    <div class="dealpage"><div class="stack">
+      ${dmCard(d,false)}
+      <div class="bandbtns">${mine?`${d.status!=='resolue'?`<button class="btn btn-primary btn-sm" data-dmresolve="${esc(d.id)}">${ic('check')}Marquer comme résolue</button>`:''}<button class="btn btn-ghost btn-sm" data-dmdel="${esc(d.id)}">Supprimer</button>`:`<button class="btn btn-sun btn-sm" data-propose="${d.biz||''}">${ic('plus')}J’ai un code : le partager</button>`}
+        <a class="btn btn-wa btn-sm" href="${waHref(`🙋 ${d.text} — aidez sur Bonszahé 👉 ${location.origin}/#/demandes/${encodeURIComponent(d.id)}`)}" target="_blank" rel="noopener">Partager</a></div>
+      ${commentsBlock({id:'dm:'+d.id,biz:d.biz})}
+    </div></div>
+    <div class="u7"></div>
+  </div>`;
+}
+async function saveDemande(d,statut){
+  await call('PUT',`/wix-data/v2/items/${encodeURIComponent(d.id)}`,{dataCollectionId:'Demandes',dataItem:{id:d.id,data:{texte:d.text,entreprise:d.entId||'',categorie:d.cat||'',pseudo:d.name,statut}}});
+  d.status=statut;
+}
+
+/* ---------- Parrainage ---------- */
+const inviteUrl=()=>`${location.origin}/#/invite/${encodeURIComponent(me().id)}?n=${encodeURIComponent(me().name)}`;
+const isActiveMember=id=>baseCodes.some(c=>c.by===id)||VOTES.some(v=>v.owner===id)||MOROS.some(v=>v.owner===id)||COMMENTS.some(x=>x.owner===id&&!isHidden(x));
+const filleulsOf=id=>PARRAINAGES.filter(p=>p.parrain===id).map(p=>Object.assign({active:isActiveMember(p.filleul)},p));
+function pageInvite(id,params){
+  const name=(params.get('n')||'').slice(0,40);
+  if(!me()||me().id!==id){ try{ localStorage.setItem('bonszahe:parrain',JSON.stringify({id,at:Date.now()})); }catch(e){} }
+  return `<div class="u16 wrap">
+    <div class="pagehead invitehead"><span class="tfemo big">🤝</span><h1>${name?esc(name)+' vous invite sur Bonszahé':'Rejoignez Bonszahé'}</h1><p class="muted">Les codes promo et bons plans de Mayotte, partagés par les habitants. Créez votre compte gratuit : donnez du Moro 🔥, partagez vos codes et gagnez des récompenses chaque mois.</p></div>
+    ${me()?`<div class="card"><p>Vous avez déjà un compte : merci d’être là ! 🎉</p><a class="btn btn-primary btn-sm" href="#/">Voir les bons plans</a></div>`:authBox()}
+    <div class="u8"></div>
+  </div>`;
+}
+async function recordReferral(createdAt){
+  let p=null; try{ p=JSON.parse(localStorage.getItem('bonszahe:parrain')||'null'); }catch(e){}
+  if(!p||!me()) return;
+  try{ localStorage.removeItem('bonszahe:parrain'); }catch(e){}
+  const u=me(); const isNew=createdAt&&Date.now()-new Date(createdAt)<3*864e5;
+  if(p.id===u.id||!isNew||PARRAINAGES.some(x=>x.filleul===u.id)) return;
+  try{ await sendToWix('Parrainages',{parrain:p.id,filleulNom:u.name}); PARRAINAGES.push({parrain:p.id,filleul:u.id,name:u.name,at:new Date()});
+    setTimeout(()=>toast('🤝 Bienvenue ! Votre parrain gagnera ses points dès votre première contribution.'),900); }catch(e){ console.warn(e); }
+}
+function referralCard(){
+  const f=filleulsOf(me().id), act=f.filter(x=>x.active).length;
+  return `<div class="card refcard"><h3>🤝 Parrainage</h3>
+    <p class="muted">Invitez vos proches : <strong>+15 points</strong> pour vous à chaque filleul actif (un code, un avis ou un commentaire), et le badge Ambassadeur dès 3 filleuls actifs.</p>
+    <div class="bandbtns"><a class="btn btn-wa btn-sm" href="${waHref(`Rejoins-moi sur Bonszahé, les bons plans et codes promo de Mayotte 🔥 👉 ${inviteUrl()}`)}" target="_blank" rel="noopener">Inviter sur WhatsApp</a><button class="btn btn-ghost btn-sm" data-copylink="${esc(inviteUrl())}">${ic('copy')}Copier mon lien</button></div>
+    ${f.length?`<p class="u10"><strong>${f.length} filleul${f.length>1?'s':''}</strong>, dont ${act} actif${act>1?'s':''} : ${f.map(x=>`${esc(x.name||'Membre')}${x.active?' ✓':' (en attente)'}`).join(', ')}</p>`:''}
+  </div>`;
+}
+
+/* ---------- Récompenses du mois ---------- */
+const MONTHS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+const monthKey=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+const monthName=k=>{ const [y,m]=k.split('-'); return MONTHS[+m-1]+' '+y; };
+function monthPoints(id,from,to){
+  const inM=d=>d>=from&&d<to;
+  const codes=allCodes().filter(c=>c.by===id&&c.status==='valide');
+  const ids=new Set(codes.map(c=>c.id));
+  let p=codes.filter(c=>inM(c.addedAt)).length*10;
+  p+=MOROS.filter(v=>ids.has(v.code)&&v.dir==='moro'&&inM(v.at)).length*2;
+  p+=VOTES.filter(v=>ids.has(v.code)&&v.dir==='up'&&inM(v.at)).length;
+  p+=new Set(VOTES.filter(v=>v.owner===id&&inM(v.at)).map(v=>v.code)).size+new Set(MOROS.filter(v=>v.owner===id&&inM(v.at)).map(v=>v.code)).size;
+  const perDay={}; COMMENTS.filter(x=>x.owner===id&&!isHidden(x)&&inM(x.at)).forEach(x=>{ const k=x.at.toISOString().slice(0,10); perDay[k]=Math.min(5,(perDay[k]||0)+1); });
+  p+=Object.values(perDay).reduce((a,b)=>a+b,0);
+  p+=PARRAINAGES.filter(x=>x.parrain===id&&inM(x.at)&&isActiveMember(x.filleul)).length*15;
+  return p;
+}
+function monthBoard(){
+  const from=new Date(TODAY.getFullYear(),TODAY.getMonth(),1), to=new Date(TODAY.getFullYear(),TODAY.getMonth()+1,1);
+  return leaderboard().map(x=>Object.assign({},x,{month:monthPoints(x.id,from,to)})).filter(x=>x.month>0).sort((a,z)=>z.month-a.month);
+}
+function pageRecompenses(){
+  const k=monthKey(TODAY), lots=RECOMPENSES.filter(r=>r.mois===k).sort((a,z)=>(a.rang||9)-(z.rang||9));
+  const past=RECOMPENSES.filter(r=>r.mois<k&&r.gagnant).sort((a,z)=>z.mois.localeCompare(a.mois)||a.rang-z.rang).slice(0,6);
+  const board=monthBoard().slice(0,10), mine=me()&&monthBoard().findIndex(x=>x.id===me().id);
+  const end=new Date(TODAY.getFullYear(),TODAY.getMonth()+1,0);
+  return `<div class="wrap">
+    <div class="pagehead"><h1>🎁 Récompenses du mois</h1><p class="muted">Chaque mois, les 3 membres qui gagnent le plus de points remportent des lots offerts par les entreprises partenaires. Classement de ${monthName(k)}, clôture le ${dayMonth(end)} à minuit.</p></div>
+    <div class="head"><h2>Les lots de ${monthName(k)}</h2></div>
+    ${lots.length?`<div class="lots">${lots.map(r=>{ const b=r.biz&&bizBy(r.biz); return `<div class="lot card">${r.img?`<img src="${esc(r.img)}" alt="" loading="lazy">`:''}<span class="lotrank">${MEDALS[(r.rang||1)-1]||'🎁'} ${r.rang?r.rang+(r.rang===1?'re':'e')+' place':'Lot'}</span><strong>${esc(r.titre)}</strong>${r.desc?`<small>${esc(r.desc)}</small>`:''}${b?`<a class="bizline" href="#/entreprises/${b.slug}">${logo(b)}<span>Offert par ${esc(b.name)}</span></a>`:''}</div>`; }).join('')}</div>`:
+      `<div class="card"><p>Les lots de ce mois arrivent bientôt.</p><p class="muted">Vous êtes une entreprise ? Offrez un lot et gagnez en visibilité auprès de la communauté. <a class="link" href="#/contact">Contactez-nous</a>.</p></div>`}
+    <div class="head u13"><div><h2>Classement de ${monthName(k)}</h2><p class="muted">Seuls les points gagnés ce mois-ci comptent.</p></div></div>
+    ${board.length?`<ol class="ranking">${board.map((x,i)=>`<li class="${me()&&x.id===me().id?'me':''}"><span class="rk">${i+1}</span><div class="grow"><strong>${esc(x.name)}</strong><small>${esc(levelOf(x.points).name)}</small></div><b>${x.month} pts</b></li>`).join('')}</ol>`:empty('Le classement du mois démarre','Partagez un code ou donnez votre avis pour marquer vos premiers points.',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}
+    ${me()?`<p class="note">${mine>=0?`Vous êtes ${mine+1}${mine?'e':'er'} ce mois-ci avec ${monthBoard()[mine].month} points.`:'Vous n’avez pas encore de points ce mois-ci.'}</p>`:''}
+    ${past.length?`<div class="head u13"><h2>Les derniers gagnants</h2></div><div class="list">${past.map(r=>`<div class="li"><div class="grow"><strong>${esc(r.gagnant)}</strong><small>${monthName(r.mois)} · ${esc(r.titre)}</small></div><span class="pill ok">${MEDALS[(r.rang||1)-1]||'🎁'}</span></div>`).join('')}</div>`:''}
+    <details class="card u13" id="reglement"><summary><strong>Règlement</strong></summary><div class="prose">
+      <p>Les récompenses du mois sont organisées par ${EDITEUR.nom}, éditeur de Bonszahé. La participation est gratuite et sans obligation d’achat : il suffit d’avoir un compte membre.</p>
+      <p>Les points sont ceux affichés sur Bonszahé (10 par code publié, 2 par Moro 🔥 reçu, 1 par « fonctionne » reçu, 1 par avis donné, 1 par commentaire dans la limite de 5 par jour, 15 par filleul actif), comptés du 1er au dernier jour du mois.</p>
+      <p>Les 3 membres qui ont le plus de points à la clôture gagnent les lots dans l’ordre du classement. En cas d’égalité, le membre arrivé le premier à ce total l’emporte. Les gagnants sont contactés par e-mail et leur pseudo est publié sur cette page.</p>
+      <p>Les points obtenus par la fraude (faux codes, comptes multiples, commentaires masqués ou abusifs) sont retirés et peuvent entraîner l’exclusion. Les lots ne sont ni échangeables ni remboursables.</p>
+    </div></details>
+    <div class="u8"></div>
+  </div>`;
+}
+
 /* ---------- Routeur ---------- */
 const app=document.getElementById('app');
 let lastDeal='';
@@ -1472,6 +1706,13 @@ function route(){
   if(p==='home') html=pageHome();
   else if(p==='entreprises' && parts[1]){ html=pageBusiness(parts[1]); nav='entreprises'; const b=bizBy(parts[1]); if(b) title=`${b.name} : codes promo et bons plans | Bonszahé`; track('vue',parts[1]); }
   else if(p==='bon-plan'&&parts[1]){ const id=decodeURIComponent(parts[1]); if(id!==lastDeal){ lastDeal=id; replyTo=''; } html=pageDeal(id); nav='tendances'; const c=baseCodes.find(x=>x.id===id); if(c) title=`${c.deal} chez ${bizBy(c.biz).name} | Bonszahé`; }
+  else if(p==='alertes'){ html=pageAlertes(); nav='profil'; title='Mes alertes | Bonszahé'; }
+  else if(p==='demandes'&&parts[1]){ const id=decodeURIComponent(parts[1]); if(id!==lastDeal){ lastDeal=id; replyTo=''; } html=pageDemande(id); nav='demandes'; title='Demande de bon plan | Bonszahé'; }
+  else if(p==='demandes'){ html=pageDemandes(params); title='Demandes de bons plans | Bonszahé'; }
+  else if(p==='invite'&&parts[1]){ html=pageInvite(decodeURIComponent(parts[1]),params); nav='profil'; title='Invitation | Bonszahé'; }
+  else if(p==='recompenses'){ html=pageRecompenses(); nav='profil'; title='Récompenses du mois | Bonszahé'; }
+  else if(p==='temps-forts'&&parts[1]){ html=pageTempsFort(parts[1]); nav='home'; const t=tfBy(parts[1]); if(t) title=`${t.title} : les bons plans à Mayotte | Bonszahé`; }
+  else if(p==='temps-forts'){ html=pageTempsForts(); nav='home'; title='Temps forts à Mayotte | Bonszahé'; }
   else if(p==='a-propos'){ html=pageAbout(); title='À propos | Bonszahé'; }
   else if(p==='contact'){ html=pageContact(); title='Contact | Bonszahé'; }
   else if(p==='mentions-legales'){ html=pageMentions(); title='Mentions légales | Bonszahé'; }
@@ -1494,6 +1735,8 @@ function route(){
   if(p==='codes') drawCodes();
   document.querySelectorAll('[data-nav]').forEach(a=>{ a.getAttribute('data-nav')===nav?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current'); });
   document.getElementById('loginBtn').textContent=me()?me().name:'Connexion';
+  const nAlert=p==='alertes'?0:alertDeals(true).length;
+  document.querySelectorAll('#loginBtn,.bottomnav a[data-nav="profil"]').forEach(el=>nAlert?el.setAttribute('data-alert',nAlert>9?'9+':nAlert):el.removeAttribute('data-alert'));
   if(p==='profil') drawPro();
   if(p==='carte') drawMap();
   if(!quietRender){ pageIn(); reveal(app); }
@@ -1513,7 +1756,7 @@ const revealObs='IntersectionObserver' in window?new IntersectionObserver(es=>es
 function reveal(root){
   if(CALM||!revealObs) return;
   let k=0;
-  root.querySelectorAll('.coupon,.biz,.event,.cat,.prow,.ranking li,.bdg').forEach(el=>{
+  root.querySelectorAll('.coupon,.biz,.event,.cat,.prow,.ranking li,.bdg,.dm,.tfcard,.lot,.commucard').forEach(el=>{
     if(el.closest('dialog')) return;
     el.classList.add('rv'); el.style.setProperty('--d',Math.min(k++,5)*60+'ms'); revealObs.observe(el);
   });
@@ -1570,6 +1813,7 @@ async function copy(text){
 const dlg=document.getElementById('dlg'), dlgBody=document.getElementById('dlgBody');
 function openDialog(html){ dlgBody.innerHTML=html; dlg.showModal(); dlgBody.querySelector('input,select,textarea')?.focus(); }
 
+let proposeTF='';
 function proposeDialog(slug){
   if(!requireLogin('Connectez-vous pour partager un code : il sera publié avec votre pseudo et vous rapportera des points.',()=>proposeDialog(slug))) return;
   const b=slug&&bizBy(slug);
@@ -1585,6 +1829,7 @@ function proposeDialog(slug){
     </div>
     <label>Détail <span class="opt">(facultatif)</span><input name="detail" placeholder="Ex. 20 % sur tout le site" maxlength="120"></label>
     <label>Conditions <span class="opt">(facultatif)</span><textarea name="cond" placeholder="Montant minimum, produits exclus…"></textarea></label>
+    ${TEMPS.length?`<label>Temps fort <span class="opt">(facultatif)</span><select name="tf"><option value="">Aucun</option>${TEMPS.map(t=>`<option value="${t.slug}"${proposeTF===t.slug?' selected':''}>${esc(t.emoji)} ${esc(t.title)}</option>`).join('')}</select></label>`:''}
     <div class="two">
       <label>Date d’expiration<input name="exp" type="date" required min="${min}"></label>
       <label>Lien de l’offre <span class="opt">(facultatif)</span><input name="link" type="url" placeholder="https://"></label>
@@ -1709,7 +1954,7 @@ document.addEventListener('click',async e=>{
     reportDialog(t.dataset.report);
   }
   else if(t.dataset.csort){ commentSort=t.dataset.csort; refresh(); }
-  else if(t.dataset.needlogin){ requireLogin('Connectez-vous pour commenter : chaque commentaire vous rapporte 1 point.',()=>refresh()); }
+  else if(t.dataset.needlogin){ requireLogin(t.dataset.needlogin==='demande'?'Connectez-vous pour publier une demande ou y répondre.':'Connectez-vous pour commenter : chaque commentaire vous rapporte 1 point.',()=>refresh()); }
   else if(t.dataset.copylink){ const ok=await copy(t.dataset.copylink); toast(ok?'Lien copié : collez-le où vous voulez !':'Copiez le lien : '+t.dataset.copylink); }
   else if(t.dataset.fav){
     e.preventDefault();
@@ -1718,10 +1963,31 @@ document.addEventListener('click',async e=>{
     save(); refresh();
   }
   else if(t.dataset.commune){ selectCommune(t.dataset.commune); }
-  else if(t.dataset.propose!==undefined){ proposeDialog(t.dataset.propose); }
+  else if(t.dataset.propose!==undefined){ proposeTF=t.dataset.tf||''; proposeDialog(t.dataset.propose); }
   else if(t.dataset.claim!==undefined){ claimDialog(t.dataset.claim); }
   else if(t.dataset.editbiz){ editBizDialog(t.dataset.editbiz); }
   else if(t.dataset.focus){ focusShop(t.dataset.focus); }
+  else if(t.dataset.follow){
+    const type=t.dataset.follow, val=t.dataset.val, label=t.dataset.label;
+    if(!requireLogin('Connectez-vous pour créer une alerte et être prévenu des nouveaux bons plans.',()=>refresh())) return;
+    t.disabled=true;
+    try{ const on=await toggleFollow(type,val,type==='entreprise'?(bizBy(val)||{}).name||val:val); refresh(); toast(on?'🔔 Alerte créée : vous serez prévenu des nouveaux bons plans.':'Alerte supprimée'); }
+    catch(err){ console.warn(err); t.disabled=false; toast(err.max?'Vous avez déjà 20 alertes : supprimez-en une.':'Action impossible. Réessayez.'); }
+  }
+  else if(t.dataset.delalert){
+    t.disabled=true;
+    try{ await call('DELETE',`/wix-data/v2/items/${encodeURIComponent(t.dataset.delalert)}?dataCollectionId=Alertes`); MINE.alerts=MINE.alerts.filter(a=>a.id!==t.dataset.delalert); refresh(); toast('Alerte supprimée'); }
+    catch(err){ console.warn(err); t.disabled=false; toast('Suppression impossible. Réessayez.'); }
+  }
+  else if(t.dataset.dmresolve){
+    const d=DEMANDES.find(x=>x.id===t.dataset.dmresolve); if(!d) return; t.disabled=true;
+    try{ await saveDemande(d,'resolue'); refresh(); toast('✓ Demande marquée comme résolue. Merci à la communauté !'); }catch(err){ console.warn(err); t.disabled=false; toast('Action impossible. Réessayez.'); }
+  }
+  else if(t.dataset.dmdel){
+    if(!confirm('Supprimer cette demande ?')) return; t.disabled=true;
+    try{ await call('DELETE',`/wix-data/v2/items/${encodeURIComponent(t.dataset.dmdel)}?dataCollectionId=Demandes`); DEMANDES=DEMANDES.filter(x=>x.id!==t.dataset.dmdel); location.hash='#/demandes'; toast('Demande supprimée'); }
+    catch(err){ console.warn(err); t.disabled=false; toast('Suppression impossible. Réessayez.'); }
+  }
   else if(t.id==='nearMe'){ nearMe(t); }
   else if(t.dataset.proevent){ proEventDialog(t.dataset.proevent); }
   else if(t.id==='codeReset'){ location.hash='#/codes'; route(); }
@@ -1747,6 +2013,7 @@ dlg.addEventListener('close',()=>{ posMap=dropMap(posMap); });
 document.addEventListener('change',e=>{
   if(e.target.name==='type'&&e.target.closest('#proposeForm')){ const cf=document.querySelector('#proposeForm .codefield'); const st=e.target.value==='magasin'; cf.hidden=st; cf.querySelector('input').required=!st; }
   const id=e.target.id;
+  if(e.target.name==='type'&&e.target.closest('#alertForm')){ document.querySelectorAll('#alertForm .af').forEach(l=>l.hidden=!l.classList.contains('af-'+e.target.value)); }
   if(id==='codeSort'){ codeState.sort=e.target.value; drawCodes(); }
   if(id==='codeType'){ codeState.type=e.target.value; drawCodes(); }
   if(id==='codeCom'){ codeState.com=e.target.value; drawCodes(); }
@@ -1818,7 +2085,7 @@ document.addEventListener('submit',async e=>{
     const p={biz:d.biz,code:store?'':(d.code||'').trim().toUpperCase(),deal:d.deal.trim(),detail:(d.detail||'').trim(),cond:d.cond.trim(),exp:d.exp,link:d.link.trim()};
     if(!store&&activeCodes().some(c=>c.biz===p.biz&&c.code.toUpperCase()===p.code)){ toast('Ce code est déjà en ligne pour cette entreprise. Merci !'); return; }
     const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Publication…';
-    sendToWix('PropositionsCodes',{code:p.code,typeOffre:store?'magasin':'code',entreprise:bizId[p.biz]||p.biz,avantage:p.deal,detail:p.detail,conditions:p.cond,dateExpiration:p.exp,lienOffre:p.link,statut:'En attente',contributeurId:me().id,contributeurNom:me().name})
+    sendToWix('PropositionsCodes',{code:p.code,typeOffre:store?'magasin':'code',entreprise:bizId[p.biz]||p.biz,avantage:p.deal,detail:p.detail,conditions:p.cond,dateExpiration:p.exp,lienOffre:p.link,tempsForts:d.tf||'',statut:'En attente',contributeurId:me().id,contributeurNom:me().name})
       .then(()=>{ dlg.close(); toast('Merci ! Votre code est publié dans quelques secondes.'); setTimeout(reloadAll,5000); })
       .catch(err=>{ console.warn(err); btn.disabled=false; btn.textContent='Publier le code'; toast(err.status===401||err.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'); });
   }
@@ -1844,6 +2111,25 @@ document.addEventListener('submit',async e=>{
     const btn=f.querySelector('button[type=submit]'); btn.disabled=true;
     try{ const r=await sendToWix('Signalements',{commentaire:cid,motif}); REPORTS.push({id:r.dataItem&&r.dataItem.id,comment:cid,owner:me().id}); dlg.close(); refresh(); toast('Merci, le commentaire est signalé.'); }
     catch(err){ console.warn(err); btn.disabled=false; toast('Signalement impossible. Réessayez.'); }
+  }
+  else if(f.id==='alertForm'){
+    e.preventDefault(); if(!me()) return;
+    const d=Object.fromEntries(new FormData(f)); const val=String(d[d.type]||'').trim().slice(0,40);
+    if(!val){ toast('Indiquez ce que vous voulez suivre.'); return; }
+    if(followed(d.type,d.type==='mot'?val:val)){ toast('Cette alerte existe déjà.'); return; }
+    const btn=f.querySelector('button[type=submit]'); btn.disabled=true;
+    try{ await toggleFollow(d.type,val,d.type==='entreprise'?(bizBy(val)||{}).name||val:d.type==='categorie'?(catBy(val)||{}).name||val:val); refresh(); toast('🔔 Alerte créée'); }
+    catch(err){ console.warn(err); btn.disabled=false; toast(err.max?'Vous avez déjà 20 alertes : supprimez-en une.':'Création impossible. Réessayez.'); }
+  }
+  else if(f.id==='demandeForm'){
+    e.preventDefault(); if(!me()) return;
+    const d=Object.fromEntries(new FormData(f)); const texte=String(d.texte||'').trim().slice(0,300); if(!texte) return;
+    const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Publication…';
+    const ent=d.entreprise?(bizId[d.entreprise]||''):'';
+    try{ const r=await sendToWix('Demandes',{texte,entreprise:ent,categorie:d.categorie||'',pseudo:me().name,statut:'ouverte'});
+      const id=r.dataItem&&r.dataItem.id; DEMANDES.unshift({id,text:texte,entId:ent,biz:d.entreprise||'',cat:d.categorie||'',name:me().name,status:'ouverte',owner:me().id,at:new Date()});
+      location.hash='#/demandes/'+encodeURIComponent(id); toast('Demande publiée ! La communauté va vous répondre.'); }
+    catch(err){ console.warn(err); btn.disabled=false; btn.textContent='Publier ma demande'; toast(err.status===401||err.status===403?'Session expirée : reconnectez-vous.':'Publication impossible. Réessayez.'); }
   }
   else if(f.id==='editBizForm'){
     e.preventDefault(); const b=ownerOf(f.dataset.biz); if(!b) return;
