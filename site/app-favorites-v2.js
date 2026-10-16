@@ -1162,63 +1162,105 @@ function pageProfile(){
 /* ---------- Espace pro : statistiques, fiche et événements ---------- */
 const dayKey=d=>`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
 const isCopy=t=>t==='copie'||t==='caisse';
-function deltaTxt(now,before){
-  if(!before) return now?'<small class="delta up">nouveau</small>':'';
-  const p=Math.round((now-before)/before*100);
-  return `<small class="delta ${p>0?'up':p<0?'down':''}">${p>0?'+':''}${p} % vs 30 j précédents</small>`;
+/* ---------- Espace pro : statistiques pensées pour l'entreprise ---------- */
+const PRO_PERIODS=[[7,'7 jours'],[30,'30 jours'],[90,'3 mois']];
+let proDays=30; const proRowsCache={};
+const STAT_KINDS=[['vue','Vues de la fiche','fois que votre fiche a été ouverte'],['copie','Codes copiés','codes copiés ou offres montrées en caisse'],['site','Clics vers votre site',''],['appel','Appels',''],['itineraire','Itinéraires','demandes d’itinéraire vers votre magasin']];
+const isAction=t=>t!=='vue';
+const shortDate=d=>d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+const plural=(n,one,many)=>`${n} ${n>1?many:one}`;
+function deltaTxt(now,before,days){
+  if(!now&&!before) return '';
+  const d=now-before, ref=`aux ${days} jours précédents`;
+  if(!d) return `<small class="delta">= stable par rapport ${ref}</small>`;
+  return `<small class="delta ${d>0?'up':'down'}">${d>0?'▲ +':'▼ −'}${Math.abs(d)} par rapport ${ref}</small>`;
 }
-function proChart(days){
-  const max=Math.max(1,...days.map(d=>d.views));
-  const tot=days.reduce((n,d)=>n+d.views,0), cop=days.reduce((n,d)=>n+d.copies,0);
-  return `<figure class="chart"><figcaption><span class="lg lg-v"></span>Vues <span class="lg lg-c"></span>Codes copiés / offres montrées</figcaption>
-    <div class="bars" role="img" aria-label="30 derniers jours : ${tot} vues et ${cop} codes copiés">${days.map(d=>{
-      const label=d.date.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
-      return `<div class="day" title="${esc(label)} : ${d.views} vue${d.views>1?'s':''}, ${d.copies} copie${d.copies>1?'s':''}"><span class="v" style="height:${d.views/max*100}%"></span><span class="c" style="height:${Math.min(d.copies,max)/max*100}%"></span></div>`;}).join('')}</div>
-    <div class="axis"><span>${days[0].date.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</span><span>aujourd’hui</span></div></figure>`;
+// Regroupe la période : par jour sur 7 jours, par semaine (lundi → dimanche) au-delà.
+function proBuckets(rows,start,days){
+  const out=[];
+  if(days<=7){
+    for(let i=0;i<days;i++){ const a=new Date(start); a.setDate(a.getDate()+i); const z=new Date(a); z.setDate(z.getDate()+1);
+      out.push({a,z,label:+a===+TODAY?'Aujourd’hui':a.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric'})}); }
+  }else{
+    let a=new Date(start);
+    while(a<=TODAY){ const z=new Date(a); z.setDate(z.getDate()+((8-z.getDay())%7||7)); const last=new Date(Math.min(z-864e5,+TODAY));
+      out.push({a:new Date(a),z,label:z>TODAY?'Cette semaine':(a.getMonth()===last.getMonth()?`${a.getDate()} – ${shortDate(last)}`:`${shortDate(a)} – ${shortDate(last)}`)}); a=z; }
+  }
+  out.forEach(b=>{ const r=rows.filter(x=>x.at>=b.a&&x.at<b.z); b.views=r.filter(x=>x.type==='vue').length; b.actions=r.filter(x=>isAction(x.type)).length; });
+  return out.reverse();
+}
+function proBars(buckets,days){
+  const max=Math.max(1,...buckets.map(b=>Math.max(b.views,b.actions)));
+  const row=b=>`<div class="prow2"><span class="plabel">${esc(b.label)}</span><div class="ptracks">
+    <div class="ptrack"><span class="pbar v" style="width:${b.views/max*100}%"></span><b>${b.views}</b></div>
+    <div class="ptrack"><span class="pbar a" style="width:${b.actions/max*100}%"></span><b>${b.actions}</b></div></div></div>`;
+  return `<figure class="pbars"><figcaption><span class="lg lg-v"></span>Vues <span class="lg lg-c"></span>Actions (code copié, clic, appel, itinéraire) <small class="muted pnote">${days<=7?'Par jour':'Par semaine'}, la plus récente en haut</small></figcaption>${buckets.map(row).join('')}</figure>`;
+}
+const SLOTS=[[6,12,'le matin (6 h – 12 h)'],[12,14,'le midi (12 h – 14 h)'],[14,18,'l’après-midi (14 h – 18 h)'],[18,23,'le soir (18 h – 23 h)'],[23,30,'la nuit']];
+function proWhen(rows){
+  if(rows.length<5) return '<p class="muted">Pas encore assez de visites pour savoir quand vos clients sont les plus actifs (il en faut au moins 5).</p>';
+  const wk=[0,0,0,0,0,0,0], sl=SLOTS.map(()=>0);
+  rows.forEach(r=>{ wk[r.at.getDay()]++; const h=r.at.getHours(); const i=SLOTS.findIndex(([a,z])=>(h>=a&&h<z)||(h+24>=a&&h+24<z)); if(i>=0) sl[i]++; });
+  const d=wk.indexOf(Math.max(...wk)), s=sl.indexOf(Math.max(...sl));
+  return `<p>Vos clients sont les plus actifs le <strong>${['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'][d]}</strong>, surtout <strong>${SLOTS[s][2]}</strong>. C’est le bon moment pour publier une offre ou la partager sur WhatsApp.</p>`;
+}
+function proTips(b,all,live,views,actions){
+  const t=[];
+  if(!live.length) t.push(`Vous n’avez aucune offre en ligne : les visiteurs ne trouvent rien à utiliser sur votre fiche. <button class="linkbtn link" data-propose="${b.slug}">Publier une offre</button>`);
+  live.filter(c=>!c.noExp&&daysLeft(c)<=7).forEach(c=>t.push(`${c.store?'Votre offre en magasin':'Le code <strong>'+esc(c.code)+'</strong>'} expire ${daysLeft(c)?'dans '+plural(daysLeft(c),'jour','jours'):'aujourd’hui'} : pensez à publier la suite.`));
+  live.filter(c=>c.down>=1&&c.down>c.up).forEach(c=>t.push(`${plural(c.down,'membre signale','membres signalent')} que <strong>${esc(c.code||c.deal)}</strong> ne fonctionne plus : vérifiez-le ou <button class="linkbtn link" data-retire="${esc(c.id)}">retirez-le</button>.`));
+  const expired=all.filter(c=>c.status==='valide'&&daysLeft(c)<0).length;
+  if(expired) t.push(`${plural(expired,'offre a expiré','offres ont expiré')} : elle${expired>1?'s ne sont':' n’est'} plus visible${expired>1?'s':''}. Publiez une nouvelle offre pour rester en tête.`);
+  if(!b.pos&&b.sale!=='en-ligne') t.push(`Votre magasin n’est pas encore sur la carte : les clients ne peuvent pas demander l’itinéraire. <button class="linkbtn link" data-editbiz="${b.slug}">Placer mon magasin</button>`);
+  if(!b.hours||String(b.desc||'').length<80) t.push(`Complétez votre fiche (${[!b.hours&&'horaires',String(b.desc||'').length<80&&'description'].filter(Boolean).join(', ')}) : une fiche complète inspire confiance. <button class="linkbtn link" data-editbiz="${b.slug}">Modifier ma fiche</button>`);
+  if(views>=5&&!actions) t.push('Votre fiche est vue mais personne ne passe à l’action : une offre réservée aux membres Bonszahé peut faire la différence.');
+  if(!views) t.push(`Votre fiche n’a pas encore été vue sur cette période. Partagez-la sur WhatsApp ou sur vos réseaux : <a class="link" href="${waHref(`Retrouvez nos bons plans sur Bonszahé 👉 ${location.origin}/#/entreprises/${b.slug}`)}" target="_blank" rel="noopener">partager ma fiche</a>.`);
+  return t.slice(0,4);
 }
 async function drawPro(){
   const el=document.getElementById('proDash'); if(!el||!me()) return;
-  const since=new Date(TODAY); since.setDate(since.getDate()-29);
-  const before=new Date(since); before.setDate(before.getDate()-30);
+  const days=proDays;
+  const start=new Date(TODAY); start.setDate(start.getDate()-(days-1));
+  const prevStart=new Date(start); prevStart.setDate(prevStart.getDate()-days);
   const week=Date.now()-7*864e5;
   const owned=B.filter(b=>b.owners.includes(me().id));
   const blocks=await Promise.all(owned.map(async b=>{
-    let rows=[]; try{ rows=await queryAll('Statistiques',{entreprise:b.id}); }catch(e){ console.warn(e); }
-    rows=rows.map(r=>({type:r.type,code:r.code,at:stamp(r._createdDate)}));
-    const match=(r,t)=>t==='copie'?isCopy(r.type):r.type===t;
-    const n=(t,from,to)=>rows.filter(r=>match(r,t)&&(!from||r.at>=from)&&(!to||r.at<to)).length;
-    const tile=(t,label)=>`<div class="stat"><b>${n(t,since)}</b><span>${label}</span>${deltaTxt(n(t,since),n(t,before,since))}<small>${n(t)} au total</small></div>`;
-    const days=Array.from({length:30},(_,i)=>{ const d=new Date(since); d.setDate(d.getDate()+i); return {date:d,key:dayKey(d),views:0,copies:0}; });
-    const idx={}; days.forEach(d=>idx[d.key]=d);
-    rows.forEach(r=>{ const d=idx[dayKey(r.at)]; if(!d) return; if(r.type==='vue') d.views++; else if(isCopy(r.type)) d.copies++; });
-    const best=days.reduce((a,d)=>d.views+d.copies>a.views+a.copies?d:a,days[0]);
-    const wk=[0,0,0,0,0,0,0]; rows.filter(r=>r.at>=since).forEach(r=>wk[r.at.getDay()]++);
-    const wkBest=wk.indexOf(Math.max(...wk));
+    if(!proRowsCache[b.id]){ let rows=[]; try{ rows=await queryAll('Statistiques',{entreprise:b.id}); }catch(e){ console.warn(e); } proRowsCache[b.id]=rows.map(r=>({type:r.type,code:r.code,at:stamp(r._createdDate)})); }
+    const rows=proRowsCache[b.id];
+    const inP=rows.filter(r=>r.at>=start), inPrev=rows.filter(r=>r.at>=prevStart&&r.at<start);
+    const cnt=(list,t)=>list.filter(r=>t==='copie'?isCopy(r.type):r.type===t).length;
+    const views=cnt(inP,'vue'), actions=inP.filter(r=>isAction(r.type)).length;
     const all=allCodes().filter(c=>c.biz===b.slug&&c.status!=='retire');
     const live=all.filter(c=>c.status==='valide'&&daysLeft(c)>=0&&!flagged(c));
-    const avgHeat=live.length?Math.round(live.reduce((n,c)=>n+c.heat,0)/live.length*10)/10:0;
-    const codes=all.map(c=>({c,copies:rows.filter(r=>isCopy(r.type)&&r.code===c.id).length})).sort((a,z)=>z.copies-a.copies);
+    const parts=STAT_KINDS.slice(1).map(([t,l])=>[cnt(inP,t),l.toLowerCase()]).filter(([n])=>n).map(([n,l])=>`${n} ${n>1?l:l.replace(/s\b/g,'')}`);
+    const summary=views||actions
+      ?`Sur les ${days} derniers jours, votre fiche a été vue <strong>${plural(views,'fois','fois')}</strong>${actions?`. Vos clients ont fait <strong>${plural(actions,'action','actions')}</strong> : ${parts.join(', ')}`:', mais aucun client n’est encore passé à l’action (copier un code, appeler, aller sur votre site…)'}.`
+      :`Aucune visite sur les ${days} derniers jours pour le moment.`;
+    const tile=([t,l,hint])=>`<div class="stat"><b>${cnt(inP,t)}</b><span>${l}</span>${deltaTxt(cnt(inP,t),cnt(inPrev,t),days)}</div>`;
+    const codes=all.map(c=>({c,n:inP.filter(r=>isCopy(r.type)&&r.code===c.id).length,tot:rows.filter(r=>isCopy(r.type)&&r.code===c.id).length})).sort((a,z)=>z.n-a.n||z.tot-a.tot);
+    const cmax=Math.max(1,...codes.map(x=>x.n));
+    const state=c=>daysLeft(c)<0?'<span class="pill no">Expirée</span>':flagged(c)?'<span class="pill wait">Masquée</span>':c.noExp?'<span class="pill ok">Sans date limite</span>':`<span class="pill ${daysLeft(c)<=7?'wait':'ok'}">Expire le ${fmt(c.exp)}</span>`;
     const ids=new Set(all.map(c=>c.id));
     const recent=COMMENTS.filter(cm=>ids.has(cm.code)&&cm.at>=week&&!isHidden(cm)&&!b.owners.includes(cm.owner)).sort((a,z)=>z.at-a.at);
     const edits=MINE.edits.filter(x=>x.entreprise===b.id&&x.status!=='Appliquée').slice(0,3);
     const evs=MINE.events.filter(x=>x.entreprise===b.id&&x.date&&x.date>=TODAY&&!EVENTS.some(e=>e.biz===b.slug&&e.title===x.title)).slice(0,3);
-    const hasData=rows.some(r=>r.at>=since);
+    const tips=proTips(b,all,live,views,actions);
     return `<div class="card pro">
-      <div class="lvhead">${logo(b,'md')}<div><strong>${esc(b.name)}</strong><small class="muted">30 derniers jours</small></div><a class="btn btn-ghost btn-sm" href="#/entreprises/${b.slug}">Voir ma fiche</a></div>
+      <div class="lvhead">${logo(b,'md')}<div><strong>${esc(b.name)}</strong><small class="muted">${plural(live.length,'offre en ligne','offres en ligne')}</small></div><a class="btn btn-ghost btn-sm" href="#/entreprises/${b.slug}">Voir ma fiche</a></div>
       <div class="bandbtns"><button class="btn btn-sun btn-sm" data-propose="${b.slug}">${ic('plus')}Publier une offre</button><button class="btn btn-ghost btn-sm" data-editbiz="${b.slug}">Modifier ma fiche</button><button class="btn btn-ghost btn-sm" data-proevent="${b.slug}">Annoncer un événement</button></div>
       ${edits.length||evs.length?`<div class="list">${edits.map(x=>`<div class="li"><div class="grow"><strong>Modification de la fiche</strong><small>Envoyée le ${fmt(x.at)}</small></div><span class="pill ${x.status==='Refusée'?'no':'wait'}">${x.status==='Refusée'?'Refusée':'En vérification'}</span></div>`).join('')}${evs.map(x=>`<div class="li"><div class="grow"><strong>${esc(x.title)}</strong><small>Événement du ${fmt(x.date)}</small></div><span class="pill wait">En vérification</span></div>`).join('')}</div>`:''}
-      <div class="stats five">${tile('vue','Vues de la fiche')}${tile('copie','Codes copiés / offres montrées')}${tile('site','Clics vers le site')}${tile('appel','Appels')}${tile('itineraire','Itinéraires demandés')}</div>
-      ${!b.pos&&b.sale!=='en-ligne'?`<p class="authmsg">Votre magasin n’est pas encore sur la carte. <button class="linkbtn link" data-editbiz="${b.slug}">Placer mon magasin</button></p>`:''}
-      ${hasData?proChart(days):'<p class="muted">Les statistiques jour par jour apparaîtront dès les premières visites de votre fiche.</p>'}
-      <div class="insights">
-        ${hasData?`<div><span>Meilleur jour</span><strong>${best.date.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}</strong><small>${best.views} vue${best.views>1?'s':''}, ${best.copies} copie${best.copies>1?'s':''}</small></div>
-        <div><span>Jour le plus actif</span><strong>${['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'][wkBest]}</strong><small>sur les 30 derniers jours</small></div>`:''}
-        <div><span>Chaleur moyenne de vos offres</span><strong>${live.length?(avgHeat>0?'+':'')+avgHeat+' '+(avgHeat<0?'💧':'🔥'):'—'}</strong><small>${live.length?live.length+' offre'+(live.length>1?'s':'')+' en ligne':'aucune offre en ligne'}</small></div>
-        <div><span>Commentaires (7 jours)</span><strong>${recent.length}</strong><small>sur vos offres</small></div>
-      </div>
-      ${recent.length?`<h3>Derniers commentaires</h3><div class="list">${recent.slice(0,5).map(cm=>{ const c=all.find(x=>x.id===cm.code); return `<a class="li" href="#/bon-plan/${encodeURIComponent(cm.code)}"><div class="grow"><strong>${esc(cm.name||'Membre')}</strong> <small class="muted">${ago(cm.at)} · ${esc(c.deal)}</small><small>${esc(cm.text.slice(0,140))}${cm.text.length>140?'…':''}</small></div><span class="pill">Répondre</span></a>`; }).join('')}</div>`:''}
-      <h3>Vos offres</h3>
-      ${codes.length?`<div class="list">${codes.map(({c,copies})=>`<div class="li"><div class="grow"><strong>${c.store?'Offre en magasin':esc(c.code)}</strong> ${esc(c.deal)}<small>${copies} ${c.store?'affichage'+(copies>1?'s':'')+' en caisse':'copie'+(copies>1?'s':'')} · chaleur ${c.heat} (${c.moro} Moro, ${c.maji} Maji) · ${c.up} « fonctionne » · ${c.down} « ne fonctionne plus » · ${countComments(c.id)} commentaire${countComments(c.id)>1?'s':''}${daysLeft(c)<0?' · expirée':flagged(c)?' · masquée (signalée)':''}${c.by===me().id?'':' · proposée par '+esc(c.byName||'un membre')}</small></div><button class="btn btn-ghost btn-sm" data-retire="${esc(c.id)}">Retirer</button></div>`).join('')}</div>`:'<p class="muted">Aucune offre pour le moment.</p>'}
+      <div class="phead"><h3>Vos statistiques</h3><div class="seg" role="group" aria-label="Période">${PRO_PERIODS.map(([d,l])=>`<button type="button" data-properiod="${d}" aria-pressed="${d===days}">${l}</button>`).join('')}</div></div>
+      <p class="pperiod muted">Du ${start.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})} au ${TODAY.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}</p>
+      <p class="psummary">${summary}</p>
+      <div class="stats pro5">${STAT_KINDS.map(tile).join('')}</div>
+      ${rows.length?proBars(proBuckets(rows,start,days),days):''}
+      ${tips.length?`<div class="ptips"><h3>Nos conseils</h3><ul>${tips.map(x=>`<li>${x}</li>`).join('')}</ul></div>`:''}
+      <h3>Quand vos clients sont actifs</h3>${proWhen(inP)}
+      <h3>Vos offres <small class="muted">· codes copiés sur ${days} jours</small></h3>
+      ${codes.length?`<div class="list">${codes.map(({c,n,tot})=>`<div class="li poffer"><div class="grow"><strong>${c.store?'Offre en magasin':esc(c.code)}</strong> ${esc(c.deal)}
+        <div class="ptrack"><span class="pbar a" style="width:${n/cmax*100}%"></span><b>${plural(n,c.store?'affichage':'copie',c.store?'affichages':'copies')}</b></div>
+        <small>${tot} au total · ${c.up} « fonctionne » · ${c.down} « ne fonctionne plus » · ${plural(countComments(c.id),'commentaire','commentaires')}${c.by===me().id?'':' · proposée par '+esc(c.byName||'un membre')}</small>${state(c)}</div><button class="btn btn-ghost btn-sm" data-retire="${esc(c.id)}">Retirer</button></div>`).join('')}</div>`:'<p class="muted">Aucune offre pour le moment.</p>'}
+      ${recent.length?`<h3>Derniers commentaires</h3><div class="list">${recent.slice(0,5).map(cm=>{ const c=all.find(x=>x.id===cm.code); return `<a class="li" href="#/bon-plan/${encodeURIComponent(cm.code)}"><div class="grow"><strong>${esc(cm.name||'Membre')}</strong> <small class="muted">${ago(cm.at)} · ${esc(c.deal)}</small><small>${esc(cm.text.slice(0,140))}${cm.text.length>140?'…':''}</small></div></a>`; }).join('')}</div>`:''}
     </div>`;
   }));
   el.innerHTML=blocks.join('');
@@ -2020,6 +2062,7 @@ document.addEventListener('click',async e=>{
   else if(t.dataset.claim!==undefined){ claimDialog(t.dataset.claim); }
   else if(t.dataset.editbiz){ editBizDialog(t.dataset.editbiz); }
   else if(t.dataset.retire){ retireDialog(t.dataset.retire); }
+  else if(t.dataset.properiod){ proDays=+t.dataset.properiod; drawPro(); }
   else if(t.dataset.focus){ focusShop(t.dataset.focus); }
   else if(t.dataset.follow){
     const type=t.dataset.follow, val=t.dataset.val, label=t.dataset.label;

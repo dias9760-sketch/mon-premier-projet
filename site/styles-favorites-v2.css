@@ -755,3 +755,35 @@ body:has(.fab) #app{padding-bottom:72px}
   .bhead .bmain{padding-top:64px}
   .bhead .bactions{grid-column:2}
 }
+
+/* ---------- v24 : statistiques de l'espace pro ---------- */
+.phead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.phead h3{margin:0}
+.pperiod{margin:-6px 0 0;font-size:.88rem}
+.psummary{background:var(--soft);border:1px solid var(--line);border-radius:16px;padding:12px 14px;line-height:1.5;margin:0}
+.stats.pro5{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (min-width:700px){.stats.pro5{grid-template-columns:repeat(5,minmax(0,1fr))}}
+.stats.pro5 .stat{padding:12px;display:grid;gap:3px;align-content:start}
+.stats.pro5 .stat b{font-size:1.6rem}
+.stats.pro5 .stat>span{color:var(--ink);font-weight:600;font-size:.86rem}
+.stats.pro5 .stat .hint{font-size:.72rem;line-height:1.3}
+.pbars{margin:0;display:grid;gap:8px;background:var(--soft);border:1px solid var(--line);border-radius:16px;padding:12px 14px}
+.pbars figcaption{font-size:.8rem;color:var(--muted);display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:4px}
+.pbars .lg{width:10px;height:10px;border-radius:3px;display:inline-block}
+.prow2{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;align-items:center}
+.plabel{font-size:.82rem;font-weight:600;color:var(--ink)}
+.ptracks{display:grid;gap:3px}
+.ptrack{display:flex;align-items:center;gap:6px;min-height:12px}
+.ptrack b{font-size:.75rem;font-weight:700;color:var(--ink);white-space:nowrap}
+.pbar{display:block;height:10px;border-radius:5px;min-width:2px}
+.pbar.v{background:var(--soleil)}
+.pbar.a{background:var(--turquoise)}
+.ptips{background:var(--vert-50);border-radius:16px;padding:12px 14px}
+.ptips h3{margin:0 0 6px}
+.ptips ul{margin:0;padding-left:18px;display:grid;gap:6px;line-height:1.45;font-size:.92rem}
+.poffer .grow{display:grid;gap:4px}
+.poffer .ptrack{max-width:320px}
+.poffer .pill{justify-self:start}
+.stats.pro5 .stat:first-child{grid-column:1 / -1}
+@media (min-width:700px){.stats.pro5 .stat:first-child{grid-column:auto}}
+.pbars .pnote{flex-basis:100%}
