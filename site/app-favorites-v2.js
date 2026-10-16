@@ -300,7 +300,7 @@ function dateFrom(v){
   if(m) return new Date(+m[1],+m[2]-1,+m[3]);
   const d=new Date(raw); return isNaN(d)?null:d;
 }
-function statutFrom(v){ const k=key(v); if(k.includes('attente')) return 'attente'; if(k.includes('refus')) return 'refuse'; return 'valide'; }
+function statutFrom(v){ const k=key(v); if(k.includes('attente')) return 'attente'; if(k.includes('refus')) return 'refuse'; if(k.includes('retir')) return 'retire'; return 'valide'; }
 // Champ Image du CMS (wix:image://v1/<id>/<nom>…) ou URL classique -> URL affichable
 function imgUrl(v){
   if(!v) return '';
@@ -943,7 +943,8 @@ function pageDeal(id){
     <h1 class="pagetitle">${esc(c.deal)} chez ${esc(b.name)}</h1>
     <div class="dealpage">
       <div class="stack">
-        ${off?`<p class="authmsg">Ce bon plan a expiré ou n’est plus actif.</p>`:''}
+        ${c.status==='retire'?`<p class="authmsg">Ce code a été retiré par l’entreprise.</p>`:off?`<p class="authmsg">Ce bon plan a expiré ou n’est plus actif.</p>`:''}
+        ${!off&&ownerOf(c.biz)?`<p class="authmsg">Vous gérez ${esc(b.name)} : ce code n’est plus valable ou contient une erreur ? <button class="linkbtn link" data-retire="${esc(c.id)}">Retirer ce code</button></p>`:''}
         <div class="coupons one">${coupon(c,{showBiz:true,noLink:true})}</div>
         <div class="share">
           <a class="btn btn-wa" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">Partager sur WhatsApp</a>
@@ -1193,7 +1194,7 @@ async function drawPro(){
     const best=days.reduce((a,d)=>d.views+d.copies>a.views+a.copies?d:a,days[0]);
     const wk=[0,0,0,0,0,0,0]; rows.filter(r=>r.at>=since).forEach(r=>wk[r.at.getDay()]++);
     const wkBest=wk.indexOf(Math.max(...wk));
-    const all=allCodes().filter(c=>c.biz===b.slug);
+    const all=allCodes().filter(c=>c.biz===b.slug&&c.status!=='retire');
     const live=all.filter(c=>c.status==='valide'&&daysLeft(c)>=0&&!flagged(c));
     const avgHeat=live.length?Math.round(live.reduce((n,c)=>n+c.heat,0)/live.length*10)/10:0;
     const codes=all.map(c=>({c,copies:rows.filter(r=>isCopy(r.type)&&r.code===c.id).length})).sort((a,z)=>z.copies-a.copies);
@@ -1217,7 +1218,7 @@ async function drawPro(){
       </div>
       ${recent.length?`<h3>Derniers commentaires</h3><div class="list">${recent.slice(0,5).map(cm=>{ const c=all.find(x=>x.id===cm.code); return `<a class="li" href="#/bon-plan/${encodeURIComponent(cm.code)}"><div class="grow"><strong>${esc(cm.name||'Membre')}</strong> <small class="muted">${ago(cm.at)} · ${esc(c.deal)}</small><small>${esc(cm.text.slice(0,140))}${cm.text.length>140?'…':''}</small></div><span class="pill">Répondre</span></a>`; }).join('')}</div>`:''}
       <h3>Vos offres</h3>
-      ${codes.length?`<div class="list">${codes.map(({c,copies})=>`<div class="li"><div class="grow"><strong>${c.store?'Offre en magasin':esc(c.code)}</strong> ${esc(c.deal)}<small>${copies} ${c.store?'affichage'+(copies>1?'s':'')+' en caisse':'copie'+(copies>1?'s':'')} · chaleur ${c.heat} (${c.moro} Moro, ${c.maji} Maji) · ${c.up} « fonctionne » · ${c.down} « ne fonctionne plus » · ${countComments(c.id)} commentaire${countComments(c.id)>1?'s':''}${daysLeft(c)<0?' · expirée':flagged(c)?' · masquée (signalée)':''}</small></div></div>`).join('')}</div>`:'<p class="muted">Aucune offre pour le moment.</p>'}
+      ${codes.length?`<div class="list">${codes.map(({c,copies})=>`<div class="li"><div class="grow"><strong>${c.store?'Offre en magasin':esc(c.code)}</strong> ${esc(c.deal)}<small>${copies} ${c.store?'affichage'+(copies>1?'s':'')+' en caisse':'copie'+(copies>1?'s':'')} · chaleur ${c.heat} (${c.moro} Moro, ${c.maji} Maji) · ${c.up} « fonctionne » · ${c.down} « ne fonctionne plus » · ${countComments(c.id)} commentaire${countComments(c.id)>1?'s':''}${daysLeft(c)<0?' · expirée':flagged(c)?' · masquée (signalée)':''}${c.by===me().id?'':' · proposée par '+esc(c.byName||'un membre')}</small></div><button class="btn btn-ghost btn-sm" data-retire="${esc(c.id)}">Retirer</button></div>`).join('')}</div>`:'<p class="muted">Aucune offre pour le moment.</p>'}
     </div>`;
   }));
   el.innerHTML=blocks.join('');
@@ -1697,6 +1698,28 @@ function pageRecompenses(){
   </div>`;
 }
 
+/* ---------- Retrait d'un code par l'entreprise qui gère la fiche ---------- */
+const RETRAIT_MOTIFS=['Le code a expiré','Le code est faux ou mal recopié','L’offre est terminée','Doublon d’un autre code','Autre raison'];
+function retireDialog(id){
+  const c=allCodes().find(x=>x.id===id); if(!c) return;
+  const b=ownerOf(c.biz); if(!b){ toast('Seule l’entreprise qui gère la fiche peut retirer ce code.'); return; }
+  openDialog(`<header><div><h2 id="dlgTitle">Retirer ce code ?</h2><p class="u14 note">${c.store?'Offre en magasin':'<strong>'+esc(c.code)+'</strong>'} · ${esc(c.deal)} · ${esc(b.name)}</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+  <form class="form" id="retireForm" data-id="${esc(c.id)}">
+    <label>Pourquoi le retirer ?<select name="motif" required>${RETRAIT_MOTIFS.map(m=>`<option>${esc(m)}</option>`).join('')}</select></label>
+    <p class="note">Le code disparaît du site pour tous les visiteurs. Pour le remplacer, publiez ensuite la bonne offre depuis votre espace pro.</p>
+    <button class="btn btn-primary" type="submit">Retirer le code</button>
+  </form>`);
+}
+async function retireCode(f){
+  const c=allCodes().find(x=>x.id===f.dataset.id); const b=c&&ownerOf(c.biz); if(!b) return;
+  const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Retrait…';
+  try{
+    await sendToWix('RetraitsCodes',{code:c.id,codeTexte:c.store?'Offre en magasin':c.code,entreprise:b.id,motif:new FormData(f).get('motif'),membreId:me().id,membreNom:me().name||''});
+    const base=baseCodes.find(x=>x.id===c.id); if(base) base.status='retire';
+    dlg.close(); toast('Code retiré : il n’apparaît plus sur Bonszahé.'); refresh();
+  }catch(err){ console.warn(err); btn.disabled=false; btn.textContent='Retirer le code'; toast(err.status===401||err.status===403?'Session expirée : reconnectez-vous.':'Retrait impossible pour le moment. Réessayez.'); }
+}
+
 /* ---------- Navigation : bouton retour, page introuvable, position de défilement ---------- */
 const navStack=[]; let navBack=false; const scrollMemo={};
 function trackNav(h){
@@ -1996,6 +2019,7 @@ document.addEventListener('click',async e=>{
   else if(t.dataset.propose!==undefined){ proposeTF=t.dataset.tf||''; proposeDialog(t.dataset.propose); }
   else if(t.dataset.claim!==undefined){ claimDialog(t.dataset.claim); }
   else if(t.dataset.editbiz){ editBizDialog(t.dataset.editbiz); }
+  else if(t.dataset.retire){ retireDialog(t.dataset.retire); }
   else if(t.dataset.focus){ focusShop(t.dataset.focus); }
   else if(t.dataset.follow){
     const type=t.dataset.follow, val=t.dataset.val, label=t.dataset.label;
@@ -2180,6 +2204,7 @@ document.addEventListener('submit',async e=>{
       .then(()=>{ dlg.close(); toast('Merci ! Votre événement sera publié après vérification.'); loadMine().then(()=>{ if(location.hash.startsWith('#/profil')) refresh(); }); })
       .catch(ex=>{ console.warn(ex); btn.disabled=false; btn.textContent='Envoyer l’événement'; toast(ex.status===401||ex.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'); });
   }
+  else if(f.id==='retireForm'){ e.preventDefault(); retireCode(f); }
   else if(f.id==='claimForm'){
     e.preventDefault(); if(!me()) return;
     const d=Object.fromEntries(new FormData(f)); const err=document.getElementById('claimErr');
