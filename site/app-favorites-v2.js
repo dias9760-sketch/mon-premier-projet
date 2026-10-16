@@ -83,7 +83,7 @@ let B = [
  ['perles-haliades','Perles Haliades','shopping','Fiche en cours de complétion.','','','https://perles-haliades.com/',''],
  ['noor-festivities','Noor Festivities','loisirs','Fiche en cours de complétion.','','','https://noorfestivities.com/','']
 ].map(([slug,name,cat,desc,addr,phone,web,email])=>({slug,name,cat,desc,addr,phone,web,email}));
-const bizBy = s => B.find(b=>b.slug===s) || {slug:s,name:'Entreprise',cat:'shopping',desc:'',addr:'',phone:'',web:'',email:'',commune:''};
+const bizBy = s => B.find(b=>b.slug===s) || {slug:s,name:'Entreprise',cat:'shopping',desc:'',addr:'',phone:'',web:'',email:'',commune:'',hours:'',logo:'',pos:null,sale:'',owners:[]};
 
 /* ---------- Communes ---------- */
 const MAP_SRC='carte.webp';
@@ -638,7 +638,7 @@ let dirState={q:'',cat:'',com:'',sort:'az',deals:false};
 function pageDirectory(params){
   dirState={q:params.get('q')||'',cat:params.get('cat')||'',com:params.get('c')||'',sort:params.get('tri')==='codes'?'codes':'az',deals:params.get('bonsplans')==='1'};
   return `<div class="wrap">
-    <div class="pagehead"><h1>Entreprises</h1><p class="muted">Toutes les entreprises référencées sur Bonszahé.</p></div>
+    ${backBtn('#/')}<div class="pagehead"><h1>Entreprises</h1><p class="muted">Toutes les entreprises référencées sur Bonszahé.</p></div>
     <div class="toolbar">
       <label class="field">${ic('search')}<span class="sr">Rechercher une entreprise</span><input id="dirQ" type="search" placeholder="Nom, activité…" value="${esc(dirState.q)}"></label>
       <div class="filters">
@@ -670,8 +670,8 @@ function drawDirectory(){
 }
 
 function pageBusiness(slug){
-  const b=bizBy(slug);
-  if(!b) return `<div class="u20 wrap">${empty('Cette entreprise n’existe pas','Le lien est peut-être ancien. Retrouvez-la dans l’annuaire.','<a class="btn btn-primary" href="#/entreprises">Voir les entreprises</a>')}</div>`;
+  const b=B.find(x=>x.slug===slug);
+  if(!b) return notFound('Cette entreprise n’existe pas','Le lien est peut-être ancien. Retrouvez-la dans l’annuaire.','<a class="btn btn-primary" href="#/entreprises">Voir les entreprises</a>','#/entreprises');
   const codes=codesOf(slug).sort((a,b)=>b.verified-a.verified||b.up-a.up);
   const verified=codes.some(c=>c.verified);
   const fav=S.favs.includes(slug);
@@ -679,7 +679,7 @@ function pageBusiness(slug){
   const similar=B.filter(x=>x.cat===b.cat&&x.slug!==slug).sort((a,z)=>codesOf(z.slug).length-codesOf(a.slug).length).slice(0,3);
   const cat=catBy(b.cat);
   return `<div class="wrap">
-    <a class="back" href="#/entreprises">${ic('left')}Retour aux entreprises</a>
+    ${backBtn('#/entreprises')}
     <div class="bcover cv cv-${b.cat}" role="img" aria-label="Couverture ${esc(b.name)}"></div>
     <div class="bhead">
       ${logo(b,'lg')}
@@ -748,7 +748,7 @@ function pageCodes(params){
     sort:f==='new'?'nouveaux':f==='soon'?'expire':CODE_SORTS.some(x=>x[0]===params.get('tri'))?params.get('tri'):'tendance',verified:f==='verified'};
   const act=activeCodes();
   return `<div class="wrap">
-    <div class="pagehead"><h1>Codes promo et offres</h1><p class="muted">Tous les bons plans valables aujourd'hui à Mayotte. Les offres expirées disparaissent automatiquement.</p></div>
+    ${backBtn('#/')}<div class="pagehead"><h1>Codes promo et offres</h1><p class="muted">Tous les bons plans valables aujourd'hui à Mayotte. Les offres expirées disparaissent automatiquement.</p></div>
     <div class="toolbar">
       <label class="field">${ic('search')}<span class="sr">Rechercher un code</span><input id="codeQ" type="search" placeholder="Entreprise, réduction, livraison…" value="${esc(codeState.q)}"></label>
       <div class="filters">
@@ -793,7 +793,7 @@ function drawCodes(){
 /* ---------- Pages À propos, Contact, Mentions légales, Confidentialité ---------- */
 // Les éléments entre [crochets] sont à compléter par l'éditeur du site.
 const EDITEUR={nom:'[Nom et prénom ou raison sociale]',statut:'[Statut : entreprise individuelle, association, société…]',adresse:'[Adresse postale], Mayotte',siret:'[Numéro SIRET]',directeur:'[Nom du directeur de la publication]'};
-const legalPage=(title,body)=>`<div class="wrap legal"><div class="pagehead"><h1>${title}</h1></div><div class="card prose">${body}</div><div class="u8"></div></div>`;
+const legalPage=(title,body)=>`<div class="wrap legal">${backBtn('#/')}<div class="pagehead"><h1>${title}</h1></div><div class="card prose">${body}</div><div class="u8"></div></div>`;
 const waHref=text=>'https://wa.me/?text='+encodeURIComponent(text);
 function pageAbout(){
   return legalPage('À propos de Bonszahé',`
@@ -912,32 +912,34 @@ function commentItem(cm,c,isReply){
   </li>`;
 }
 function commentForm(codeId,parent=''){
-  if(!me()) return `<div class="cmform"><button class="btn btn-ghost" data-needlogin="comment">${ic('plus')}Connectez-vous pour commenter</button></div>`;
+  const dm=String(codeId).startsWith('dm:');
+  if(!me()) return `<div class="cmform"><button class="btn btn-ghost" data-needlogin="${dm?'demande':'comment'}">${ic('plus')}Connectez-vous pour ${dm?'répondre':'commenter'}</button></div>`;
   return `<form class="cmform" data-commentform="${esc(codeId)}" data-parent="${esc(parent)}">
-    <label class="sr" for="ta-${esc(parent||'new')}">${parent?'Votre réponse':'Votre commentaire'}</label>
-    <textarea id="ta-${esc(parent||'new')}" name="text" required maxlength="500" rows="${parent?2:3}" placeholder="${parent?'Votre réponse…':'Votre commentaire… (500 caractères max.)'}"></textarea>
+    <label class="sr" for="ta-${esc(parent||'new')}">${parent||dm?'Votre réponse':'Votre commentaire'}</label>
+    <textarea id="ta-${esc(parent||'new')}" name="text" required maxlength="500" rows="${parent?2:3}" placeholder="${parent?'Votre réponse…':dm?'Votre réponse : un code, une astuce… (500 caractères max.)':'Votre commentaire… (500 caractères max.)'}"></textarea>
     <div class="cmformacts">${parent?`<button type="button" class="btn btn-ghost btn-sm" data-reply="">Annuler</button>`:''}<button class="btn btn-primary btn-sm" type="submit">${parent?'Répondre':'Publier'}</button></div>
   </form>`;
 }
 function commentsBlock(c){
   const top=commentsOf(c.id).filter(cm=>!cm.parent).sort((a,z)=>commentSort==='recents'?z.at-a.at:a.at-z.at);
-  const n=countComments(c.id);
+  const n=countComments(c.id), dm=String(c.id).startsWith('dm:'), w=dm?'réponse':'commentaire';
   return `<section class="comments" id="comments">
-    <div class="head"><h2>${n} commentaire${n>1?'s':''}</h2>
+    <div class="head"><h2>${n} ${w}${n>1?'s':''}</h2>
       <div class="seg" role="group" aria-label="Trier les commentaires"><button data-csort="anciens" aria-pressed="${commentSort==='anciens'}">Plus anciens</button><button data-csort="recents" aria-pressed="${commentSort==='recents'}">Plus récents</button></div></div>
     ${replyTo?'':commentForm(c.id)}
-    ${top.length?`<ul class="cmlist">${top.map(cm=>commentItem(cm,c,false)).join('')}</ul>`:`<p class="muted">Aucun commentaire pour l’instant. Donnez votre avis sur ce bon plan !</p>`}
+    ${top.length?`<ul class="cmlist">${top.map(cm=>commentItem(cm,c,false)).join('')}</ul>`:`<p class="muted">${dm?'Pas encore de réponse. Vous avez un code ou une astuce ? Partagez-la !':'Aucun commentaire pour l’instant. Donnez votre avis sur ce bon plan !'}</p>`}
   </section>`;
 }
 const dealUrl=c=>location.origin+'/#/bon-plan/'+encodeURIComponent(c.id);
 function pageDeal(id){
   const c=allCodes().find(x=>x.id===id);
-  if(!c) return `<div class="u20 wrap">${empty('Ce bon plan n’existe plus','Il a peut-être expiré ou été retiré.','<a class="btn btn-primary" href="#/tendances">Voir les tendances</a>')}</div>`;
+  if(!c) return notFound('Ce bon plan n’existe plus','Il a peut-être expiré ou été retiré.','<a class="btn btn-primary" href="#/tendances">Voir les tendances</a>','#/tendances');
   const b=bizBy(c.biz);
   const msg=`${c.deal} chez ${b.name} avec le code ${c.code} 👉 ${dealUrl(c)}`;
   const off=c.status!=='valide'||daysLeft(c)<0;
   return `<div class="wrap">
-    <a class="back" href="#/tendances">${ic('left')}Retour aux tendances</a>
+    ${backBtn('#/tendances')}
+    <h1 class="pagetitle">${esc(c.deal)} chez ${esc(b.name)}</h1>
     <div class="dealpage">
       <div class="stack">
         ${off?`<p class="authmsg">Ce bon plan a expiré ou n’est plus actif.</p>`:''}
@@ -978,7 +980,7 @@ function pageTrends(params){
   const intro={tendance:'Les bons plans qui chauffent en ce moment : les Moro récents comptent le plus.',chauds:'Le classement des bons plans les plus chauds de Bonszahé.',nouveautes:'Les derniers bons plans partagés : donnez-leur du Moro 🔥 ou du Maji 💧.'}[f]||'';
   return `<div class="wrap">
     <div class="pagehead"><h1>Tendances</h1><p class="muted">Donnez du <strong>Moro 🔥</strong> aux bons plans qui valent le coup, du <strong>Maji 💧</strong> à ceux qui déçoivent. Au-delà de ${VOLCAN}, un bon plan devient <strong>Volcan 🌋</strong>.</p></div>
-    <div class="toolbar"><div class="seg" role="group" aria-label="Classement">${tabs.map(([k,l])=>`<a href="#/tendances?f=${k}" aria-pressed="${f===k}">${l}</a>`).join('')}</div></div>
+    <div class="toolbar"><div class="seg full" role="group" aria-label="Classement">${tabs.map(([k,l])=>`<a href="#/tendances?f=${k}" aria-pressed="${f===k}">${l}</a>`).join('')}</div></div>
     <p class="results">${esc(intro)}</p>
     <div class="u13">${list.length?`<div class="coupons">${list.map(c=>coupon(c)).join('')}</div>`:
       empty('Aucun bon plan pour le moment','Partagez le premier !',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}</div>
@@ -989,7 +991,7 @@ function pageTrends(params){
 
 function pageCategories(){
   return `<div class="wrap">
-    <div class="pagehead"><h1>Catégories</h1><p class="muted">Parcourez les entreprises de Mayotte par activité.</p></div>
+    ${backBtn('#/')}<div class="pagehead"><h1>Catégories</h1><p class="muted">Parcourez les entreprises de Mayotte par activité.</p></div>
     <div class="u13 cats">${CATS.map(catCard).join('')}</div>
     <div class="u8"></div>
   </div>`;
@@ -1001,7 +1003,7 @@ function pageSearch(params){
   const biz=nq?B.filter(b=>norm(b.name+' '+b.desc+' '+catBy(b.cat).name).includes(nq)):[];
   const codes=nq?activeCodes().filter(c=>norm(bizBy(c.biz).name+' '+c.deal+' '+c.detail+' '+c.code).includes(nq)):[];
   return `<div class="wrap">
-    <div class="pagehead"><h1>Recherche</h1></div>
+    ${backBtn('#/')}<div class="pagehead"><h1>Recherche</h1></div>
     <form class="u15 field" data-search>${ic('search')}<label class="sr" for="sq">Rechercher</label><input id="sq" name="q" type="search" placeholder="Une entreprise ou un bon plan" value="${esc(q)}" autocomplete="off"></form>
     ${!q?`<div class="cats">${CATS.map(catCard).join('')}</div>`:`
       ${codes.length?`<div class="head"><h2>Bons plans</h2></div><div class="coupons">${codes.map(c=>coupon(c)).join('')}</div><div class="u6"></div>`:''}
@@ -1267,7 +1269,7 @@ function pageRanking(){
   const lb=leaderboard().slice(0,50);
   const mine=me()&&lb.findIndex(x=>x.id===me().id);
   return `<div class="wrap">
-    <div class="pagehead"><h1>Classement de la communauté</h1><a class="btn btn-wa btn-sm u13" href="${waHref(`🏆 Le classement des chasseurs de bons plans de Mayotte sur Bonszahé 👉 ${location.origin}/#/classement`)}" target="_blank" rel="noopener">Partager le classement</a><p class="muted">Merci à celles et ceux qui partagent leurs bons plans ! 10 pts par code publié, 2 pts par Moro 🔥 reçu, 1 pt par « fonctionne » reçu, 1 pt par avis donné, 1 pt par commentaire (5 par jour max.) et par « j’aime » reçu, 15 pts par filleul actif.</p></div>
+    ${backBtn('#/profil')}<div class="pagehead"><h1>Classement de la communauté</h1><a class="btn btn-wa btn-sm u13" href="${waHref(`🏆 Le classement des chasseurs de bons plans de Mayotte sur Bonszahé 👉 ${location.origin}/#/classement`)}" target="_blank" rel="noopener">Partager le classement</a><p class="muted">Merci à celles et ceux qui partagent leurs bons plans ! 10 pts par code publié, 2 pts par Moro 🔥 reçu, 1 pt par « fonctionne » reçu, 1 pt par avis donné, 1 pt par commentaire (5 par jour max.) et par « j’aime » reçu, 15 pts par filleul actif.</p></div>
     <div class="u13">${lb.length?`<ol class="ranking">${lb.map((x,i)=>`<li class="${me()&&x.id===me().id?'me':''}"><span class="rk">${i+1}</span><div class="grow"><strong>${esc(x.name)}</strong><small>${esc(levelOf(x.points).name)} · ${x.codes.length} code${x.codes.length>1?'s':''} partagé${x.codes.length>1?'s':''}</small></div><b>${x.points} pts</b></li>`).join('')}</ol>`:
       empty('Le classement attend ses premiers chasseurs de bons plans','Partagez un code pour y apparaître.',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}
     ${me()&&mine<0?`<p class="note">Vous n’apparaissez pas encore : partagez votre premier code !</p>`:''}</div>
@@ -1378,7 +1380,7 @@ function pageMap(params){
   const coms=new Set(shops.map(b=>b.commune).filter(Boolean));
   if(mapState.com) coms.add(mapState.com);
   return `<div class="wrap">
-    <div class="pagehead"><h1>Carte des magasins</h1><p class="muted">Les boutiques de l’île, leurs offres en magasin et l’itinéraire pour y aller.</p></div>
+    ${backBtn('#/')}<div class="pagehead"><h1>Carte des magasins</h1><p class="muted">Les boutiques de l’île, leurs offres en magasin et l’itinéraire pour y aller.</p></div>
     <div class="filters u13">
       <button class="btn btn-primary" id="nearMe" type="button">${ic('pin')}Autour de moi</button>
       <label class="sel"><span>Commune</span><select id="mapCom">${selOpts(communeOpts(coms),mapState.com)}</select></label>
@@ -1501,20 +1503,20 @@ function tfBanner(){
 }
 function pageTempsForts(){
   return `<div class="wrap">
-    <div class="pagehead"><h1>Temps forts à Mayotte</h1><p class="muted">Les grandes périodes de l’année et leurs bons plans.</p></div>
+    ${backBtn('#/')}<div class="pagehead"><h1>Temps forts à Mayotte</h1><p class="muted">Les grandes périodes de l’année et leurs bons plans.</p></div>
     <div class="tfgrid u13">${TEMPS.map(t=>`<a class="tfcard" href="#/temps-forts/${t.slug}"><span class="tfemo">${esc(t.emoji)}</span><strong>${esc(t.title)}</strong><small>${esc(t.desc)}</small>${tfStatus(t)}</a>`).join('')||empty('Aucun temps fort pour l’instant','','')}</div>
     <div class="u8"></div>
   </div>`;
 }
 function pageTempsFort(slug){
   const t=tfBy(slug);
-  if(!t) return `<div class="u20 wrap">${empty('Cette page n’existe pas','','<a class="btn btn-primary" href="#/temps-forts">Voir les temps forts</a>')}</div>`;
+  if(!t) return notFound('Cette page n’existe pas','Ce temps fort n’existe pas ou plus.','<a class="btn btn-primary" href="#/temps-forts">Voir les temps forts</a>','#/temps-forts');
   const act=activeCodes();
   const tagged=act.filter(c=>c.tf.includes(slug)).sort((a,z)=>hotScore(z)-hotScore(a));
   const useful=act.filter(c=>!c.tf.includes(slug)&&t.cats.includes(bizBy(c.biz).cat)).sort((a,z)=>hotScore(z)-hotScore(a)).slice(0,12);
   const evs=t.start&&t.end?upcomingEvents().filter(e=>e.date<=t.end&&(e.end||e.date)>=t.start):[];
   return `<div class="wrap">
-    <a class="back" href="#/temps-forts">${ic('left')}Tous les temps forts</a>
+    ${backBtn('#/temps-forts')}
     <div class="tfhero"><span class="tfemo big">${esc(t.emoji)}</span><div><h1>${esc(t.title)}</h1><p>${esc(t.desc)}</p>${tfStatus(t)}</div></div>
     <div class="head u13"><div><h2>Offres spéciales ${esc(t.title)}</h2><p class="muted">Les bons plans publiés pour cette période.</p></div></div>
     ${tagged.length?`<div class="coupons">${tagged.map(c=>coupon(c)).join('')}</div>`:empty('Pas encore d’offre spéciale','Vous connaissez une promo pour cette période ? Partagez-la.',`<button class="btn btn-sun" data-propose="" data-tf="${t.slug}">${ic('plus')}Proposer une offre ${esc(t.title)}</button>`)}
@@ -1550,10 +1552,10 @@ async function toggleFollow(type,valeur,label){
   MINE.alerts.push({id:r.dataItem&&r.dataItem.id,type,valeur,label,at:new Date()}); return true;
 }
 function pageAlertes(){
-  if(!me()) return `<div class="u16 wrap"><div class="pagehead"><h1>🔔 Mes alertes</h1><p class="muted">Connectez-vous pour être prévenu dès qu’un bon plan correspond à ce que vous cherchez.</p></div>${authBox()}<div class="u8"></div></div>`;
+  if(!me()) return `<div class="u16 wrap">${backBtn('#/profil')}<div class="pagehead"><h1>🔔 Mes alertes</h1><p class="muted">Connectez-vous pour être prévenu dès qu’un bon plan correspond à ce que vous cherchez.</p></div>${authBox()}<div class="u8"></div></div>`;
   const seen=alertSeen(), deals=alertDeals(false);
   const html=`<div class="wrap">
-    <div class="pagehead"><h1>🔔 Mes alertes</h1><p class="muted">Suivez un mot-clé, une entreprise ou une catégorie : les nouveaux bons plans qui correspondent apparaissent ici, et une pastille 🔔 vous prévient à votre prochaine visite.</p></div>
+    ${backBtn('#/profil')}<div class="pagehead"><h1>🔔 Mes alertes</h1><p class="muted">Suivez un mot-clé, une entreprise ou une catégorie : les nouveaux bons plans qui correspondent apparaissent ici, et une pastille 🔔 vous prévient à votre prochaine visite.</p></div>
     <form class="form card" id="alertForm">
       <div class="two"><label>Je veux suivre<select name="type">${Object.entries(ALERT_TYPES).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select></label>
       <label class="af af-mot">Mot-clé<input name="mot" maxlength="40" placeholder="Ex. canapé, livraison, iPhone…"></label>
@@ -1585,24 +1587,25 @@ function pageDemandes(params){
   dmFilter=params.get('f')==='toutes'?'toutes':'ouvertes';
   const list=DEMANDES.filter(d=>dmFilter==='toutes'||d.status!=='resolue');
   return `<div class="wrap">
-    <div class="pagehead"><h1>🙋 Demandes</h1><p class="muted">Vous cherchez un code ou un bon plan ? Demandez à la communauté, et aidez les autres en répondant.</p></div>
+    ${backBtn('#/')}<div class="pagehead"><h1>🙋 Demandes</h1><p class="muted">Vous cherchez un code ou un bon plan ? Demandez à la communauté, et aidez les autres en répondant.</p></div>
     ${me()?`<form class="form card" id="demandeForm">
       <label>Votre demande<textarea name="texte" required maxlength="300" rows="3" placeholder="Ex. Quelqu’un a un code pour une livraison gratuite chez… ?"></textarea></label>
       <div class="two"><label>Entreprise <span class="opt">(facultatif)</span><select name="entreprise"><option value="">Aucune en particulier</option>${[...B].sort((a,z)=>a.name.localeCompare(z.name,'fr')).map(b=>`<option value="${b.slug}">${esc(b.name)}</option>`).join('')}</select></label>
       <label>Catégorie <span class="opt">(facultatif)</span><select name="categorie"><option value="">Toutes</option>${CATS.map(c=>`<option value="${c.slug}">${c.name}</option>`).join('')}</select></label></div>
       <button class="btn btn-primary" type="submit">Publier ma demande</button>
     </form>`:`<div class="card"><p class="muted">Connectez-vous pour publier une demande ou y répondre.</p><button class="btn btn-primary btn-sm" data-needlogin="demande">Se connecter</button></div>`}
-    <div class="toolbar u13"><div class="seg" role="group" aria-label="Filtrer les demandes"><a href="#/demandes" aria-pressed="${dmFilter==='ouvertes'}">Ouvertes</a><a href="#/demandes?f=toutes" aria-pressed="${dmFilter==='toutes'}">Toutes</a></div></div>
+    <div class="toolbar u13"><div class="seg full" role="group" aria-label="Filtrer les demandes"><a href="#/demandes" aria-pressed="${dmFilter==='ouvertes'}">Ouvertes</a><a href="#/demandes?f=toutes" aria-pressed="${dmFilter==='toutes'}">Toutes</a></div></div>
     <div class="dmlist">${list.length?list.map(d=>dmCard(d)).join(''):empty('Aucune demande pour l’instant','Soyez le premier à demander un bon plan !','')}</div>
     <div class="u8"></div>
   </div>`;
 }
 function pageDemande(id){
   const d=DEMANDES.find(x=>x.id===id);
-  if(!d) return `<div class="u20 wrap">${empty('Cette demande n’existe plus','','<a class="btn btn-primary" href="#/demandes">Voir les demandes</a>')}</div>`;
+  if(!d) return notFound('Cette demande n’existe plus','Elle a peut-être été supprimée par son auteur.','<a class="btn btn-primary" href="#/demandes">Voir les demandes</a>','#/demandes');
   const mine=me()&&d.owner===me().id;
   return `<div class="wrap">
-    <a class="back" href="#/demandes">${ic('left')}Toutes les demandes</a>
+    ${backBtn('#/demandes')}
+    <h1 class="pagetitle">Demande de ${esc(d.name)}</h1>
     <div class="dealpage"><div class="stack">
       ${dmCard(d,false)}
       <div class="bandbtns">${mine?`${d.status!=='resolue'?`<button class="btn btn-primary btn-sm" data-dmresolve="${esc(d.id)}">${ic('check')}Marquer comme résolue</button>`:''}<button class="btn btn-ghost btn-sm" data-dmdel="${esc(d.id)}">Supprimer</button>`:`<button class="btn btn-sun btn-sm" data-propose="${d.biz||''}">${ic('plus')}J’ai un code : le partager</button>`}
@@ -1675,7 +1678,7 @@ function pageRecompenses(){
   const board=monthBoard().slice(0,10), mine=me()&&monthBoard().findIndex(x=>x.id===me().id);
   const end=new Date(TODAY.getFullYear(),TODAY.getMonth()+1,0);
   return `<div class="wrap">
-    <div class="pagehead"><h1>🎁 Récompenses du mois</h1><p class="muted">Chaque mois, les 3 membres qui gagnent le plus de points remportent des lots offerts par les entreprises partenaires. Classement de ${monthName(k)}, clôture le ${dayMonth(end)} à minuit.</p></div>
+    ${backBtn('#/profil')}<div class="pagehead"><h1>🎁 Récompenses du mois</h1><p class="muted">Chaque mois, les 3 membres qui gagnent le plus de points remportent des lots offerts par les entreprises partenaires. Classement de ${monthName(k)}, clôture le ${dayMonth(end)} à minuit.</p></div>
     <div class="head"><h2>Les lots de ${monthName(k)}</h2></div>
     ${lots.length?`<div class="lots">${lots.map(r=>{ const b=r.biz&&bizBy(r.biz); return `<div class="lot card">${r.img?`<img src="${esc(r.img)}" alt="" loading="lazy">`:''}<span class="lotrank">${MEDALS[(r.rang||1)-1]||'🎁'} ${r.rang?r.rang+(r.rang===1?'re':'e')+' place':'Lot'}</span><strong>${esc(r.titre)}</strong>${r.desc?`<small>${esc(r.desc)}</small>`:''}${b?`<a class="bizline" href="#/entreprises/${b.slug}">${logo(b)}<span>Offert par ${esc(b.name)}</span></a>`:''}</div>`; }).join('')}</div>`:
       `<div class="card"><p>Les lots de ce mois arrivent bientôt.</p><p class="muted">Vous êtes une entreprise ? Offrez un lot et gagnez en visibilité auprès de la communauté. <a class="link" href="#/contact">Contactez-nous</a>.</p></div>`}
@@ -1693,6 +1696,15 @@ function pageRecompenses(){
   </div>`;
 }
 
+/* ---------- Navigation : bouton retour, page introuvable, position de défilement ---------- */
+const navStack=[]; let navBack=false; const scrollMemo={};
+function trackNav(h){
+  navBack=navStack.length>1&&navStack[navStack.length-2]===h;
+  if(navBack) navStack.pop(); else if(navStack[navStack.length-1]!==h) navStack.push(h);
+}
+const backBtn=(fallback,label='Retour')=>`<a class="back" href="${fallback}" data-back>${ic('left')}${label}</a>`;
+const notFound=(t,txt,cta,fallback)=>`<div class="wrap">${backBtn(fallback)}<h1 class="sr">${t}</h1><div class="u20">${empty(t,txt,cta)}</div><div class="u8"></div></div>`;
+
 /* ---------- Routeur ---------- */
 const app=document.getElementById('app');
 let lastDeal='';
@@ -1704,7 +1716,7 @@ function route(){
   const p=parts[0]||'home';
   let html='', nav=p, title='Bonszahé — Acheter malin à Mayotte';
   if(p==='home') html=pageHome();
-  else if(p==='entreprises' && parts[1]){ html=pageBusiness(parts[1]); nav='entreprises'; const b=bizBy(parts[1]); if(b) title=`${b.name} : codes promo et bons plans | Bonszahé`; track('vue',parts[1]); }
+  else if(p==='entreprises' && parts[1]){ html=pageBusiness(parts[1]); nav='entreprises'; const b=B.find(x=>x.slug===parts[1]); if(b){ title=`${b.name} : codes promo et bons plans | Bonszahé`; track('vue',parts[1]); } }
   else if(p==='bon-plan'&&parts[1]){ const id=decodeURIComponent(parts[1]); if(id!==lastDeal){ lastDeal=id; replyTo=''; } html=pageDeal(id); nav='tendances'; const c=baseCodes.find(x=>x.id===id); if(c) title=`${c.deal} chez ${bizBy(c.biz).name} | Bonszahé`; }
   else if(p==='alertes'){ html=pageAlertes(); nav='profil'; title='Mes alertes | Bonszahé'; }
   else if(p==='demandes'&&parts[1]){ const id=decodeURIComponent(parts[1]); if(id!==lastDeal){ lastDeal=id; replyTo=''; } html=pageDemande(id); nav='demandes'; title='Demande de bon plan | Bonszahé'; }
@@ -1727,7 +1739,8 @@ function route(){
   else if(p==='recherche') html=pageSearch(params);
   else if(p==='favoris') html=pageFavs();
   else if(p==='profil') html=pageProfile();
-  else { html=pageHome(); nav='home'; }
+  else if(p==='home') { html=pageHome(); nav='home'; }
+  else { html=notFound('Cette page n’existe pas','Le lien est peut-être incomplet ou ancien.','<a class="btn btn-primary" href="#/">Retour à l’accueil</a>','#/'); nav=''; title='Page introuvable | Bonszahé'; }
   storeMap=dropMap(storeMap); meMarker=null;
   app.innerHTML=html;
   document.title=title;
@@ -1741,11 +1754,12 @@ function route(){
   if(p==='carte') drawMap();
   if(!quietRender){ pageIn(); reveal(app); }
   checkRewards();
-  window.scrollTo(0,0);
+  window.scrollTo(0,!quietRender&&navBack&&scrollMemo[location.hash]||0);
   if(p==='recherche'&&!params.get('q')) document.getElementById('sq')?.focus();
 }
 function refresh(){ const y=window.scrollY; quietRender=true; try{ route(); }finally{ quietRender=false; } window.scrollTo(0,y); }
-window.addEventListener('hashchange',route);
+window.addEventListener('hashchange',()=>{ trackNav(location.hash||'#/'); if(dlg.open){ dlgByNav=true; dlg.close(); } route(); });
+let scrollT; window.addEventListener('scroll',()=>{ clearTimeout(scrollT); scrollT=setTimeout(()=>{ scrollMemo[location.hash||'#/']=window.scrollY; },120); },{passive:true});
 
 /* ---------- Animations (légères, coupées si « réduire les animations ») ---------- */
 const CALM=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1811,7 +1825,9 @@ async function copy(text){
 }
 
 const dlg=document.getElementById('dlg'), dlgBody=document.getElementById('dlgBody');
-function openDialog(html){ dlgBody.innerHTML=html; dlg.showModal(); dlgBody.querySelector('input,select,textarea')?.focus(); }
+let dlgByNav=false;
+function openDialog(html){ dlgBody.innerHTML=html; if(!dlg.open){ dlg.showModal(); try{ history.pushState({bzDlg:1},''); }catch(e){} } dlgBody.querySelector('input,select,textarea')?.focus(); }
+window.addEventListener('popstate',()=>{ if(dlg.open&&!(history.state&&history.state.bzDlg)){ dlgByNav=true; dlg.close(); } });
 
 let proposeTF='';
 function proposeDialog(slug){
@@ -1907,6 +1923,7 @@ async function reloadAll(){ try{ await loadData(); await loadMine(); }catch(e){ 
 
 document.addEventListener('click',async e=>{
   const t=e.target.closest('button,a'); if(!t) return;
+  if(t.hasAttribute('data-back')&&navStack.length>1){ e.preventDefault(); history.back(); return; }
   if(t.dataset.track){ track(t.dataset.track,t.dataset.trackbiz); return; }
   if(t.dataset.caisse){ caisseDialog(t.dataset.caisse); track('caisse',t.dataset.copybiz,t.dataset.caisse); return; }
   if(t.dataset.copy!==undefined){
@@ -2008,7 +2025,7 @@ document.addEventListener('click',async e=>{
   else if(t.id==='logout'){ logout(); route(); toast('Vous êtes déconnecté'); }
 });
 dlg.addEventListener('click',e=>{ if(e.target===dlg) dlg.close(); });
-dlg.addEventListener('close',()=>{ posMap=dropMap(posMap); });
+dlg.addEventListener('close',()=>{ posMap=dropMap(posMap); if(!dlgByNav&&history.state&&history.state.bzDlg) history.back(); dlgByNav=false; });
 
 document.addEventListener('change',e=>{
   if(e.target.name==='type'&&e.target.closest('#proposeForm')){ const cf=document.querySelector('#proposeForm .codefield'); const st=e.target.value==='magasin'; cf.hidden=st; cf.querySelector('input').required=!st; }
@@ -2168,4 +2185,4 @@ document.addEventListener('submit',async e=>{
 });
 
 app.innerHTML=`<div class="wrap skel" aria-busy="true"><p class="sr">Chargement des bons plans…</p><div class="sk sk-title"></div><div class="sk sk-line"></div><div class="sk sk-search"></div><div class="skgrid">${'<div class="sk sk-card"></div>'.repeat(3)}</div></div>`;
-loadData().then(resumeRedirectLogin).then(loadMine).catch(err=>{ console.warn('CMS Wix indisponible, affichage de la copie locale',err); B.forEach(b=>{ bizId[b.slug]=b.slug; b.owners=b.owners||[]; }); }).finally(route);
+loadData().then(resumeRedirectLogin).then(loadMine).catch(err=>{ console.warn('CMS Wix indisponible, affichage de la copie locale',err); B.forEach(b=>{ bizId[b.slug]=b.slug; b.owners=b.owners||[]; }); }).finally(()=>{ trackNav(location.hash||'#/'); route(); });

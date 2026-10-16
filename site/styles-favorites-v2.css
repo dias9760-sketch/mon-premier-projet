@@ -718,3 +718,17 @@ dialog[open]::backdrop{animation:fadeIn .25s ease}
 .lot img{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:14px}
 .lotrank{font-weight:800;font-family:var(--display);color:var(--corail)}
 .lot small{color:var(--muted)}
+
+/* ---------- v20 : ergonomie de navigation ---------- */
+.back{min-height:44px;margin:10px 0 6px;padding-right:12px}
+.pagetitle{font-size:1.25rem;line-height:1.3;margin:0 0 14px}
+.head .link{display:inline-flex;align-items:center;min-height:40px}
+.contact a{min-height:40px;align-items:center}
+.seg.full{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;width:100%}
+.seg.full>*{text-align:center;padding-left:6px;padding-right:6px}
+@media (min-width:700px){.seg.full{width:auto;display:inline-grid}}
+.biz h3 a::after{content:"";position:absolute;inset:0;z-index:1}
+.biz .fav{position:relative;z-index:2}
+body:has(.fab) #app{padding-bottom:72px}
+@media (min-width:1200px){body:has(.fab) #app{padding-bottom:0}}
+@media (max-width:699px){.seg.full>*{font-size:.86rem;padding:8px 4px}}
