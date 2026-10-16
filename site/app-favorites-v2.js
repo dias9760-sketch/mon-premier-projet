@@ -1496,11 +1496,67 @@ function route(){
   document.getElementById('loginBtn').textContent=me()?me().name:'Connexion';
   if(p==='profil') drawPro();
   if(p==='carte') drawMap();
+  if(!quietRender){ pageIn(); reveal(app); }
+  checkRewards();
   window.scrollTo(0,0);
   if(p==='recherche'&&!params.get('q')) document.getElementById('sq')?.focus();
 }
-function refresh(){ const y=window.scrollY; route(); window.scrollTo(0,y); }
+function refresh(){ const y=window.scrollY; quietRender=true; try{ route(); }finally{ quietRender=false; } window.scrollTo(0,y); }
 window.addEventListener('hashchange',route);
+
+/* ---------- Animations (légères, coupées si « réduire les animations ») ---------- */
+const CALM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let quietRender=false; // vrai pendant refresh() : pas d'animation d'entrée quand on reste sur la même page
+// Apparition douce des cartes au défilement
+const revealObs='IntersectionObserver' in window?new IntersectionObserver(es=>es.forEach(en=>{ if(!en.isIntersecting) return;
+  const el=en.target; revealObs.unobserve(el); el.classList.add('in'); setTimeout(()=>el.classList.remove('rv','in'),700); }),{rootMargin:'0px 0px -6% 0px'}):null;
+function reveal(root){
+  if(CALM||!revealObs) return;
+  let k=0;
+  root.querySelectorAll('.coupon,.biz,.event,.cat,.prow,.ranking li,.bdg').forEach(el=>{
+    if(el.closest('dialog')) return;
+    el.classList.add('rv'); el.style.setProperty('--d',Math.min(k++,5)*60+'ms'); revealObs.observe(el);
+  });
+}
+// Fondu court au changement de page
+function pageIn(){ if(CALM) return; app.classList.remove('pagein'); void app.offsetWidth; app.classList.add('pagein'); }
+// Moro / Maji : la flamme grossit et des 🔥 s'envolent, ou une goutte tombe
+function heatFx(id,dir){
+  if(CALM) return;
+  document.querySelectorAll(`.hb[data-moro="${CSS.escape(id)}"][data-dir="${dir}"]`).forEach(b=>{
+    const box=b.closest('.heat'); if(!box) return;
+    b.classList.add('pop'); box.querySelector('.hv b')?.classList.add('bump');
+    const x=b.offsetLeft+b.offsetWidth/2, n=dir==='moro'?6:1;
+    for(let i=0;i<n;i++){
+      const p=document.createElement('span'); p.className='fx fx-'+dir; p.textContent=dir==='moro'?'🔥':'💧'; p.setAttribute('aria-hidden','true');
+      p.style.left=x+'px'; p.style.setProperty('--x',(dir==='moro'?Math.round(Math.random()*56-28):0)+'px'); p.style.animationDelay=i*45+'ms';
+      box.appendChild(p); setTimeout(()=>p.remove(),1100);
+    }
+  });
+}
+// Confettis quand on gagne un badge ou un niveau
+function confetti(){
+  if(CALM) return;
+  const wrap=document.createElement('div'); wrap.className='confetti'; wrap.setAttribute('aria-hidden','true');
+  const colors=['#E4502F','#FFB23F','#1FB5C9','#3B8F2C','#D9365E'];
+  for(let i=0;i<36;i++){ const c=document.createElement('i');
+    c.style.left=Math.random()*100+'%'; c.style.background=colors[i%colors.length];
+    c.style.animationDuration=(1.4+Math.random()*1.1)+'s'; c.style.animationDelay=Math.random()*.25+'s'; c.style.setProperty('--r',Math.round(Math.random()*720-360)+'deg');
+    wrap.appendChild(c); }
+  document.body.appendChild(wrap); setTimeout(()=>wrap.remove(),2800);
+}
+function checkRewards(){
+  const u=me(); if(!u||dataSource!=='wix') return;
+  const s=statsFor(u.id), lv=levelOf(s.points).name;
+  const got=BADGES.filter(bd=>{ const [v,g]=bd.val(s); return v>=g; }).map(bd=>bd.name);
+  const k='bonszahe:rw:'+u.id; let prev=null;
+  try{ prev=JSON.parse(localStorage.getItem(k)||'null'); }catch(e){}
+  try{ localStorage.setItem(k,JSON.stringify({lv,b:got})); }catch(e){}
+  if(!prev) return;
+  const nb=got.filter(x=>!prev.b.includes(x));
+  if(nb.length){ confetti(); toast('🎉 Nouveau badge : '+nb[0]); }
+  else if(prev.lv!==lv&&LEVELS.findIndex(l=>l[1]===lv)>LEVELS.findIndex(l=>l[1]===prev.lv)){ confetti(); toast('🎉 Nouveau niveau : '+lv); }
+}
 
 /* ---------- Interactions ---------- */
 const toastEl=document.getElementById('toast'); let tt;
@@ -1610,7 +1666,8 @@ document.addEventListener('click',async e=>{
   if(t.dataset.caisse){ caisseDialog(t.dataset.caisse); track('caisse',t.dataset.copybiz,t.dataset.caisse); return; }
   if(t.dataset.copy!==undefined){
     const ok=await copy(t.dataset.copy);
-    const old=t.innerHTML; t.innerHTML=ic('check')+'Copié'; setTimeout(()=>t.innerHTML=old,1800);
+    if(!t.classList.contains('copied')){ const old=t.innerHTML; t.innerHTML=ic('check')+'Copié !'; t.classList.add('copied'); setTimeout(()=>{ t.innerHTML=old; t.classList.remove('copied'); },1800); }
+    if(ok&&!CALM&&navigator.vibrate) try{ navigator.vibrate(25); }catch(_){}
     toast(ok?`Code ${t.dataset.copy} copié`:`Copiez le code : ${t.dataset.copy}`);
     if(t.dataset.copybiz) track('copie',t.dataset.copybiz,t.dataset.copyid);
   }
@@ -1628,7 +1685,7 @@ document.addEventListener('click',async e=>{
     if(!requireLogin('Connectez-vous pour donner du Moro 🔥 ou du Maji 💧 aux bons plans.',()=>refresh())) return;
     t.disabled=true;
     try{
-      const res=await moroVote(id,dir); refresh();
+      const res=await moroVote(id,dir); refresh(); if(res==='moro'||res==='maji') heatFx(id,res);
       toast(res==='moro'?'🔥 Moro ! Le bon plan chauffe.':res==='maji'?'💧 Maji, le bon plan refroidit.':'Avis retiré');
     }catch(err){ console.warn(err); t.disabled=false; toast('Avis non enregistré. Réessayez dans un instant.'); }
   }
@@ -1824,5 +1881,5 @@ document.addEventListener('submit',async e=>{
   }
 });
 
-app.innerHTML='<div class="wrap"><div class="pagehead"><p class="muted">Chargement des bons plans…</p></div></div>';
+app.innerHTML=`<div class="wrap skel" aria-busy="true"><p class="sr">Chargement des bons plans…</p><div class="sk sk-title"></div><div class="sk sk-line"></div><div class="sk sk-search"></div><div class="skgrid">${'<div class="sk sk-card"></div>'.repeat(3)}</div></div>`;
 loadData().then(resumeRedirectLogin).then(loadMine).catch(err=>{ console.warn('CMS Wix indisponible, affichage de la copie locale',err); B.forEach(b=>{ bizId[b.slug]=b.slug; b.owners=b.owners||[]; }); }).finally(route);

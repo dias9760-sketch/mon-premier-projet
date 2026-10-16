@@ -606,3 +606,61 @@ a.li{text-decoration:none;color:inherit}
 @media (max-width:359px){.prow .logo{display:none}}
 @media (max-width:759px){.hotbig.desk-only{display:none}}
 @media (min-width:760px){.prow.mob-only{display:none}}
+
+/* ---------- v18 : animations ---------- */
+/* 1. Moro / Maji */
+.heat{position:relative;overflow:visible}
+.hb.pop{animation:hbPop .45s cubic-bezier(.3,1.7,.5,1)}
+.hv b.bump{animation:bump .5s cubic-bezier(.3,1.7,.5,1)}
+.fx{position:absolute;top:2px;left:0;margin-left:-.5em;font-size:1.1rem;pointer-events:none;z-index:3}
+.fx-moro{animation:fxUp .9s ease-out forwards}
+.fx-maji{animation:fxDrop .8s ease-in forwards}
+@keyframes hbPop{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}
+@keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.4)}100%{transform:scale(1)}}
+@keyframes fxUp{0%{transform:translate(0,0) scale(.6);opacity:1}100%{transform:translate(var(--x),-64px) scale(1.25);opacity:0}}
+@keyframes fxDrop{0%{transform:translateY(-34px);opacity:0}35%{opacity:1}100%{transform:translateY(14px) scale(.8);opacity:0}}
+/* 2. Copier le code */
+.btn.copied{background:var(--vert)!important;border-color:var(--vert)!important;color:#fff!important}
+.btn.copied svg path,.btn.copied svg polyline{stroke-dasharray:30;stroke-dashoffset:30;animation:draw .35s .05s ease-out forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+/* 3. Apparition au défilement */
+.rv{opacity:0;transform:translateY(16px);transition:opacity .45s ease,transform .45s ease;transition-delay:var(--d,0ms)}
+.rv.in{opacity:1;transform:none}
+/* 4. Chargement « squelette » */
+.skel{padding-top:28px;padding-bottom:40px;display:grid;gap:14px}
+.sk{border-radius:14px;background:linear-gradient(90deg,var(--soft) 25%,var(--line) 50%,var(--soft) 75%);background-size:300% 100%;animation:shimmer 1.3s linear infinite}
+.sk-title{height:38px;width:78%}
+.sk-line{height:16px;width:55%}
+.sk-search{height:52px;width:100%;border-radius:16px;margin:10px 0 8px}
+.skgrid{display:grid;gap:16px}
+@media (min-width:760px){.skgrid{grid-template-columns:repeat(3,1fr)}}
+.sk-card{height:230px;border-radius:20px}
+@keyframes shimmer{from{background-position:100% 0}to{background-position:-200% 0}}
+/* 5. Fenêtres : feuille qui monte du bas sur mobile */
+dialog[open]::backdrop{animation:fadeIn .25s ease}
+@media (max-width:640px){
+  dialog{width:100%;max-width:100%;margin:auto 0 0;border-radius:24px 24px 0 0;max-height:92dvh;padding-bottom:env(safe-area-inset-bottom,0px)}
+  dialog[open]{animation:sheetUp .32s cubic-bezier(.2,.85,.25,1)}
+  .dlg::before{content:"";display:block;width:44px;height:5px;border-radius:3px;background:var(--line);margin:-10px auto 14px}
+}
+@media (min-width:641px){dialog[open]{animation:dlgIn .22s ease-out}}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:none}}
+@keyframes dlgIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+/* 6. Barre du bas : l'onglet choisi rebondit */
+.bottomnav a[aria-current="page"] svg{animation:navPop .45s cubic-bezier(.3,1.7,.5,1)}
+@keyframes navPop{0%{transform:scale(.8) translateY(2px)}60%{transform:scale(1.18) translateY(-2px)}100%{transform:none}}
+/* 7. Récompenses : confettis et lueur Volcan */
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:150;overflow:hidden}
+.confetti i{position:absolute;top:-12px;width:8px;height:12px;border-radius:2px;animation:fall 2s ease-in forwards}
+@keyframes fall{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(105vh) rotate(var(--r));opacity:.9}}
+.heat.heat-volcan{animation:volcanGlow 2.6s ease-in-out infinite}
+@keyframes volcanGlow{0%,100%{box-shadow:0 0 0 0 rgba(228,80,47,0)}50%{box-shadow:0 0 16px 3px rgba(228,80,47,.38)}}
+/* 8. Changement de page : fondu court (opacité seule, pour ne pas gêner les éléments fixes) */
+#app.pagein{animation:fadeIn .22s ease-out}
+/* Respect du réglage « réduire les animations » */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  .rv{opacity:1!important;transform:none!important}
+}
+.toast{pointer-events:none}
