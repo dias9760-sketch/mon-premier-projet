@@ -787,3 +787,20 @@ body:has(.fab) #app{padding-bottom:72px}
 .stats.pro5 .stat:first-child{grid-column:1 / -1}
 @media (min-width:700px){.stats.pro5 .stat:first-child{grid-column:auto}}
 .pbars .pnote{flex-basis:100%}
+
+/* ---------- v26 : boîte à idées ---------- */
+.ideacard{display:grid;gap:12px;background:linear-gradient(135deg,var(--soft),var(--surface));border:1.5px dashed var(--soleil,#FFC53D)}
+.ideahead{display:flex;gap:12px;align-items:flex-start}
+.ideahead h3{margin:0 0 4px}
+.ideahead p{margin:0;font-size:.92rem;line-height:1.45}
+.ideaicon{font-size:1.7rem;line-height:1}
+.ideacard>.btn{justify-self:start}
+.ideas summary{cursor:pointer;font-weight:600;padding:4px 0}
+.ideas .li .grow{display:grid;gap:2px}
+.ideareply{color:var(--vert,#2E8B57);font-weight:600}
+.ideapicks{border:0;padding:0;margin:0;display:grid;gap:6px}
+.ideapicks legend{font-weight:600;margin-bottom:6px;padding:0}
+.ideapicks .check{font-weight:500}
+.foot-idea{background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer;text-align:left}
+.form label.check{display:flex;flex-direction:row;align-items:center;gap:10px;font-weight:500;line-height:1.35}
+.form label.check input{margin:0;width:20px;height:20px}

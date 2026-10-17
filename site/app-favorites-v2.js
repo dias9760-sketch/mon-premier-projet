@@ -238,7 +238,7 @@ async function handleAuthState(res){
   return 'error';
 }
 let pendingState=null;
-function logout(){ AUTH=null; saveAuth(); MINE={proposals:[],claims:[],edits:[],events:[],alerts:[]}; }
+function logout(){ AUTH=null; saveAuth(); MINE={proposals:[],claims:[],edits:[],events:[],alerts:[],ideas:[]}; }
 
 // reCAPTCHA exigé par Wix pour l'inscription et la connexion (clés Wix, script « enterprise »).
 const RC_INVISIBLE='6LdoPaUfAAAAAJphvHoUoOob7mx0KDlXyXlgrx5v', RC_VISIBLE='6Ld0J8IcAAAAANyrnxzrRlX1xrrdXsOmsepUYosy';
@@ -365,9 +365,9 @@ async function sendToWix(collection,data){
 }
 
 /* ---------- Données du membre connecté ---------- */
-let MINE={proposals:[],claims:[],edits:[],events:[],alerts:[]};
+let MINE={proposals:[],claims:[],edits:[],events:[],alerts:[],ideas:[]};
 async function loadMine(){
-  if(!me()){ MINE={proposals:[],claims:[],edits:[],events:[],alerts:[]}; return; }
+  if(!me()){ MINE={proposals:[],claims:[],edits:[],events:[],alerts:[],ideas:[]}; return; }
   try{
     const items=await queryAll('PropositionsCodes');
     MINE.proposals=items.map(p=>({id:p._id,biz:B.find(b=>b.id===refId(p.entreprise))?.slug||'',code:p.code,deal:p.avantage||'',exp:p.dateExpiration||'',status:statutFrom(p.statut==='Traité'?'valide':p.statut),created:dateFrom(p._createdDate)||TODAY})).sort((a,b)=>b.created-a.created);
@@ -376,7 +376,8 @@ async function loadMine(){
     const cl=await queryAll('DemandesEntreprises');
     MINE.claims=cl.map(c=>({id:c._id,name:c.nomEntreprise||'',entreprise:refId(c.entreprise)||'',status:c.statut||'Nouvelle',at:stamp(c._createdDate)})).sort((a,b)=>b.at-a.at);
   }catch(e){ console.warn('Demandes indisponibles',e); }
-  const [edits,evs,alerts]=await Promise.all([queryAll('ModificationsFiches').catch(()=>[]),queryAll('EvenementsProposes').catch(()=>[]),queryAll('Alertes').catch(()=>[])]);
+  const [edits,evs,alerts,ideas]=await Promise.all([queryAll('ModificationsFiches').catch(()=>[]),queryAll('EvenementsProposes').catch(()=>[]),queryAll('Alertes').catch(()=>[]),queryAll('Suggestions').catch(()=>[])]);
+  MINE.ideas=ideas.map(x=>({id:x._id,type:x.type||'',text:x.message||'',picks:x.idees||'',status:x.statut||'Nouvelle',reply:x.reponse||'',at:stamp(x._createdDate)})).sort((a,b)=>b.at-a.at);
   MINE.alerts=alerts.filter(a=>ALERT_TYPES[a.type]&&a.valeur).map(a=>({id:a._id,type:a.type,valeur:a.valeur,label:a.libelle||'',at:stamp(a._createdDate)}));
   MINE.edits=edits.map(x=>({id:x._id,entreprise:refId(x.entreprise)||'',status:x.statut||'En attente',at:stamp(x._createdDate)})).sort((a,b)=>b.at-a.at);
   MINE.events=evs.map(x=>({id:x._id,entreprise:refId(x.entreprise)||'',title:x.titre||'',date:dateFrom(x.date),at:stamp(x._createdDate)})).sort((a,b)=>b.at-a.at);
@@ -1153,13 +1154,14 @@ function pageProfile(){
         ${MINE.proposals.length?`<div class="list">${MINE.proposals.map(p=>{const b=bizBy(p.biz);const c=baseCodes.find(x=>x.by===u.id&&x.code===p.code&&x.biz===p.biz);const st=status[p.status]||status.attente;return `<div class="li">${logo(b)}<div class="grow"><strong>${esc(p.code)}</strong> ${esc(p.deal)}<small>${esc(b.name)}${p.exp?', expire le '+fmt(dateFrom(p.exp)):''}${c?` · ${allCodes().find(x=>x.id===c.id).up} « fonctionne »`:''}</small></div><span class="pill ${st[0]}">${st[1]}</span></div>`}).join('')}</div>`:
           empty('Vous n’avez encore partagé aucun code','Un code partagé aide toute la communauté et vous rapporte 10 points.','')}
       </div>
-      ${owned.length?`<div><div class="head"><h2>Espace pro</h2></div><div id="proDash" class="stack"><p class="muted">Chargement de vos statistiques…</p></div></div>`:
+      ${owned.length?`<div><div class="head"><h2>Espace pro</h2></div>${ideaBanner('pro')}<div id="proDash" class="stack"><p class="muted">Chargement de vos statistiques…</p></div></div>`:
       `<div class="card">
         <h3>Espace professionnel</h3>
         <p class="muted">Vous gérez une entreprise ? Revendiquez sa fiche pour publier vos offres officielles et voir vos statistiques : vues de la page, codes copiés, clics vers votre site et appels.</p>
         ${MINE.claims.length?`<div class="list">${MINE.claims.map(c=>`<div class="li"><div class="grow"><strong>${esc(c.name)}</strong><small>Demande du ${fmt(c.at)}</small></div><span class="pill ${c.status==='Validée'?'ok':c.status==='Refusée'||c.status==='Retirée'?'no':'wait'}">${c.status==='Nouvelle'?'En cours de vérification':esc(c.status)}</span></div>`).join('')}</div>`:''}
         <button class="u10 btn btn-ghost" data-claim="">Revendiquer mon entreprise</button>
       </div>`}
+      ${owned.length?'':ideaBanner('membre')}
       <button class="u9 btn btn-ghost" id="logout">Se déconnecter</button>
     </div>
     <div class="u8"></div>
@@ -1769,6 +1771,47 @@ async function retireCode(f){
   }catch(err){ console.warn(err); btn.disabled=false; btn.textContent='Retirer le code'; toast(err.status===401||err.status===403?'Session expirée : reconnectez-vous.':'Retrait impossible pour le moment. Réessayez.'); }
 }
 
+/* ---------- Boîte à idées : les entreprises et les membres proposent des fonctionnalités ---------- */
+const IDEAS={
+  pro:['Mettre mon offre en avant sur l’accueil','Être prévenu quand un client copie mon code','Statistiques par code et export','Carte ou programme de fidélité','Réservation ou commande via Bonszahé','Prévenir mes abonnés d’une nouvelle offre','Codes à usage unique ou en nombre limité','Plusieurs comptes pour mon équipe'],
+  membre:['Alertes sur mon téléphone','Application mobile','Plus d’entreprises dans ma commune','Avis et notes sur les magasins','Cashback ou carte de fidélité','Comparer les prix entre magasins']
+};
+const IDEA_STATUS={Nouvelle:['wait','Reçue'],'À l’étude':['wait','À l’étude'],Prévue:['ok','Prévue'],Réalisée:['ok','Réalisée ✅'],'Non retenue':['no','Non retenue']};
+function ideaBanner(src){
+  const pro=src==='pro', mine=MINE.ideas||[];
+  return `<div class="card ideacard">
+    <div class="ideahead"><span class="ideaicon" aria-hidden="true">💡</span><div><h3>${pro?'Quelles fonctionnalités souhaitez-vous ?':'Une idée pour améliorer Bonszahé ?'}</h3>
+    <p class="muted">${pro?'Bonszahé se construit avec les entreprises de Mayotte. Dites-nous ce qui vous aiderait à attirer plus de clients : nous lisons chaque idée.':'Une fonctionnalité qui vous manque, un souci rencontré ? Dites-le-nous, nous lisons chaque message.'}</p></div></div>
+    <button class="btn btn-sun btn-sm" data-suggest="${src}">${ic('plus')}Proposer une idée</button>
+    ${mine.length?`<details class="ideas"><summary>Vos idées (${mine.length})</summary><div class="list">${mine.slice(0,10).map(x=>{ const st=IDEA_STATUS[x.status]||IDEA_STATUS.Nouvelle; return `<div class="li"><div class="grow"><strong>${esc(x.type||'Idée')}</strong><small>${esc((x.picks?x.picks+(x.text?' · ':''):'')+x.text).slice(0,160)}</small>${x.reply?`<small class="ideareply">Bonszahé : ${esc(x.reply)}</small>`:''}<small class="muted">Envoyée le ${fmt(x.at)}</small></div><span class="pill ${st[0]}">${st[1]}</span></div>`; }).join('')}</div></details>`:''}
+  </div>`;
+}
+function suggestDialog(src){
+  if(!requireLogin('Connectez-vous pour proposer une idée.',()=>suggestDialog(src))) return;
+  const pro=src==='pro', u=me(), b=B.find(x=>x.owners.includes(u.id));
+  openDialog(`<header><div><h2 id="dlgTitle">${pro?'Quelles fonctionnalités souhaitez-vous ?':'Une idée pour Bonszahé ?'}</h2><p class="u14 note">${pro?'Cochez ce qui vous serait utile et/ou décrivez votre idée.':'Cochez une idée ou écrivez la vôtre.'}</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+  <form class="form" id="suggestForm" data-src="${pro?'pro':'membre'}">
+    <fieldset class="ideapicks"><legend>Idées qui m’intéressent</legend>${IDEAS[pro?'pro':'membre'].map(i=>`<label class="check"><input type="checkbox" name="idee" value="${esc(i)}"> ${esc(i)}</label>`).join('')}</fieldset>
+    <label>Type<select name="type"><option>Nouvelle fonctionnalité</option><option>Amélioration</option><option>Problème rencontré</option><option>Autre</option></select></label>
+    <label>Votre idée ou votre message <span class="opt">(facultatif si vous avez coché une idée)</span><textarea name="message" maxlength="1000" rows="4" placeholder="${pro?'Ex. : pouvoir publier une offre réservée aux clients fidèles…':'Ex. : être prévenu quand mon magasin préféré publie un code…'}"></textarea></label>
+    <label class="check"><input type="checkbox" name="recontact" checked> Bonszahé peut me recontacter à ${esc(u.email)}${pro&&b?` (${esc(b.name)})`:''}</label>
+    <p class="note err" id="ideaErr" role="alert"></p>
+    <button class="btn btn-primary" type="submit">Envoyer mon idée</button>
+  </form>`);
+}
+async function sendIdea(f){
+  const fd=new FormData(f), u=me(); if(!u) return;
+  const picks=fd.getAll('idee'), text=String(fd.get('message')||'').trim(), err=document.getElementById('ideaErr');
+  if(!picks.length&&!text){ err.textContent='Cochez au moins une idée ou écrivez un message.'; return; }
+  const pro=f.dataset.src==='pro', b=pro?B.find(x=>x.owners.includes(u.id)):null;
+  const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Envoi…';
+  try{
+    await sendToWix('Suggestions',Object.assign({type:fd.get('type'),idees:picks.join(' ; '),message:text,source:pro?'pro':'membre',membreId:u.id,membreNom:u.name||'',email:u.email||'',recontact:!!fd.get('recontact'),statut:'Nouvelle'},b?{entreprise:b.id,entrepriseNom:b.name}:{}));
+    dlg.close(); toast('Merci ! Votre idée a bien été envoyée à Bonszahé.');
+    loadMine().then(()=>{ if(curH().startsWith('#/profil')) refresh(); });
+  }catch(ex){ console.warn(ex); btn.disabled=false; btn.textContent='Envoyer mon idée'; err.textContent=ex.status===401||ex.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez.'; }
+}
+
 /* ---------- Navigation : bouton retour, page introuvable, position de défilement ---------- */
 const navStack=[]; let navBack=false; const scrollMemo={};
 function trackNav(h){
@@ -2039,6 +2082,7 @@ async function reloadAll(){ try{ await loadData(); await loadMine(); }catch(e){ 
 document.addEventListener('click',async e=>{
   const t=e.target.closest('button,a'); if(!t) return;
   if(t.hasAttribute('data-back')&&navStack.length>1){ e.preventDefault(); history.back(); return; }
+  if(t.dataset.suggest!==undefined){ e.preventDefault(); suggestDialog(t.dataset.suggest||(B.some(b=>me()&&b.owners.includes(me().id))?'pro':'membre')); return; }
   if(t.dataset.track){ track(t.dataset.track,t.dataset.trackbiz); return; }
   if(t.dataset.caisse){ caisseDialog(t.dataset.caisse); track('caisse',t.dataset.copybiz,t.dataset.caisse); return; }
   if(t.dataset.copy!==undefined){
@@ -2285,6 +2329,7 @@ document.addEventListener('submit',async e=>{
       .catch(ex=>{ console.warn(ex); btn.disabled=false; btn.textContent='Envoyer l’événement'; toast(ex.status===401||ex.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'); });
   }
   else if(f.id==='retireForm'){ e.preventDefault(); retireCode(f); }
+  else if(f.id==='suggestForm'){ e.preventDefault(); sendIdea(f); }
   else if(f.id==='claimForm'){
     e.preventDefault(); if(!me()) return;
     const d=Object.fromEntries(new FormData(f)); const err=document.getElementById('claimErr');
