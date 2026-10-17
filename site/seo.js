@@ -17,7 +17,7 @@ const COMMUNES=[['mtsamboro','Mtsamboro'],['acoua','Acoua'],['bandraboua','Bandr
   ['dembeni','Dembéni'],['sada','Sada'],['chirongui','Chirongui'],['bandrele','Bandrélé'],['boueni','Bouéni'],['kani-keli','Kani-Kéli']].map(([slug,name])=>({slug,name}));
 const PRIVATE=['profil','favoris','alertes','recherche','invite'];
 
-const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const key=s=>norm(s).replace(/[^a-z0-9]/g,'');
 const slugify=s=>norm(s).replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
