@@ -127,6 +127,7 @@ let DEMANDES=[], PARRAINAGES=[], RECOMPENSES=[], TEMPS=[];
 // Exclusions et validations du classement : seules les lignes créées par le propriétaire du site comptent.
 let EXCLUS={}, VALIDATIONS={};
 let CATALOGUES=[];
+let PRODUITS=[], MAGASINS_PRIX=[], RELEVES=[], CONFIRMS=[], PRICE_HIDDEN={};
 let dataSource='snapshot';
 let tokenPromise=null;
 function getVisitorToken(){
@@ -328,12 +329,13 @@ const SALES={boutique:'Boutique physique','en-ligne':'Vente en ligne / livraison
 // Date et heure complètes d'un champ système Wix ({$date:…}), pour le classement Tendance.
 const stamp=v=>{ const d=new Date(typeof v==='object'&&v?v.$date:v); return isNaN(d)?new Date(TODAY):d; };
 async function loadData(){
-  const [ents,codes,votes,events,moros,comms,likes,reports,moder,dms,parr,recs,tfs,excl,vals,catas]=await Promise.all([
+  const [ents,codes,votes,events,moros,comms,likes,reports,moder,dms,parr,recs,tfs,excl,vals,catas,prods,mags,rels,confs,hids]=await Promise.all([
     queryAll('Entreprises'),queryAll('CodesPromo'),
     queryAll('Votes').catch(()=>[]),queryAll('Evenements').catch(()=>[]),queryAll('Moro').catch(()=>[]),
     queryAll('Commentaires').catch(()=>[]),queryAll('JaimeCommentaires').catch(()=>[]),queryAll('Signalements').catch(()=>[]),queryAll('Moderation').catch(()=>[]),
     queryAll('Demandes').catch(()=>[]),queryAll('Parrainages').catch(()=>[]),queryAll('Recompenses').catch(()=>[]),queryAll('TempsForts').catch(()=>[]),
-    queryAll('Exclusions').catch(()=>[]),queryAll('ValidationsClassement').catch(()=>[]),queryAll('Catalogues').catch(()=>[])
+    queryAll('Exclusions').catch(()=>[]),queryAll('ValidationsClassement').catch(()=>[]),queryAll('Catalogues').catch(()=>[]),
+    queryAll('ProduitsSuivis').catch(()=>[]),queryAll('MagasinsPrix').catch(()=>[]),queryAll('RelevesPrix').catch(()=>[]),queryAll('ConfirmationsPrix').catch(()=>[]),queryAll('MasquagesPrix').catch(()=>[])
   ]);
   const idToSlug={}; const used=new Set();
   const list=ents.filter(e=>e.publiee!==false&&e.nom).map(e=>{
@@ -366,6 +368,11 @@ async function loadData(){
   VALIDATIONS={}; vals.filter(x=>x._owner===ADMIN_ID&&x.mois).forEach(x=>VALIDATIONS[String(x.mois).slice(0,7)]={row:x._id,ids:String(x.gagnants||'').split(/[\s,;]+/).filter(Boolean),noms:String(x.noms||'').split(' | ').filter(Boolean),at:stamp(x._createdDate)});
   CATALOGUES=catas.filter(x=>x.publie===true&&x.titre&&/^https?:\/\//.test(x.lien||'')).map(x=>{ const biz=idToSlug[refId(x.entreprise)]||B.find(b=>b.slug===x.entreprise)?.slug||'';
     return {id:x._id,biz,enseigne:x.enseigne||'',cat:biz?bizBy(biz).cat:catFrom(x.categorie),type:key(x.type).includes('arriv')?'arrivage':'catalogue',title:x.titre,link:x.lien,cover:imgUrl(x.couverture)||imgUrl(x.couvertureLien),desc:x.description||'',start:dateFrom(x.debut),end:dateFrom(x.fin),checked:dateFrom(x.verifieLe),at:stamp(x._createdDate)}; }).filter(c=>c.biz||c.enseigne);
+  PRODUITS=prods.filter(x=>x.nom&&x.actif!==false).map(x=>({id:x._id,nom:x.nom,format:x.format||'',emoji:x.emoji||'🛒',ordre:+x.ordre||99})).sort((a,z)=>a.ordre-z.ordre);
+  MAGASINS_PRIX=mags.filter(x=>x.nom&&x.actif!==false).map(x=>({nom:x.nom,commune:communeFrom(x.commune)}));
+  RELEVES=rels.filter(x=>x.produit&&x.magasin&&+x.prix>0).map(x=>({id:x._id,produit:x.produit,magasin:String(x.magasin).slice(0,80),commune:communeFrom(x.commune),prix:+x.prix,day:dateFrom(x.date)||dateFrom(x._createdDate)||TODAY,pseudo:x.pseudo||'',owner:x._owner,at:stamp(x._createdDate)}));
+  CONFIRMS=confs.filter(x=>x.releve).map(x=>({id:x._id,releve:x.releve,owner:x._owner,at:stamp(x._createdDate)}));
+  PRICE_HIDDEN={}; hids.filter(x=>x._owner===ADMIN_ID&&x.releve).forEach(x=>PRICE_HIDDEN[x.releve]=x._id);
   dataSource='wix';
 }
 async function sendToWix(collection,data){
@@ -648,6 +655,7 @@ function pageHome(){
     <div class="wrap commu">
       <a class="commucard" href="#/demandes"><span class="tfemo">🙋</span><strong>Vous cherchez un code ?</strong><small>${DEMANDES.filter(d=>d.status!=='resolue').length?DEMANDES.filter(d=>d.status!=='resolue').length+' demande(s) en cours. ':''}Demandez à la communauté.</small></a>
       <a class="commucard" href="#/recompenses"><span class="tfemo">🎁</span><strong>Récompenses du mois</strong><small>Les 3 meilleurs contributeurs gagnent des lots.</small></a>
+      <a class="commucard" href="#/prix"><span class="tfemo">💰</span><strong>Prix à Mayotte</strong><small>Comparez les prix du riz, de l’huile, du gaz… magasin par magasin.</small></a>
       <a class="commucard" href="#/catalogues"><span class="tfemo">📖</span><strong>Catalogues & arrivages</strong><small>${activeCatalogues().length?activeCatalogues().length+' catalogue'+(activeCatalogues().length>1?'s':'')+' en cours. ':''}Les promos des magasins de l’île.</small></a>
     </div>
   </section>
@@ -1117,7 +1125,7 @@ const textKey=s=>key(s).replace(/[^a-z0-9]+/g,'');
 // Code retiré peu après sa publication, ou signalé comme ne fonctionnant pas : pénalité.
 const badCode=c=>flagged(c)||(c.status==='retire'&&c.updatedAt-c.addedAt<RULES.badDays*DAY);
 let PTS=null;
-const ptsKey=()=>[baseCodes.length,VOTES.length,MOROS.length,COMMENTS.length,LIKES.length,REPORTS.length,PARRAINAGES.length,Object.keys(EXCLUS).join(),Object.values(MODERATION).join(),VOTES.map(v=>v.dir[0]).join(''),MOROS.map(v=>v.dir[2]).join('')].join('|');
+const ptsKey=()=>[baseCodes.length,VOTES.length,MOROS.length,COMMENTS.length,LIKES.length,REPORTS.length,PARRAINAGES.length,RELEVES.length,CONFIRMS.length,Object.keys(PRICE_HIDDEN).join(),Object.keys(EXCLUS).join(),Object.values(MODERATION).join(),VOTES.map(v=>v.dir[0]).join(''),MOROS.map(v=>v.dir[2]).join('')].join('|');
 function pointsEngine(){
   const k=ptsKey(); if(PTS&&PTS.k===k) return PTS;
   const now=Date.now(), codes=allCodes(), byId={};
@@ -1125,7 +1133,7 @@ function pointsEngine(){
   // Ancienneté : première activité du membre sur Bonszahé.
   const first={}; const seen=(id,at)=>{ if(id&&at&&(!first[id]||at<first[id])) first[id]=at; };
   codes.forEach(c=>seen(c.by,c.addedAt)); VOTES.forEach(v=>seen(v.owner,v.at)); MOROS.forEach(v=>seen(v.owner,v.at));
-  COMMENTS.forEach(x=>seen(x.owner,x.at)); LIKES.forEach(x=>seen(x.owner,x.at)); REPORTS.forEach(x=>seen(x.owner,x.at)); PARRAINAGES.forEach(x=>seen(x.filleul,x.at));
+  COMMENTS.forEach(x=>seen(x.owner,x.at)); LIKES.forEach(x=>seen(x.owner,x.at)); REPORTS.forEach(x=>seen(x.owner,x.at)); PARRAINAGES.forEach(x=>seen(x.filleul,x.at)); RELEVES.forEach(x=>seen(x.owner,x.at)); CONFIRMS.forEach(x=>seen(x.owner,x.at));
   const trusted=(id,at)=>!!first[id]&&!EXCLUS[id]&&at-first[id]>=RULES.trustDays*DAY;
   const ev={}, pending={}, flags={};
   const add=(id,at,pts,kind)=>{ if(!id||EXCLUS[id]||!pts) return; (ev[id]||(ev[id]=[])).push({at,pts,k:kind}); };
@@ -1181,12 +1189,19 @@ function pointsEngine(){
     const dk=x.owner+'|'+dayKey(x.at); perDayCm[dk]=(perDayCm[dk]||0)+1;
     if(perDayCm[dk]<=RULES.commentsPerDay) add(x.owner,x.at,1,'commentaire');
   });
+  // Relevés de prix : 2 pts quand un autre membre de confiance confirme le prix, 5 relevés récompensés par jour.
+  const perDayPrix={};
+  RELEVES.filter(x=>!PRICE_HIDDEN[x.id]).sort((a,z)=>a.at-z.at).forEach(x=>{
+    const c=CONFIRMS.filter(y=>y.releve===x.id&&y.owner!==x.owner&&trusted(y.owner,y.at)).sort((a,z)=>a.at-z.at)[0]; if(!c) return;
+    const dk=x.owner+'|'+dayKey(x.at); perDayPrix[dk]=(perDayPrix[dk]||0)+1;
+    if(perDayPrix[dk]<=PRICE_RULES.rewardPerDay) add(x.owner,c.at,PRICE_RULES.points,'prix');
+  });
   // Parrainage : filleul de plus de 7 jours avec une vraie contribution (un code, 3 avis ou un commentaire), 5 par mois.
   const activeF=new Set(), perMonthRef={};
   PARRAINAGES.forEach(x=>{
     const e=ev[x.filleul]||[], n=kind=>e.filter(y=>y.k===kind).length;
     if(EXCLUS[x.filleul]||!first[x.filleul]||now-first[x.filleul]<RULES.trustDays*DAY) return;
-    if(!(n('code')||n('commentaire')||n('avis')>=3)) return;
+    if(!(n('code')||n('commentaire')||n('prix')||n('avis')>=3)) return;
     activeF.add(x.filleul);
     const at=new Date(Math.max(+x.at,+first[x.filleul]+RULES.trustDays*DAY)), mk=x.parrain+'|'+monthKey(at);
     perMonthRef[mk]=(perMonthRef[mk]||0)+1;
@@ -1618,6 +1633,98 @@ function pageSemaine(){
   </div>`;
 }
 
+/* ---------- Observatoire des prix ---------- */
+// Les membres relèvent le prix de produits courants ; un prix très éloigné des autres reste « à vérifier » tant qu'un autre membre ne l'a pas confirmé.
+const PRICE_RULES={perDay:10,outlier:.6,staleDays:30,maxDays:60,rewardPerDay:5,points:2};
+const priceDays=r=>Math.floor((TODAY-r.day)/DAY);
+const confirmersOf=id=>new Set(CONFIRMS.filter(c=>c.releve===id).map(c=>c.owner));
+const myConfirm=id=>me()&&CONFIRMS.find(c=>c.releve===id&&c.owner===me().id);
+const fmtPrice=p=>p.toLocaleString('fr-FR',{style:'currency',currency:'EUR'});
+const median=a=>{ const s=[...a].sort((x,z)=>x-z), m=Math.floor(s.length/2); return s.length%2?s[m]:(s[m-1]+s[m])/2; };
+// Dernier prix par magasin pour un produit (60 jours max), avec l'état « à vérifier ».
+function priceRows(prodId,com=''){
+  const recent=RELEVES.filter(r=>r.produit===prodId&&!PRICE_HIDDEN[r.id]&&priceDays(r)<=PRICE_RULES.maxDays);
+  const last={}; recent.forEach(r=>{ const k=key(r.magasin)+'|'+r.commune; if(!last[k]||last[k].day<r.day||(+last[k].day===+r.day&&last[k].at<r.at)) last[k]=r; });
+  return Object.values(last).filter(r=>!com||r.commune===com).map(r=>{
+    const others=recent.filter(x=>x.id!==r.id&&priceDays(x)<=PRICE_RULES.staleDays).map(x=>x.prix);
+    const conf=confirmersOf(r.id); conf.delete(r.owner);
+    const odd=others.length>=3&&Math.abs(r.prix-median(others))/median(others)>PRICE_RULES.outlier&&!conf.size;
+    return Object.assign({},r,{odd,conf:conf.size,stale:priceDays(r)>PRICE_RULES.staleDays});
+  }).sort((a,z)=>a.odd-z.odd||a.stale-z.stale||a.prix-z.prix);
+}
+const bestPrice=(prodId,com)=>priceRows(prodId,com).find(r=>!r.odd&&!r.stale);
+function recapPanier(com){
+  const L=['🧺 *Le panier malin de Mayotte*'+(com?' – '+comBy(com).name:''),'Les prix les plus bas relevés par la communauté Bonszahé :',''];
+  PRODUITS.forEach(p=>{ const b=bestPrice(p.id,com); if(b) L.push(`${p.emoji} ${p.nom} (${p.format}) : *${fmtPrice(b.prix)}* chez ${b.magasin}`); });
+  L.push('','👉 Tous les prix et comment en signaler : '+pageUrl('#/')+'prix');
+  return L.join('\n');
+}
+function priceRow(r){
+  const mine=me()&&r.owner===me().id, conf=myConfirm(r.id);
+  return `<li class="pricerow${r.odd?' odd':''}${r.stale?' stale':''}"><div class="grow"><strong>${esc(r.magasin)}</strong><small>${r.commune?esc(comBy(r.commune).name)+' · ':''}${priceDays(r)?'il y a '+priceDays(r)+' j':'aujourd’hui'} · par ${esc(r.pseudo||'Membre')}${r.conf?` · ✓ confirmé ${r.conf} fois`:''}${r.odd?' · <span class="pill wait">À vérifier</span>':''}</small></div>
+    <b>${fmtPrice(r.prix)}</b>${mine?'':`<button class="btn btn-ghost btn-sm" data-confprix="${esc(r.id)}" aria-pressed="${!!conf}">${conf?'✓ Confirmé':'Je confirme'}</button>`}</li>`;
+}
+function pagePrix(params){
+  const com=communeFrom(params.get('c')||'')||'';
+  const withPrice=PRODUITS.filter(p=>bestPrice(p.id,com));
+  const txt=recapPanier(com);
+  return `<div class="wrap">
+    ${backBtn('#/')}<div class="pagehead"><h1>💰 Prix à Mayotte</h1><p class="muted">Les prix des produits du quotidien relevés par les habitants, magasin par magasin. Comparez avant de faire vos courses et aidez les autres en signalant les prix que vous voyez.</p>
+      <div class="bandbtns u10"><button class="btn btn-sun" data-prixform="">${ic('plus')}Signaler un prix</button>${withPrice.length?`<a class="btn btn-wa" href="${waHref(txt)}" target="_blank" rel="noopener">Partager le panier malin</a>`:''}</div></div>
+    <div class="filters"><label class="sel"><span>Commune</span><select id="prixCom">${selOpts([['','Toute l’île'],...[...COMMUNES].sort((a,z)=>a.name.localeCompare(z.name,'fr')).map(c=>[c.slug,c.name])],com)}</select></label></div>
+    ${withPrice.length?`<div class="card panier u13"><h2>🧺 Le panier malin${com?' à '+esc(comBy(com).name):''}</h2><p class="muted">Le prix le plus bas relevé ces 30 derniers jours pour chaque produit.</p>
+      <ul class="panierlist">${withPrice.map(p=>{ const b=bestPrice(p.id,com); return `<li><span>${p.emoji} ${esc(p.nom)} <small class="muted">${esc(p.format)}</small></span><b>${fmtPrice(b.prix)}</b><small class="muted">${esc(b.magasin)}</small></li>`; }).join('')}</ul></div>`:''}
+    <div class="prodgrid u13">${PRODUITS.map(p=>{ const rows=priceRows(p.id,com), b=bestPrice(p.id,com);
+      return `<details class="card prod"${rows.length&&rows.length<=3?' open':''}><summary><span class="prodemo">${p.emoji}</span><span class="grow"><strong>${esc(p.nom)}</strong><small class="muted">${esc(p.format)}</small></span>${b?`<span class="best"><b>${fmtPrice(b.prix)}</b><small>${esc(b.magasin)}</small></span>`:'<small class="muted">Pas encore de prix</small>'}</summary>
+        ${rows.length?`<ul class="pricerows">${rows.map(priceRow).join('')}</ul>`:`<p class="muted">Vous connaissez le prix ? <button class="linkbtn link" data-prixform="${p.id}">Signalez-le</button></p>`}</details>`; }).join('')}</div>
+    <p class="note u13">Prix relevés par la communauté, à vérifier en magasin. Un prix très différent des autres est marqué « À vérifier » jusqu’à ce qu’un autre membre le confirme. Un relevé confirmé par un autre membre rapporte ${PRICE_RULES.points} points (${PRICE_RULES.rewardPerDay} relevés récompensés par jour).</p>
+    <div class="u8"></div>
+  </div>`;
+}
+function prixDialog(prodId){
+  if(!me()){ requireLogin('Connectez-vous pour signaler un prix : chaque relevé confirmé vous rapporte '+PRICE_RULES.points+' points.',()=>prixDialog(prodId)); return; }
+  const shops=[...new Set([...MAGASINS_PRIX.map(m=>m.nom),...B.filter(isShop).map(b=>b.name)])].sort((a,z)=>a.localeCompare(z,'fr'));
+  openDialog(`<header><div><h2 id="dlgTitle">Signaler un prix</h2><p class="u14 note">Le prix que vous avez vu en rayon ou sur le ticket de caisse.</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+  <form class="form" id="prixForm">
+    <label>Produit<select name="produit" required>${PRODUITS.map(p=>`<option value="${esc(p.id)}"${p.id===prodId?' selected':''}>${p.emoji} ${esc(p.nom)} (${esc(p.format)})</option>`).join('')}</select></label>
+    <label>Magasin<input name="magasin" list="prixShops" required maxlength="80" placeholder="Ex. Sodifram Kawéni, douka de mon quartier…"><datalist id="prixShops">${shops.map(s=>`<option value="${esc(s)}">`).join('')}</datalist></label>
+    <div class="two"><label>Commune${communeSelect('commune','')}</label><label>Prix (€)<input name="prix" type="number" inputmode="decimal" min="0.05" max="9999" step="0.01" required placeholder="Ex. 8,90"></label></div>
+    <label>Date du relevé<input name="date" type="date" required value="${isoDay(TODAY)}" max="${isoDay(TODAY)}"></label>
+    <p class="note err" id="prixErr" role="alert"></p>
+    <button class="btn btn-primary" type="submit">Envoyer le prix</button>
+  </form>`);
+  const f=document.getElementById('prixForm');
+  f.magasin.addEventListener('change',()=>{ const m=MAGASINS_PRIX.find(x=>key(x.nom)===key(f.magasin.value))||B.find(b=>key(b.name)===key(f.magasin.value)); const c=m&&(m.commune||''); if(c&&!f.commune.value) f.commune.value=c; });
+}
+async function sendPrix(f){
+  const d=Object.fromEntries(new FormData(f)), err=document.getElementById('prixErr');
+  const prix=Math.round(parseFloat(String(d.prix).replace(',','.'))*100)/100;
+  if(!(prix>0&&prix<10000)){ err.textContent='Indiquez un prix valide.'; return; }
+  const today=RELEVES.filter(r=>r.owner===me().id&&+r.at>=Date.now()-DAY).length;
+  if(today>=PRICE_RULES.perDay){ err.textContent=`Vous avez déjà signalé ${PRICE_RULES.perDay} prix aujourd’hui : merci ! Revenez demain.`; return; }
+  const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Envoi…';
+  const data={produit:d.produit,magasin:String(d.magasin).trim(),commune:d.commune||'',prix,date:d.date,pseudo:me().name};
+  try{
+    const r=await sendToWix('RelevesPrix',data);
+    RELEVES.push({id:r.dataItem&&r.dataItem.id,produit:data.produit,magasin:data.magasin,commune:data.commune,prix,day:dateFrom(data.date)||TODAY,pseudo:data.pseudo,owner:me().id,at:new Date()});
+    dlg.close(); refresh(); toast('Merci ! Votre prix est en ligne. Il vous rapportera '+PRICE_RULES.points+' points dès qu’un autre membre le confirmera.');
+  }catch(ex){ console.warn(ex); btn.disabled=false; btn.textContent='Envoyer le prix'; toast(ex.status===401||ex.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'); }
+}
+async function toggleConfirmPrix(id){
+  const c=myConfirm(id);
+  if(c){ await call('DELETE',`/wix-data/v2/items/${encodeURIComponent(c.id)}?dataCollectionId=ConfirmationsPrix`); CONFIRMS=CONFIRMS.filter(x=>x!==c); return false; }
+  const r=await sendToWix('ConfirmationsPrix',{releve:id});
+  CONFIRMS.push({id:r.dataItem&&r.dataItem.id,releve:id,owner:me().id,at:new Date()}); return true;
+}
+// Page Contrôle : prix à vérifier et relevés masqués.
+function pricesAudit(){
+  const odd=PRODUITS.flatMap(p=>priceRows(p.id).filter(r=>r.odd).map(r=>Object.assign({p},r)));
+  const hidden=RELEVES.filter(r=>PRICE_HIDDEN[r.id]);
+  return `<div class="head u13"><div><h2>Prix à vérifier</h2><p class="muted">${RELEVES.length} relevé${RELEVES.length>1?'s':''} de prix au total. Un prix masqué n’apparaît plus nulle part.</p></div></div>
+    ${odd.length?`<div class="list">${odd.map(r=>`<div class="li"><div class="grow"><strong>${r.p.emoji} ${esc(r.p.nom)} : ${fmtPrice(r.prix)}</strong><small>${esc(r.magasin)} · par ${esc(r.pseudo)} · ${fmt(r.day)}</small></div><button class="btn btn-ghost btn-sm" data-hideprix="${esc(r.id)}">Masquer</button></div>`).join('')}</div>`:'<p class="muted">Aucun prix suspect pour le moment.</p>'}
+    ${hidden.length?`<details class="card u10"><summary><strong>${hidden.length} relevé${hidden.length>1?'s':''} masqué${hidden.length>1?'s':''}</strong></summary><div class="list u10">${hidden.map(r=>`<div class="li"><div class="grow"><strong>${fmtPrice(r.prix)} · ${esc(r.magasin)}</strong><small>par ${esc(r.pseudo)} · ${fmt(r.day)}</small></div><button class="btn btn-ghost btn-sm" data-showprix="${esc(r.id)}">Réafficher</button></div>`).join('')}</div></details>`:''}`;
+}
+
 function pageEvents(params){
   const sel=params.get('c')||'';
   const all=upcomingEvents();
@@ -2002,6 +2109,7 @@ const POINTS_RULES=`<ul>
   <li><strong>2 pts par Moro 🔥, 1 pt par « fonctionne » et par « j’aime » reçus</strong>, uniquement de la part de membres inscrits depuis au moins 7 jours. Un même membre peut vous faire gagner 5 pts par mois au maximum, et un commentaire rapporte au plus 5 « j’aime ».</li>
   <li><strong>1 pt par avis donné</strong> (Moro/Maji ou « ça marche »), 5 par jour au maximum, jamais sur vos propres codes.</li>
   <li><strong>1 pt par commentaire</strong> d’au moins 20 caractères, 5 par jour au maximum ; un commentaire recopié ne compte pas.</li>
+  <li><strong>2 pts par prix signalé</strong> sur la page Prix à Mayotte, dès qu’un autre membre le confirme (5 relevés récompensés par jour).</li>
   <li><strong>15 pts par filleul actif</strong> : inscrit depuis au moins 7 jours, avec un code publié, 3 avis ou un commentaire. 5 filleuls récompensés par mois au maximum.</li>
 </ul>`;
 const pointsHelp=()=>`<details class="ptshelp"><summary>Comment sont comptés les points ?</summary><div class="prose">${POINTS_RULES}</div></details>`;
@@ -2066,6 +2174,7 @@ function pageControle(){
     ${sus.length?`<div class="list">${sus.map(x=>`<div class="li"><div class="grow"><strong>${esc(x.name)}</strong><small>${x.why.map(esc).join(' · ')} · ${x.month} pts ce mois-ci</small></div><button class="btn btn-ghost btn-sm" data-exclude="${esc(x.id)}">Exclure</button></div>`).join('')}</div>`:'<p class="muted">Rien de suspect pour le moment. 👍</p>'}
     <div class="head u13"><h2>Classement provisoire de ${monthName(k)}</h2></div>
     ${boardRows(cur,true,k)}
+    ${pricesAudit()}
     ${hoursAudit()}
     <div class="head u13"><h2>Membres exclus</h2></div>
     ${ex.length?`<div class="list">${ex.map(([id,x])=>`<div class="li"><div class="grow"><strong>${esc(x.nom||memberName(id))}</strong><small>${esc(x.motif||'Sans motif')} · depuis le ${fmt(x.at)}</small></div><button class="btn btn-ghost btn-sm" data-reinstate="${esc(id)}">Réintégrer</button></div>`).join('')}</div>`:'<p class="muted">Aucun membre exclu.</p>'}
@@ -2207,6 +2316,7 @@ function route(){
   else if(p==='demandes'){ html=pageDemandes(params); title='Demandes de bons plans | Bonszahé'; }
   else if(p==='invite'&&parts[1]){ html=pageInvite(decodeURIComponent(parts[1]),params); nav='profil'; title='Invitation | Bonszahé'; }
   else if(p==='recompenses'){ html=pageRecompenses(); nav='profil'; title='Récompenses du mois | Bonszahé'; }
+  else if(p==='prix'){ html=pagePrix(params); nav='home'; title='Prix à Mayotte : comparez les prix des produits du quotidien | Bonszahé'; }
   else if(p==='semaine'){ html=pageSemaine(); nav='home'; title='Les bons plans de la semaine à Mayotte | Bonszahé'; }
   else if(p==='catalogues'){ html=pageCatalogues(params); nav='home'; title='Catalogues & arrivages des magasins de Mayotte | Bonszahé'; }
   else if(p==='controle'){ html=pageControle(); nav='profil'; title='Contrôle | Bonszahé'; }
@@ -2539,6 +2649,9 @@ document.addEventListener('click',async e=>{
   }
   else if(t.id==='nearMe'){ nearMe(t); }
   else if(t.dataset.proevent){ proEventDialog(t.dataset.proevent); }
+  else if(t.dataset.prixform!==undefined){ prixDialog(t.dataset.prixform); }
+  else if(t.dataset.confprix){ if(!me()){ requireLogin('Connectez-vous pour confirmer un prix.',()=>refresh()); return; } t.disabled=true; try{ const on=await toggleConfirmPrix(t.dataset.confprix); refresh(); toast(on?'Merci, prix confirmé !':'Confirmation retirée.'); }catch(err){ console.warn(err); t.disabled=false; toast('Action impossible. Réessayez.'); } }
+  else if((t.dataset.hideprix||t.dataset.showprix)&&isAdmin()){ t.disabled=true; try{ if(t.dataset.hideprix){ const r=await sendToWix('MasquagesPrix',{releve:t.dataset.hideprix,motif:'Prix incorrect'}); PRICE_HIDDEN[t.dataset.hideprix]=r.dataItem&&r.dataItem.id; } else { const id=t.dataset.showprix; await call('DELETE',`/wix-data/v2/items/${encodeURIComponent(PRICE_HIDDEN[id])}?dataCollectionId=MasquagesPrix`); delete PRICE_HIDDEN[id]; } refresh(); }catch(err){ console.warn(err); t.disabled=false; toast('Action impossible. Réessayez.'); } }
   else if(t.dataset.procatalog){ proCatalogDialog(t.dataset.procatalog); }
   else if(t.id==='codeReset'){ go('#/codes'); }
   else if(t.id==='dirReset'){ go('#/entreprises'); }
@@ -2571,6 +2684,7 @@ document.addEventListener('change',e=>{
   if(id==='dirCom'){ dirState.com=e.target.value; drawDirectory(); }
   if(id==='dirSort'){ dirState.sort=e.target.value; drawDirectory(); }
   if(id==='dirDeals'){ dirState.deals=e.target.checked; drawDirectory(); }
+  if(id==='prixCom'){ go('#/prix'+(e.target.value?'?c='+e.target.value:'')); }
   if(id==='dirOpen'){ dirState.open=e.target.checked; drawDirectory(); }
   if(id==='mapOpen'){ mapState.open=e.target.checked; drawMapList(); if(storeMap) fitShops(); }
   if(id==='mapCom'){ mapState.com=e.target.value; drawMapList(); if(storeMap) fitShops(); }
@@ -2708,6 +2822,7 @@ document.addEventListener('submit',async e=>{
       .then(()=>{ dlg.close(); toast('Merci ! Votre événement sera publié après vérification.'); loadMine().then(()=>{ if(curH().startsWith('#/profil')) refresh(); }); })
       .catch(ex=>{ console.warn(ex); btn.disabled=false; btn.textContent='Envoyer l’événement'; toast(ex.status===401||ex.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'); });
   }
+  else if(f.id==='prixForm'){ e.preventDefault(); sendPrix(f); }
   else if(f.id==='proCatalogForm'){
     e.preventDefault(); const b=ownerOf(f.dataset.biz); if(!b) return;
     const d=Object.fromEntries(new FormData(f)); const t=k=>String(d[k]||'').trim();

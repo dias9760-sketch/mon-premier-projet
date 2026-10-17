@@ -847,3 +847,26 @@ body:has(.fab) #app{padding-bottom:72px}
 .installcard .grow{flex:1;min-width:180px}
 .installcard h3{margin:0 0 4px}
 .steps{margin:0 0 12px;padding-left:22px;display:grid;gap:10px;line-height:1.5}
+/* v34 : observatoire des prix */
+@media (min-width:1000px){.commu{grid-template-columns:repeat(4,1fr)}}
+@media (min-width:700px) and (max-width:999px){.commu{grid-template-columns:1fr 1fr}}
+.panier h2{margin:0 0 4px}
+.panierlist{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px}
+.panierlist li{display:grid;grid-template-columns:1fr auto;gap:2px 12px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line)}
+.panierlist li:first-child{border-top:0}
+.panierlist b{color:var(--vert);font-size:1.05rem}
+.panierlist li>small:last-child{grid-column:1/-1}
+.prodgrid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));align-items:start}
+.prod summary{display:flex;align-items:center;gap:12px;cursor:pointer;list-style:none}
+.prod summary::-webkit-details-marker{display:none}
+.prod .prodemo{font-size:1.8rem;flex:none}
+.prod .grow{flex:1;min-width:0;display:grid}
+.prod .best{display:grid;text-align:right}
+.prod .best b{color:var(--vert);font-size:1.15rem}
+.prod .best small{color:var(--muted);font-size:.78rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pricerows{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px}
+.pricerow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 0;border-top:1px solid var(--line)}
+.pricerow .grow{flex:1;min-width:150px;display:grid}
+.pricerow small{color:var(--muted)}
+.pricerow.stale{opacity:.55}
+.pricerow.odd b{text-decoration:line-through dotted}

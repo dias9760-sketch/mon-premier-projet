@@ -40,3 +40,10 @@ propriétaire. Bonszahé renvoie toujours vers le catalogue officiel, rien n'est
   Un texte illisible n'affiche rien ; la page Contrôle liste ces fiches. Le filtre « Ouvert maintenant » apparaît dès 5 fiches lisibles.
 - `site/manifest.json`, `site/icons/` (icône BZ) et `site/sw.js` (cache des fichiers du site, page d'accueil de secours hors connexion).
   Changer `CACHE` dans `sw.js` pour vider le cache des visiteurs si besoin.
+
+## Observatoire des prix
+
+Collections `ProduitsSuivis` et `MagasinsPrix` (gérées par le propriétaire), `RelevesPrix` et `ConfirmationsPrix` (membres),
+`MasquagesPrix` (lignes du propriétaire seulement, via la page Contrôle). Page `/prix` : dernier prix par magasin (60 jours max, grisé
+après 30 jours), « À vérifier » si l'écart à la médiane dépasse 60 % sans confirmation, 10 relevés par jour et par membre,
++2 pts par relevé confirmé par un autre membre de confiance (5 par jour).
