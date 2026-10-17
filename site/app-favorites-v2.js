@@ -238,7 +238,7 @@ async function handleAuthState(res){
   return 'error';
 }
 let pendingState=null;
-function logout(){ AUTH=null; saveAuth(); MINE={proposals:[],claims:[],edits:[],events:[],alerts:[],ideas:[]}; }
+function logout(){ AUTH=null; saveAuth(); MINE={proposals:[],claims:[],edits:[],events:[],alerts:[]}; }
 
 // reCAPTCHA exigé par Wix pour l'inscription et la connexion (clés Wix, script « enterprise »).
 const RC_INVISIBLE='6LdoPaUfAAAAAJphvHoUoOob7mx0KDlXyXlgrx5v', RC_VISIBLE='6Ld0J8IcAAAAANyrnxzrRlX1xrrdXsOmsepUYosy';
@@ -365,9 +365,9 @@ async function sendToWix(collection,data){
 }
 
 /* ---------- Données du membre connecté ---------- */
-let MINE={proposals:[],claims:[],edits:[],events:[],alerts:[],ideas:[]};
+let MINE={proposals:[],claims:[],edits:[],events:[],alerts:[]};
 async function loadMine(){
-  if(!me()){ MINE={proposals:[],claims:[],edits:[],events:[],alerts:[],ideas:[]}; return; }
+  if(!me()){ MINE={proposals:[],claims:[],edits:[],events:[],alerts:[]}; return; }
   try{
     const items=await queryAll('PropositionsCodes');
     MINE.proposals=items.map(p=>({id:p._id,biz:B.find(b=>b.id===refId(p.entreprise))?.slug||'',code:p.code,deal:p.avantage||'',exp:p.dateExpiration||'',status:statutFrom(p.statut==='Traité'?'valide':p.statut),created:dateFrom(p._createdDate)||TODAY})).sort((a,b)=>b.created-a.created);
@@ -376,8 +376,7 @@ async function loadMine(){
     const cl=await queryAll('DemandesEntreprises');
     MINE.claims=cl.map(c=>({id:c._id,name:c.nomEntreprise||'',entreprise:refId(c.entreprise)||'',status:c.statut||'Nouvelle',at:stamp(c._createdDate)})).sort((a,b)=>b.at-a.at);
   }catch(e){ console.warn('Demandes indisponibles',e); }
-  const [edits,evs,alerts,ideas]=await Promise.all([queryAll('ModificationsFiches').catch(()=>[]),queryAll('EvenementsProposes').catch(()=>[]),queryAll('Alertes').catch(()=>[]),queryAll('Suggestions').catch(()=>[])]);
-  MINE.ideas=ideas.map(x=>({id:x._id,type:x.type||'',text:x.message||'',picks:x.idees||'',status:x.statut||'Nouvelle',reply:x.reponse||'',at:stamp(x._createdDate)})).sort((a,b)=>b.at-a.at);
+  const [edits,evs,alerts]=await Promise.all([queryAll('ModificationsFiches').catch(()=>[]),queryAll('EvenementsProposes').catch(()=>[]),queryAll('Alertes').catch(()=>[])]);
   MINE.alerts=alerts.filter(a=>ALERT_TYPES[a.type]&&a.valeur).map(a=>({id:a._id,type:a.type,valeur:a.valeur,label:a.libelle||'',at:stamp(a._createdDate)}));
   MINE.edits=edits.map(x=>({id:x._id,entreprise:refId(x.entreprise)||'',status:x.statut||'En attente',at:stamp(x._createdDate)})).sort((a,b)=>b.at-a.at);
   MINE.events=evs.map(x=>({id:x._id,entreprise:refId(x.entreprise)||'',title:x.titre||'',date:dateFrom(x.date),at:stamp(x._createdDate)})).sort((a,b)=>b.at-a.at);
@@ -637,7 +636,7 @@ function pageHome(){
         <button class="btn btn-sun" data-claim="">${ic('store')}Ajouter ou revendiquer mon entreprise</button>
       </div>
       <div class="band idea">
-        <div><h2><span aria-hidden="true">💡 </span>Votre avis fait grandir Bonszahé</h2><p>Une fonctionnalité qui vous manque, une idée pour trouver encore plus de bons plans, un souci sur le site ? Dites-le-nous : nous lisons chaque message et vous suivez la réponse dans votre profil.</p></div>
+        <div><h2><span aria-hidden="true">💡 </span>Votre avis fait grandir Bonszahé</h2><p>Une fonctionnalité qui vous manque, une idée pour trouver encore plus de bons plans, un souci sur le site ? Dites-le-nous : nous lisons chaque message avec attention.</p></div>
         <button class="btn btn-ghost" data-suggest="">${ic('plus')}Donner mon avis</button>
       </div>
     </div>
@@ -1780,14 +1779,12 @@ const IDEAS={
   pro:['Mettre mon offre en avant sur l’accueil','Être prévenu quand un client copie mon code','Statistiques par code et export','Carte ou programme de fidélité','Réservation ou commande via Bonszahé','Prévenir mes abonnés d’une nouvelle offre','Codes à usage unique ou en nombre limité','Plusieurs comptes pour mon équipe'],
   membre:['Alertes sur mon téléphone','Application mobile','Plus d’entreprises dans ma commune','Avis et notes sur les magasins','Cashback ou carte de fidélité','Comparer les prix entre magasins']
 };
-const IDEA_STATUS={Nouvelle:['wait','Reçue'],'À l’étude':['wait','À l’étude'],Prévue:['ok','Prévue'],Réalisée:['ok','Réalisée ✅'],'Non retenue':['no','Non retenue']};
 function ideaBanner(src){
-  const pro=src==='pro', mine=MINE.ideas||[];
+  const pro=src==='pro';
   return `<div class="card ideacard">
     <div class="ideahead"><span class="ideaicon" aria-hidden="true">💡</span><div><h3>${pro?'Quelles fonctionnalités souhaitez-vous ?':'Une idée pour améliorer Bonszahé ?'}</h3>
     <p class="muted">${pro?'Bonszahé se construit avec les entreprises de Mayotte. Dites-nous ce qui vous aiderait à attirer plus de clients : nous lisons chaque idée.':'Une fonctionnalité qui vous manque, un souci rencontré ? Dites-le-nous, nous lisons chaque message.'}</p></div></div>
     <button class="btn btn-sun btn-sm" data-suggest="${src}">${ic('plus')}Proposer une idée</button>
-    ${mine.length?`<details class="ideas"><summary>Vos idées (${mine.length})</summary><div class="list">${mine.slice(0,10).map(x=>{ const st=IDEA_STATUS[x.status]||IDEA_STATUS.Nouvelle; return `<div class="li"><div class="grow"><strong>${esc(x.type||'Idée')}</strong><small>${esc((x.picks?x.picks+(x.text?' · ':''):'')+x.text).slice(0,160)}</small>${x.reply?`<small class="ideareply">Bonszahé : ${esc(x.reply)}</small>`:''}<small class="muted">Envoyée le ${fmt(x.at)}</small></div><span class="pill ${st[0]}">${st[1]}</span></div>`; }).join('')}</div></details>`:''}
   </div>`;
 }
 function suggestDialog(src){
@@ -1811,8 +1808,9 @@ async function sendIdea(f){
   const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Envoi…';
   try{
     await sendToWix('Suggestions',Object.assign({type:fd.get('type'),idees:picks.join(' ; '),message:text,source:pro?'pro':'membre',membreId:u.id,membreNom:u.name||'',email:u.email||'',recontact:!!fd.get('recontact'),statut:'Nouvelle'},b?{entreprise:b.id,entrepriseNom:b.name}:{}));
-    dlg.close(); toast('Merci ! Votre idée a bien été envoyée à Bonszahé.');
-    loadMine().then(()=>{ if(curH().startsWith('#/profil')) refresh(); });
+    dlgBody.innerHTML=`<header><div><h2 id="dlgTitle">🙏 Merci pour votre idée&nbsp;!</h2></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+    <div class="ideathanks"><p>Votre message est bien arrivé chez Bonszahé.</p><p>Notre équipe va étudier votre demande avec attention : les idées qui reviennent le plus souvent et qui rendent service au plus grand nombre seront intégrées aux prochaines évolutions du site.</p>
+    <button class="btn btn-primary" data-close>Fermer</button></div>`;
   }catch(ex){ console.warn(ex); btn.disabled=false; btn.textContent='Envoyer mon idée'; err.textContent=ex.status===401||ex.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez.'; }
 }
 
