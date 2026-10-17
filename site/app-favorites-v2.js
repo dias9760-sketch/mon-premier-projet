@@ -127,7 +127,7 @@ let DEMANDES=[], PARRAINAGES=[], RECOMPENSES=[], TEMPS=[];
 // Exclusions et validations du classement : seules les lignes créées par le propriétaire du site comptent.
 let EXCLUS={}, VALIDATIONS={};
 let CATALOGUES=[];
-let PRODUITS=[], MAGASINS_PRIX=[], RELEVES=[], CONFIRMS=[], PRICE_HIDDEN={}, REGLEMENTES=[];
+let PRODUITS=[], MAGASINS_PRIX=[], RELEVES=[], CONFIRMS=[], PRICE_HIDDEN={}, REGLEMENTES=[], SEARCHES=[];
 let dataSource='snapshot';
 let tokenPromise=null;
 function getVisitorToken(){
@@ -329,13 +329,13 @@ const SALES={boutique:'Boutique physique','en-ligne':'Vente en ligne / livraison
 // Date et heure complètes d'un champ système Wix ({$date:…}), pour le classement Tendance.
 const stamp=v=>{ const d=new Date(typeof v==='object'&&v?v.$date:v); return isNaN(d)?new Date(TODAY):d; };
 async function loadData(){
-  const [ents,codes,votes,events,moros,comms,likes,reports,moder,dms,parr,recs,tfs,excl,vals,catas,prods,mags,rels,confs,hids,regs]=await Promise.all([
+  const [ents,codes,votes,events,moros,comms,likes,reports,moder,dms,parr,recs,tfs,excl,vals,catas,prods,mags,rels,confs,hids,regs,srch]=await Promise.all([
     queryAll('Entreprises'),queryAll('CodesPromo'),
     queryAll('Votes').catch(()=>[]),queryAll('Evenements').catch(()=>[]),queryAll('Moro').catch(()=>[]),
     queryAll('Commentaires').catch(()=>[]),queryAll('JaimeCommentaires').catch(()=>[]),queryAll('Signalements').catch(()=>[]),queryAll('Moderation').catch(()=>[]),
     queryAll('Demandes').catch(()=>[]),queryAll('Parrainages').catch(()=>[]),queryAll('Recompenses').catch(()=>[]),queryAll('TempsForts').catch(()=>[]),
     queryAll('Exclusions').catch(()=>[]),queryAll('ValidationsClassement').catch(()=>[]),queryAll('Catalogues').catch(()=>[]),
-    queryAll('ProduitsSuivis').catch(()=>[]),queryAll('MagasinsPrix').catch(()=>[]),queryAll('RelevesPrix').catch(()=>[]),queryAll('ConfirmationsPrix').catch(()=>[]),queryAll('MasquagesPrix').catch(()=>[]),queryAll('PrixReglementes').catch(()=>[])
+    queryAll('ProduitsSuivis').catch(()=>[]),queryAll('MagasinsPrix').catch(()=>[]),queryAll('RelevesPrix').catch(()=>[]),queryAll('ConfirmationsPrix').catch(()=>[]),queryAll('MasquagesPrix').catch(()=>[]),queryAll('PrixReglementes').catch(()=>[]),queryAll('RecherchesVides').catch(()=>[])
   ]);
   const idToSlug={}; const used=new Set();
   const list=ents.filter(e=>e.publiee!==false&&e.nom).map(e=>{
@@ -375,6 +375,7 @@ async function loadData(){
   RELEVES=rels.filter(x=>x.produit&&x.magasin&&+x.prix>0).map(x=>({id:x._id,produit:x.produit,magasin:String(x.magasin).slice(0,80),commune:communeFrom(x.commune),prix:+x.prix,day:dateFrom(x.date)||dateFrom(x._createdDate)||TODAY,pseudo:x.pseudo||'',owner:x._owner,at:stamp(x._createdDate)}));
   CONFIRMS=confs.filter(x=>x.releve).map(x=>({id:x._id,releve:x.releve,owner:x._owner,at:stamp(x._createdDate)}));
   REGLEMENTES=regs.filter(x=>/^\d{4}-\d{2}$/.test(String(x.mois||''))&&x.produit&&+x.prix>0).map(x=>({mois:x.mois,produit:x.produit,libelle:x.libelle||x.produit,prix:+x.prix,unite:x.unite||'',source:x.source||''}));
+  SEARCHES=srch.filter(x=>x.terme).map(x=>({terme:norm(x.terme).slice(0,40),categorie:x.categorie||'',visiteur:x.visiteur||'',at:stamp(x._createdDate)}));
   PRICE_HIDDEN={}; hids.filter(x=>x._owner===ADMIN_ID&&x.releve).forEach(x=>PRICE_HIDDEN[x.releve]=x._id);
   dataSource='wix';
 }
@@ -935,6 +936,7 @@ function pagePrivacy(){
       <li><strong>Demandes des entreprises</strong> : nom du contact, téléphone, e-mail, numéro SIRET et entreprise concernée.</li>
       <li><strong>Messages de contact</strong> : nom, e-mail et message.</li>
       <li><strong>Statistiques pour les entreprises</strong> : nombre de vues des fiches, de codes copiés, de clics et d’appels. Ces mesures ne sont pas reliées à votre identité.</li>
+      <li><strong>Recherches sans bon plan</strong> : quand une recherche ne trouve aucun bon plan, le mot recherché est enregistré avec un identifiant aléatoire propre à votre navigateur (jamais votre compte ni votre adresse). Les entreprises n’en voient que des tendances regroupées, à partir de 3 personnes différentes.</li>
       <li><strong>Stockage dans votre navigateur</strong> : vos favoris et votre session de connexion. Aucun cookie publicitaire n’est utilisé.</li>
       <li><strong>Localisation</strong> : seulement si vous touchez « Autour de moi » (ou, pour une entreprise, « utiliser ma position »). Elle sert dans votre navigateur à calculer les distances : elle n’est ni envoyée à Bonszahé ni enregistrée.</li>
     </ul>
@@ -1095,6 +1097,7 @@ function pageSearch(params){
   const nq=norm(q);
   const biz=nq?B.filter(b=>norm(b.name+' '+b.desc+' '+catBy(b.cat).name).includes(nq)):[];
   const codes=nq?activeCodes().filter(c=>norm(bizBy(c.biz).name+' '+c.deal+' '+c.detail+' '+c.code).includes(nq)):[];
+  if(nq&&!codes.length&&dataSource==='wix') logEmptySearch(q,biz);
   return `<div class="wrap">
     ${backBtn('#/')}<div class="pagehead"><h1>Recherche</h1></div>
     <form class="u15 field" data-search>${ic('search')}<label class="sr" for="sq">Rechercher</label><input id="sq" name="q" type="search" placeholder="Une entreprise ou un bon plan" value="${esc(q)}" autocomplete="off"></form>
@@ -1333,7 +1336,7 @@ function pageProfile(){
         ${MINE.proposals.length?`<div class="list">${MINE.proposals.map(p=>{const b=bizBy(p.biz);const c=baseCodes.find(x=>x.by===u.id&&x.code===p.code&&x.biz===p.biz);const st=status[p.status]||status.attente;return `<div class="li">${logo(b)}<div class="grow"><strong>${esc(p.code)}</strong> ${esc(p.deal)}<small>${esc(b.name)}${p.exp?', expire le '+fmt(dateFrom(p.exp)):''}${c?` · ${allCodes().find(x=>x.id===c.id).up} « fonctionne »`:''}</small></div><span class="pill ${st[0]}">${st[1]}</span></div>`}).join('')}</div>`:
           empty('Vous n’avez encore partagé aucun code','Un code partagé aide toute la communauté et vous rapporte 10 points.','')}
       </div>
-      ${owned.length?`<div><div class="head"><h2>Espace pro</h2></div>${proLeads(owned)}${ideaBanner('pro')}<div id="proDash" class="stack"><p class="muted">Chargement de vos statistiques…</p></div></div>`:
+      ${owned.length?`<div><div class="head"><h2>Espace pro</h2></div>${proLeads(owned)}${radarCard(new Set(owned.map(b=>b.cat)))}${ideaBanner('pro')}<div id="proDash" class="stack"><p class="muted">Chargement de vos statistiques…</p></div></div>`:
       `<div class="card">
         <h3>Espace professionnel</h3>
         <p class="muted">Vous gérez une entreprise ? Revendiquez sa fiche pour publier vos offres officielles et voir vos statistiques : vues de la page, codes copiés, clics vers votre site et appels.</p>
@@ -2041,6 +2044,49 @@ function pageAlertes(){
   return html;
 }
 
+/* ---------- Radar des besoins : ce que cherchent les habitants ---------- */
+// Recherches sans bon plan enregistrées de façon anonyme (mot, catégorie probable, identifiant aléatoire du navigateur).
+const RADAR={days:30,minPeople:3};
+function visitorId(){ try{ let v=localStorage.getItem('bonszahe:rid'); if(!v){ v=Math.random().toString(36).slice(2,12); localStorage.setItem('bonszahe:rid',v); } return v; }catch(e){ return ''; } }
+function logEmptySearch(q,biz){
+  const t=norm(q).replace(/\s+/g,' ').trim().slice(0,40); if(t.length<3) return;
+  const k='bonszahe:rv:'+t; try{ if(sessionStorage.getItem(k)) return; sessionStorage.setItem(k,'1'); }catch(e){}
+  const cats=[...new Set(biz.map(b=>b.cat))], cat=cats.length===1?cats[0]:(CATS.find(c=>t.includes(norm(c.name)))||{}).slug||'';
+  const row={terme:t,categorie:cat,resultats:biz.length,visiteur:visitorId()};
+  SEARCHES.push(Object.assign({at:new Date()},row));
+  sendToWix('RecherchesVides',row).catch(()=>{});
+}
+// Tendances agrégées : seules les recherches et demandes faites par au moins 3 personnes différentes sont montrées.
+function radarData(cats){
+  const since=Date.now()-RADAR.days*DAY, inCat=c=>!cats||!c||cats.has(c);
+  const terms={};
+  SEARCHES.filter(s=>+s.at>=since&&inCat(s.categorie)).forEach(s=>{ (terms[s.terme]||(terms[s.terme]={terme:s.terme,people:new Set(),n:0})).people.add(s.visiteur||s.at); terms[s.terme].n++; });
+  const top=Object.values(terms).filter(x=>x.people.size>=RADAR.minPeople).sort((a,z)=>z.people.size-a.people.size).slice(0,8);
+  const dms=DEMANDES.filter(d=>+d.at>=since&&(!cats||cats.has(d.cat)));
+  const achats=dms.filter(d=>d.type==='achat'), budgets=achats.map(d=>d.budget).filter(Boolean);
+  const coms={}; achats.forEach(d=>{ if(d.commune) coms[d.commune]=(coms[d.commune]||0)+1; });
+  const people=new Set(dms.map(d=>d.owner)).size;
+  return {top,dms:people>=RADAR.minPeople?dms:[],achats:people>=RADAR.minPeople?achats:[],budget:budgets.length>=RADAR.minPeople?Math.round(budgets.reduce((a,b)=>a+b,0)/budgets.length):0,coms:Object.entries(coms).sort((a,z)=>z[1]-a[1]).slice(0,3).map(([c])=>comBy(c).name)};
+}
+function radarTips(r){
+  const t=[];
+  if(r.top.some(x=>x.terme.includes('livraison'))) t.push('Beaucoup de recherches autour de la livraison : un code « livraison offerte » attirerait l’attention.');
+  if(r.top[0]) t.push(`« ${esc(r.top[0].terme)} » est très recherché sans bon plan en face : publiez une offre sur ce produit pour apparaître dans ces recherches.`);
+  if(r.achats.length) t.push(`${r.achats.length} projet${r.achats.length>1?'s':''} d’achat ce mois-ci : répondez avec une offre, c’est le moyen le plus direct de gagner ces clients.`);
+  if(r.coms.length) t.push(`Demandes surtout à ${r.coms.join(', ')} : précisez si vous livrez ces communes.`);
+  return t;
+}
+function radarCard(cats,title='📡 Ce que cherchent les habitants'){
+  const r=radarData(cats), tips=radarTips(r), any=r.top.length||r.dms.length;
+  return `<div class="card radar"><h3>${title}</h3>
+    <p class="muted">Les ${RADAR.days} derniers jours${cats?' dans votre catégorie':' sur toute l’île'}. Données anonymes, regroupées dès ${RADAR.minPeople} personnes différentes.</p>
+    ${any?`${r.top.length?`<p class="u10"><strong>Recherches sans bon plan</strong></p><ul class="radarlist">${r.top.map(x=>`<li><span>${esc(x.terme)}</span><b>${x.people.size} personne${x.people.size>1?'s':''}</b></li>`).join('')}</ul>`:''}
+      ${r.dms.length?`<p class="u10"><strong>Demandes publiées</strong> : ${r.dms.length} (dont ${r.achats.length} projet${r.achats.length>1?'s':''} d’achat)${r.budget?`, budget moyen ${fmtPrice(r.budget)}`:''}${r.coms.length?`, surtout ${esc(r.coms.join(', '))}`:''}.</p>`:''}
+      ${tips.length?`<ul class="tips u10">${tips.map(x=>`<li>💡 ${x}</li>`).join('')}</ul>`:''}`
+    :'<p class="note">Pas encore assez de recherches pour dégager une tendance. Le radar se remplira au fil des visites.</p>'}
+  </div>`;
+}
+
 /* ---------- « Je cherche à acheter… » : les entreprises répondent ---------- */
 const ACHAT_RULES={perWeek:3,days:30};
 const DELAIS={urgent:'Urgent',semaine:'Cette semaine',mois:'Ce mois-ci'};
@@ -2269,6 +2315,7 @@ function pageControle(){
     ${sus.length?`<div class="list">${sus.map(x=>`<div class="li"><div class="grow"><strong>${esc(x.name)}</strong><small>${x.why.map(esc).join(' · ')} · ${x.month} pts ce mois-ci</small></div><button class="btn btn-ghost btn-sm" data-exclude="${esc(x.id)}">Exclure</button></div>`).join('')}</div>`:'<p class="muted">Rien de suspect pour le moment. 👍</p>'}
     <div class="head u13"><h2>Classement provisoire de ${monthName(k)}</h2></div>
     ${boardRows(cur,true,k)}
+    <div class="u13">${radarCard(null,'📡 Radar des besoins : toute l’île')}</div>
     ${pricesAudit()}
     ${hoursAudit()}
     <div class="head u13"><h2>Membres exclus</h2></div>

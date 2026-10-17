@@ -61,3 +61,10 @@ Collection `PrixReglementes` (mois `AAAA-MM`, produit `sp95` / `gazole` / `petro
 Le site affiche le dernier mois publié qui n'est pas dans le futur, avec l'écart au mois précédent. Les produits suivis qui portent
 `reglemente` (essence, gazole, gaz 12 kg) signalent les relevés au-dessus du maximum. Une tâche planifiée met la collection à jour
 chaque 1er du mois à partir du communiqué de la préfecture.
+
+## Radar des besoins
+
+Collection `RecherchesVides` (écriture ouverte, lecture publique) : quand une recherche ne trouve aucun bon plan, on enregistre le mot,
+la catégorie probable et un identifiant aléatoire du navigateur (une fois par mot et par visite). L'espace pro affiche, pour la catégorie
+de l'entreprise, les mots recherchés par au moins 3 personnes différentes sur 30 jours, les demandes publiées et des conseils.
+La page Contrôle montre le même radar pour toute l'île.

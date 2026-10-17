@@ -890,3 +890,11 @@ body:has(.fab) #app{padding-bottom:72px}
 .fuellist b{font-size:1.1rem}
 .fuellist small.up{color:#B03A16;font-weight:700}
 .fuellist small.down{color:var(--vert);font-weight:700}
+/* v37 : radar des besoins */
+.radar{margin-bottom:12px}
+.radar h3{margin:0 0 4px}
+.radarlist{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:4px}
+.radarlist li{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--line)}
+.radarlist li:first-child{border-top:0}
+.radarlist b{color:var(--muted);font-weight:600;font-size:.9rem}
+.radar .tips{margin:0;padding:0;list-style:none;display:grid;gap:6px;line-height:1.45}
