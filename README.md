@@ -21,7 +21,7 @@ Les données (entreprises, codes, membres, demandes) restent dans le CMS Wix et 
 Les points sont recalculés dans le navigateur à partir des données du CMS (`pointsEngine()` dans `site/app-favorites-v2.js`, seuils dans `RULES`) :
 comptes de confiance (7 jours d'activité), 5 pts max par donneur et par mois, 5 « j'aime » max par commentaire, 3 codes récompensés par jour,
 doublons à 0 pt, 10 pts à la confirmation ou après 48 h, −10 pts si un code est signalé ou retiré dans les 7 jours, commentaires de 20 caractères
-minimum sans copie, 5 avis récompensés par jour, parrainage strict (5 par mois), lots réservés aux comptes de 30 jours.
+minimum sans copie, 5 avis récompensés par jour, parrainage strict (5 par mois), lots réservés aux comptes de 30 jours (7 jours pour octobre 2026, mois de lancement : `LAUNCH_MONTH`).
 
 La page `/controle` (visible seulement par le compte du propriétaire, `ADMIN_ID`) liste les activités suspectes, permet d'exclure ou de réintégrer
 un membre (collection `Exclusions`) et de valider les gagnants du mois (collection `ValidationsClassement`). Dans ces deux collections,

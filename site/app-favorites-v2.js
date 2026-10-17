@@ -1806,8 +1806,10 @@ const monthName=k=>{ const [y,m]=k.split('-'); return MONTHS[+m-1]+' '+y; };
 const monthPoints=(id,from,to)=>Math.max(0,pointsIn(id,from,to));
 const monthRange=k=>{ const [y,m]=k.split('-').map(Number); return [new Date(y,m-1,1),new Date(y,m,1)]; };
 const prevMonthKey=()=>monthKey(new Date(TODAY.getFullYear(),TODAY.getMonth()-1,1));
-// Lots réservés aux comptes actifs depuis au moins 30 jours à la clôture du mois.
-const prizeEligible=(id,k)=>{ const f=pointsEngine().first[id]; return !!f&&monthRange(k)[1]-f>=RULES.prizeDays*DAY; };
+// Lots réservés aux comptes actifs depuis au moins 30 jours à la clôture du mois (7 jours pour le mois de lancement).
+const LAUNCH_MONTH='2026-10';
+const prizeDaysFor=k=>k<=LAUNCH_MONTH?RULES.trustDays:RULES.prizeDays;
+const prizeEligible=(id,k)=>{ const f=pointsEngine().first[id]; return !!f&&monthRange(k)[1]-f>=prizeDaysFor(k)*DAY; };
 function monthBoard(k=monthKey(TODAY)){
   const [from,to]=monthRange(k);
   // En cas d'égalité, le membre arrivé le premier à ce total passe devant.
@@ -1841,15 +1843,15 @@ function pageRecompenses(){
     ${lots.length?`<div class="lots">${lots.map(r=>{ const b=r.biz&&bizBy(r.biz); return `<div class="lot card">${r.img?`<img src="${esc(r.img)}" alt="" loading="lazy">`:''}<span class="lotrank">${MEDALS[(r.rang||1)-1]||'🎁'} ${r.rang?r.rang+(r.rang===1?'re':'e')+' place':'Lot'}</span><strong>${esc(r.titre)}</strong>${r.desc?`<small>${esc(r.desc)}</small>`:''}${b?`<a class="bizline" href="#/entreprises/${b.slug}">${logo(b)}<span>Offert par ${esc(b.name)}</span></a>`:''}</div>`; }).join('')}</div>`:
       `<div class="card"><p>Les lots de ce mois arrivent bientôt.</p><p class="muted">Vous êtes une entreprise ? Offrez un lot et gagnez en visibilité auprès de la communauté. <a class="link" href="#/contact">Contactez-nous</a>.</p></div>`}
     <div class="head u13"><div><h2>Classement provisoire de ${monthName(k)}</h2><p class="muted">Seuls les points gagnés ce mois-ci comptent. Le classement devient définitif après vérification par l’équipe Bonszahé.</p></div></div>
-    ${board.length?`<ol class="ranking">${board.map((x,i)=>`<li class="${me()&&x.id===me().id?'me':''}"><span class="rk">${i+1}</span><div class="grow"><strong>${esc(x.name)}${x.prize?` ${MEDALS[x.prize-1]}`:''}</strong><small>${esc(levelOf(x.points).name)}${x.eligible?'':' · compte de moins de 30 jours, pas encore éligible aux lots'}</small></div><b>${x.month} pts</b></li>`).join('')}</ol>`:empty('Le classement du mois démarre','Partagez un code ou donnez votre avis pour marquer vos premiers points.',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}
-    ${me()?`<p class="note">${meRow?`Vous êtes ${mine+1}${mine?'e':'er'} ce mois-ci avec ${meRow.month} points.${meRow.eligible?'':' Votre compte sera éligible aux lots après 30 jours d’activité sur Bonszahé.'}`:EXCLUS[me().id]?'Votre compte ne participe pas au programme de points.':'Vous n’avez pas encore de points ce mois-ci.'}</p>`:''}
+    ${board.length?`<ol class="ranking">${board.map((x,i)=>`<li class="${me()&&x.id===me().id?'me':''}"><span class="rk">${i+1}</span><div class="grow"><strong>${esc(x.name)}${x.prize?` ${MEDALS[x.prize-1]}`:''}</strong><small>${esc(levelOf(x.points).name)}${x.eligible?'':` · compte de moins de ${prizeDaysFor(k)} jours, pas encore éligible aux lots`}</small></div><b>${x.month} pts</b></li>`).join('')}</ol>`:empty('Le classement du mois démarre','Partagez un code ou donnez votre avis pour marquer vos premiers points.',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}
+    ${me()?`<p class="note">${meRow?`Vous êtes ${mine+1}${mine?'e':'er'} ce mois-ci avec ${meRow.month} points.${meRow.eligible?'':` Votre compte sera éligible aux lots après ${prizeDaysFor(k)} jours d’activité sur Bonszahé.`}`:EXCLUS[me().id]?'Votre compte ne participe pas au programme de points.':'Vous n’avez pas encore de points ce mois-ci.'}</p>`:''}
     ${pointsHelp()}
     ${past.length?`<div class="head u13"><h2>Les derniers gagnants</h2></div><div class="list">${past.map(r=>`<div class="li"><div class="grow"><strong>${esc(r.gagnant)}</strong><small>${monthName(r.mois)} · ${esc(r.titre)}</small></div><span class="pill ok">${MEDALS[(r.rang||1)-1]||'🎁'}</span></div>`).join('')}</div>`:''}
     <details class="card u13" id="reglement"><summary><strong>Règlement</strong></summary><div class="prose">
       <p>Les récompenses du mois sont organisées par ${EDITEUR.nom}, éditeur de Bonszahé. La participation est gratuite et sans obligation d’achat : il suffit d’avoir un compte membre.</p>
       <p>Les points sont ceux affichés sur Bonszahé, comptés du 1er au dernier jour du mois, selon le barème suivant :</p>
       ${POINTS_RULES}
-      <p>Pour recevoir un lot, le compte doit être actif sur Bonszahé depuis au moins 30 jours à la clôture du mois. Les 3 membres éligibles qui ont le plus de points gagnent les lots dans l’ordre du classement. En cas d’égalité, le membre arrivé le premier à ce total l’emporte.</p>
+      <p>Pour recevoir un lot, le compte doit être actif sur Bonszahé depuis au moins 30 jours à la clôture du mois (exceptionnellement 7 jours pour ${monthName(LAUNCH_MONTH)}, le mois de lancement). Les 3 membres éligibles qui ont le plus de points gagnent les lots dans l’ordre du classement. En cas d’égalité, le membre arrivé le premier à ce total l’emporte.</p>
       <p>Le classement affiché pendant le mois est provisoire. Après la clôture, l’équipe Bonszahé vérifie les points avant de valider les gagnants, qui sont contactés par e-mail et dont le pseudo est publié sur cette page.</p>
       <p>Bonszahé peut retirer les points obtenus de façon abusive et exclure du programme, sans préavis, tout membre qui triche : comptes multiples, votes arrangés entre membres, faux codes, doublons, commentaires recopiés ou sans intérêt. Un membre exclu ne gagne plus de points et ne peut pas recevoir de lot. Les lots ne sont ni échangeables ni remboursables.</p>
     </div></details>
@@ -1870,8 +1872,8 @@ function suspects(){
   Object.entries(acts).forEach(([id,n])=>{ if(n>=15&&P.first[id]&&now-P.first[id]<RULES.trustDays*DAY) note(id,`Compte récent très actif (${n} actions)`); });
   return Object.entries(out).map(([id,set])=>({id,name:memberName(id),why:[...set],month:monthPoints(id,...monthRange(monthKey(TODAY)))})).sort((a,z)=>z.why.length-a.why.length||z.month-a.month);
 }
-function boardRows(list,withPrize){
-  return list.length?`<ol class="ranking">${list.map((x,i)=>`<li><span class="rk">${i+1}</span><div class="grow"><strong>${esc(x.name)}${withPrize&&x.prize?` ${MEDALS[x.prize-1]}`:''}</strong><small>${x.eligible?'Éligible aux lots':'Compte de moins de 30 jours'} · ${x.points} pts au total</small></div><b>${x.month} pts</b><button class="btn btn-ghost btn-sm" data-exclude="${esc(x.id)}">Exclure</button></li>`).join('')}</ol>`:'<p class="muted">Aucun point pour ce mois.</p>';
+function boardRows(list,withPrize,k){
+  return list.length?`<ol class="ranking">${list.map((x,i)=>`<li><span class="rk">${i+1}</span><div class="grow"><strong>${esc(x.name)}${withPrize&&x.prize?` ${MEDALS[x.prize-1]}`:''}</strong><small>${x.eligible?'Éligible aux lots':`Compte de moins de ${prizeDaysFor(k)} jours`} · ${x.points} pts au total</small></div><b>${x.month} pts</b><button class="btn btn-ghost btn-sm" data-exclude="${esc(x.id)}">Exclure</button></li>`).join('')}</ol>`:'<p class="muted">Aucun point pour ce mois.</p>';
 }
 function pageControle(){
   if(!isAdmin()) return notFound('Cette page n’existe pas','Le lien est peut-être incomplet ou ancien.','<a class="btn btn-primary" href="#/">Retour à l’accueil</a>','#/');
@@ -1882,12 +1884,12 @@ function pageControle(){
     <div class="card"><div class="head"><h2>Gagnants de ${monthName(pk)}</h2></div>
       ${pv?`<p>✅ Classement validé le ${fmt(pv.at)} : ${pv.noms.map((n,i)=>`${MEDALS[i]||''} <strong>${esc(n)}</strong>`).join(' · ')||'aucun gagnant'}.</p><button class="btn btn-ghost btn-sm" data-unvalidate="${esc(pk)}">Annuler la validation</button>`:
         `${win.length?`<p>Gagnants proposés (3 premiers comptes éligibles) : ${win.map(x=>`${MEDALS[x.prize-1]} <strong>${esc(x.name)}</strong> (${x.month} pts)`).join(' · ')}.</p><p class="muted">Excluez d’abord un tricheur si besoin : le suivant prend automatiquement sa place.</p><button class="btn btn-primary btn-sm" data-validate="${esc(pk)}">Valider et annoncer les gagnants</button>`:'<p class="muted">Aucun membre éligible pour ce mois.</p>'}`}
-      <details class="u10"><summary>Classement complet de ${monthName(pk)}</summary>${boardRows(prev.slice(0,20),true)}</details>
+      <details class="u10"><summary>Classement complet de ${monthName(pk)}</summary>${boardRows(prev.slice(0,20),true,pk)}</details>
     </div>
     <div class="head u13"><div><h2>Activités à vérifier</h2><p class="muted">Signaux calculés automatiquement. Un signal n’est pas une preuve : regardez le profil avant d’exclure.</p></div></div>
     ${sus.length?`<div class="list">${sus.map(x=>`<div class="li"><div class="grow"><strong>${esc(x.name)}</strong><small>${x.why.map(esc).join(' · ')} · ${x.month} pts ce mois-ci</small></div><button class="btn btn-ghost btn-sm" data-exclude="${esc(x.id)}">Exclure</button></div>`).join('')}</div>`:'<p class="muted">Rien de suspect pour le moment. 👍</p>'}
     <div class="head u13"><h2>Classement provisoire de ${monthName(k)}</h2></div>
-    ${boardRows(cur,true)}
+    ${boardRows(cur,true,k)}
     <div class="head u13"><h2>Membres exclus</h2></div>
     ${ex.length?`<div class="list">${ex.map(([id,x])=>`<div class="li"><div class="grow"><strong>${esc(x.nom||memberName(id))}</strong><small>${esc(x.motif||'Sans motif')} · depuis le ${fmt(x.at)}</small></div><button class="btn btn-ghost btn-sm" data-reinstate="${esc(id)}">Réintégrer</button></div>`).join('')}</div>`:'<p class="muted">Aucun membre exclu.</p>'}
     <div class="u8"></div>
