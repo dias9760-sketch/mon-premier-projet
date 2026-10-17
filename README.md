@@ -47,3 +47,10 @@ Collections `ProduitsSuivis` et `MagasinsPrix` (gérées par le propriétaire), 
 `MasquagesPrix` (lignes du propriétaire seulement, via la page Contrôle). Page `/prix` : dernier prix par magasin (60 jours max, grisé
 après 30 jours), « À vérifier » si l'écart à la médiane dépasse 60 % sans confirmation, 10 relevés par jour et par membre,
 +2 pts par relevé confirmé par un autre membre de confiance (5 par jour).
+
+## Demandes d'achat (« Je cherche à acheter… »)
+
+La collection `Demandes` porte un `type` (`code` ou `achat`) et, pour un achat : `budget`, `commune`, `delai`, `livraison`.
+Les entreprises voient les demandes de leur catégorie dans l'espace pro (« Clients qui cherchent à acheter ») et répondent par une offre
+(commentaire avec badge de leur fiche). 3 demandes d'achat par semaine et par membre, fermeture automatique après 30 jours.
+Une automatisation Wix envoie un e-mail au propriétaire à chaque nouvelle demande.

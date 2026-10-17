@@ -359,7 +359,9 @@ async function loadData(){
   EVENTS=events.filter(e=>e.publie!==false&&e.titre&&dateFrom(e.date)).map(e=>({
     id:e._id,title:e.titre,date:dateFrom(e.date),end:dateFrom(e.dateFin),time:e.heure||'',commune:communeFrom(e.commune),communeName:e.commune||'',place:e.lieu||'',desc:e.description||'',img:imgUrl(e.image),link:e.lien||'',biz:idToSlug[refId(e.entreprise)]||''
   })).sort((a,b)=>a.date-b.date);
-  DEMANDES=dms.filter(x=>x.texte&&!x.masquee).map(x=>({id:x._id,text:String(x.texte).slice(0,300),entId:x.entreprise||'',biz:idToSlug[x.entreprise]||'',cat:x.categorie||'',name:x.pseudo||'Membre',status:x.statut==='resolue'?'resolue':'ouverte',owner:x._owner,at:stamp(x._createdDate)})).sort((a,b)=>b.at-a.at);
+  DEMANDES=dms.filter(x=>x.texte&&!x.masquee).map(x=>({id:x._id,text:String(x.texte).slice(0,300),entId:x.entreprise||'',biz:idToSlug[x.entreprise]||'',cat:x.categorie||'',name:x.pseudo||'Membre',status:x.statut==='resolue'?'resolue':'ouverte',owner:x._owner,at:stamp(x._createdDate),type:x.type==='achat'?'achat':'code',budget:+x.budget||0,commune:communeFrom(x.commune),delai:x.delai||'',livraison:!!x.livraison})).sort((a,b)=>b.at-a.at);
+  // Une demande d'achat se ferme seule après 30 jours.
+  DEMANDES.forEach(d=>{ if(d.type==='achat'&&d.status==='ouverte'&&Date.now()-d.at>ACHAT_RULES.days*DAY) d.status='expiree'; });
   const seenF=new Set();
   PARRAINAGES=parr.filter(x=>x.parrain&&x._owner&&x.parrain!==x._owner).map(x=>({parrain:x.parrain,filleul:x._owner,name:x.filleulNom||'',at:stamp(x._createdDate)})).sort((a,b)=>a.at-b.at).filter(x=>!seenF.has(x.filleul)&&seenF.add(x.filleul));
   RECOMPENSES=recs.filter(x=>x.mois&&x.titre).map(x=>({mois:String(x.mois).slice(0,7),rang:+x.rang||0,titre:x.titre,desc:x.description||'',biz:idToSlug[x.entreprise]||'',img:imgUrl(x.image),gagnant:x.gagnant||''}));
@@ -653,7 +655,7 @@ function pageHome(){
 
   <section class="block">
     <div class="wrap commu">
-      <a class="commucard" href="#/demandes"><span class="tfemo">🙋</span><strong>Vous cherchez un code ?</strong><small>${DEMANDES.filter(d=>d.status!=='resolue').length?DEMANDES.filter(d=>d.status!=='resolue').length+' demande(s) en cours. ':''}Demandez à la communauté.</small></a>
+      <a class="commucard" href="#/demandes"><span class="tfemo">🙋</span><strong>Un code ou un achat à faire ?</strong><small>${DEMANDES.filter(d=>d.status==='ouverte').length?DEMANDES.filter(d=>d.status==='ouverte').length+' demande(s) en cours. ':''}La communauté et les entreprises vous répondent.</small></a>
       <a class="commucard" href="#/recompenses"><span class="tfemo">🎁</span><strong>Récompenses du mois</strong><small>Les 3 meilleurs contributeurs gagnent des lots.</small></a>
       <a class="commucard" href="#/prix"><span class="tfemo">💰</span><strong>Prix à Mayotte</strong><small>Comparez les prix du riz, de l’huile, du gaz… magasin par magasin.</small></a>
       <a class="commucard" href="#/catalogues"><span class="tfemo">📖</span><strong>Catalogues & arrivages</strong><small>${activeCatalogues().length?activeCatalogues().length+' catalogue'+(activeCatalogues().length>1?'s':'')+' en cours. ':''}Les promos des magasins de l’île.</small></a>
@@ -982,12 +984,14 @@ function isHidden(cm){
 const countComments=codeId=>commentsOf(codeId).filter(cm=>!isHidden(cm)).length;
 let commentSort='anciens', replyTo='';
 function commentItem(cm,c,isReply){
-  const b=bizBy(c.biz)||{owners:[]}; const pro=b.owners.includes(cm.owner); const mine=me()&&cm.owner===me().id;
+  const b=bizBy(c.biz)||{owners:[]}; const mine=me()&&cm.owner===me().id;
+  // Sur une demande, toute entreprise qui répond est signalée par sa fiche.
+  const proBiz=b.owners.includes(cm.owner)?b:String(c.id).startsWith('dm:')?B.find(x=>x.owners.includes(cm.owner)):null, pro=!!proBiz;
   const replies=isReply?[]:commentsOf(c.id).filter(r=>r.parent===cm.id).sort((a,z)=>a.at-z.at);
   const hidden=isHidden(cm); const n=likesOf(cm.id);
   const lvl=levelOf(statsFor(cm.owner).points).name;
   return `<li class="cm${isReply?' reply':''}" id="cm-${esc(cm.id)}">
-    <div class="cmhead"><strong>${esc(cm.name||'Membre')}</strong>${pro?`<span class="pill ok">${ic('store')}Entreprise</span>`:`<small class="muted">${esc(lvl)}</small>`}<small class="muted">· ${ago(cm.at)}</small></div>
+    <div class="cmhead"><strong>${esc(cm.name||'Membre')}</strong>${pro?`<a class="pill ok" href="#/entreprises/${proBiz.slug}">${ic('store')}${proBiz===b?'Entreprise':esc(proBiz.name)}</a>`:`<small class="muted">${esc(lvl)}</small>`}<small class="muted">· ${ago(cm.at)}</small></div>
     ${hidden?`<p class="cmtext muted"><em>Commentaire masqué suite à des signalements.</em></p>`:`<p class="cmtext">${esc(cm.text)}</p>
     <div class="cmacts">
       <button class="cmbtn" data-like="${esc(cm.id)}" aria-pressed="${!!myLike(cm.id)}">👍 J’aime${n?' ('+n+')':''}</button>
@@ -1328,7 +1332,7 @@ function pageProfile(){
         ${MINE.proposals.length?`<div class="list">${MINE.proposals.map(p=>{const b=bizBy(p.biz);const c=baseCodes.find(x=>x.by===u.id&&x.code===p.code&&x.biz===p.biz);const st=status[p.status]||status.attente;return `<div class="li">${logo(b)}<div class="grow"><strong>${esc(p.code)}</strong> ${esc(p.deal)}<small>${esc(b.name)}${p.exp?', expire le '+fmt(dateFrom(p.exp)):''}${c?` · ${allCodes().find(x=>x.id===c.id).up} « fonctionne »`:''}</small></div><span class="pill ${st[0]}">${st[1]}</span></div>`}).join('')}</div>`:
           empty('Vous n’avez encore partagé aucun code','Un code partagé aide toute la communauté et vous rapporte 10 points.','')}
       </div>
-      ${owned.length?`<div><div class="head"><h2>Espace pro</h2></div>${ideaBanner('pro')}<div id="proDash" class="stack"><p class="muted">Chargement de vos statistiques…</p></div></div>`:
+      ${owned.length?`<div><div class="head"><h2>Espace pro</h2></div>${proLeads(owned)}${ideaBanner('pro')}<div id="proDash" class="stack"><p class="muted">Chargement de vos statistiques…</p></div></div>`:
       `<div class="card">
         <h3>Espace professionnel</h3>
         <p class="muted">Vous gérez une entreprise ? Revendiquez sa fiche pour publier vos offres officielles et voir vos statistiques : vues de la page, codes copiés, clics vers votre site et appels.</p>
@@ -1984,7 +1988,7 @@ async function toggleFollow(type,valeur,label){
 }
 function pageAlertes(){
   if(!me()) return `<div class="u16 wrap">${backBtn('#/profil')}<div class="pagehead"><h1>🔔 Mes alertes</h1><p class="muted">Connectez-vous pour être prévenu dès qu’un bon plan correspond à ce que vous cherchez.</p></div>${authBox()}<div class="u8"></div></div>`;
-  const seen=alertSeen(), deals=alertDeals(false), catas=alertCatalogues(false);
+  const seen=alertSeen(), deals=alertDeals(false), catas=alertCatalogues(false), replies=dmReplyAlerts(true);
   const html=`<div class="wrap">
     ${backBtn('#/profil')}<div class="pagehead"><h1>🔔 Mes alertes</h1><p class="muted">Suivez un mot-clé, une entreprise ou une catégorie : les nouveaux bons plans, catalogues et arrivages qui correspondent apparaissent ici, et une pastille 🔔 vous prévient à votre prochaine visite.</p></div>
     <form class="form card" id="alertForm">
@@ -1997,6 +2001,7 @@ function pageAlertes(){
     ${MINE.alerts.length?`<div class="chips u13 wrapchips">${MINE.alerts.map(a=>`<span class="chip on">${esc(ALERT_TYPES[a.type]||'')} : ${esc(alertLabel(a))}<button class="chipx" data-delalert="${esc(a.id)}" aria-label="Supprimer l’alerte">${ic('x')}</button></span>`).join('')}</div>`:''}
     <div class="head u13"><div><h2>Pour vous</h2><p class="muted">${MINE.alerts.length?'Les bons plans en ligne qui correspondent à vos alertes.':'Créez votre première alerte ci-dessus.'}</p></div></div>
     ${deals.length?`<div class="coupons">${deals.map(c=>(+c.addedAt>seen?coupon(c).replace('<article class="coupon','<article class="coupon isnew'):coupon(c))).join('')}</div>`:MINE.alerts.length?empty('Rien de nouveau pour l’instant','Vous serez prévenu dès qu’un bon plan correspondra.',''):''}
+    ${replies.length?`<div class="head u13"><h2>💬 Nouvelles réponses à vos demandes</h2></div><div class="dmlist">${[...new Set(replies.map(c=>c.code.slice(3)))].map(id=>DEMANDES.find(d=>d.id===id)).filter(Boolean).map(d=>dmCard(d)).join('')}</div>`:''}
     ${catas.length?`<div class="head u13"><h2>Catalogues & arrivages</h2></div><div class="catalogs">${catas.map(c=>catalogueCard(c)).join('')}</div>`:''}
     <p class="note u13">Les notifications sur téléphone arriveront avec l’application Bonszahé.</p>
     <div class="u8"></div>
@@ -2005,28 +2010,85 @@ function pageAlertes(){
   return html;
 }
 
+/* ---------- « Je cherche à acheter… » : les entreprises répondent ---------- */
+const ACHAT_RULES={perWeek:3,days:30};
+const DELAIS={urgent:'Urgent',semaine:'Cette semaine',mois:'Ce mois-ci'};
+const myBizList=()=>me()?B.filter(b=>b.owners.includes(me().id)):[];
+const achatOpen=d=>d.type==='achat'&&d.status==='ouverte';
+function achatTags(d){
+  if(d.type!=='achat') return '';
+  return `<span class="pill achat">🛒 Projet d’achat</span>${d.budget?`<span class="pill">Budget : ${fmtPrice(d.budget)} max</span>`:''}${d.commune?`<span class="pill">${esc(comBy(d.commune).name)}</span>`:''}${DELAIS[d.delai]?`<span class="pill">${DELAIS[d.delai]}</span>`:''}${d.livraison?'<span class="pill">Livraison souhaitée</span>':''}`;
+}
+// Espace pro : les demandes d'achat ouvertes dans la catégorie de l'entreprise, sa commune d'abord.
+function proLeads(owned){
+  const cats=new Set(owned.map(b=>b.cat)), coms=new Set(owned.map(b=>b.commune).filter(Boolean));
+  const list=DEMANDES.filter(d=>achatOpen(d)&&d.owner!==me().id&&(!d.cat||cats.has(d.cat))).sort((a,z)=>(coms.has(z.commune)-coms.has(a.commune))||z.at-a.at);
+  const k='bonszahe:leads-vu:'+me().id; let seen=0; try{ seen=+localStorage.getItem(k)||0; localStorage.setItem(k,Date.now()); }catch(e){}
+  const fresh=list.filter(d=>+d.at>seen).length;
+  return `<div class="card leads"><h3>🛒 Clients qui cherchent à acheter${fresh?` <span class="pill soon">${fresh} nouvelle${fresh>1?'s':''}</span>`:''}</h3>
+    <p class="muted">Des habitants décrivent ce qu’ils veulent acheter. Faites-leur une offre : prix, disponibilité, livraison.</p>
+    ${list.length?`<div class="dmlist u10">${list.slice(0,6).map(d=>dmCard(d)).join('')}</div>${list.length>6?`<a class="link" href="#/demandes?f=achats">Voir les ${list.length} demandes</a>`:''}`:'<p class="note">Aucune demande d’achat dans votre catégorie pour le moment : vous serez prévenu ici.</p>'}
+  </div>`;
+}
+function offerDialog(id){
+  const d=DEMANDES.find(x=>x.id===id), mine=myBizList(); if(!d||!mine.length) return;
+  const pick=mine.find(b=>b.cat===d.cat)||mine[0];
+  openDialog(`<header><div><h2 id="dlgTitle">💼 Faire une offre</h2><p class="u14 note">« ${esc(d.text)} »${d.budget?` · budget ${fmtPrice(d.budget)} max`:''}</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+  <form class="form" id="offerForm" data-dm="${esc(d.id)}">
+    ${mine.length>1?`<label>Entreprise<select name="biz">${mine.map(b=>`<option value="${b.slug}"${b===pick?' selected':''}>${esc(b.name)}</option>`).join('')}</select></label>`:`<input type="hidden" name="biz" value="${pick.slug}">`}
+    <div class="two"><label>Prix total (€)<input name="prix" type="number" min="0" step="0.01" required inputmode="decimal"></label>
+    <label>Disponibilité<select name="dispo"><option>En stock</option><option>Sous une semaine</option><option>Sur commande</option></select></label></div>
+    <label>Livraison<select name="livr"><option>Livraison incluse</option><option>Livraison en supplément</option><option>Retrait en magasin</option></select></label>
+    <label>Message <span class="opt">(facultatif)</span><textarea name="msg" maxlength="250" rows="3" placeholder="Modèle, garantie, conditions…"></textarea></label>
+    <p class="note">Votre offre est publiée dans la demande. Le client vous contactera depuis votre fiche Bonszahé.</p>
+    <button class="btn btn-primary" type="submit">Publier mon offre</button>
+  </form>`);
+}
+async function sendOffer(f){
+  const d=DEMANDES.find(x=>x.id===f.dataset.dm), fd=Object.fromEntries(new FormData(f)), b=myBizList().find(x=>x.slug===fd.biz); if(!d||!b) return;
+  const prix=Math.round(parseFloat(String(fd.prix).replace(',','.'))*100)/100; if(!(prix>=0)) return;
+  const text=`💼 Offre de ${b.name} : ${fmtPrice(prix)} · ${fd.dispo} · ${fd.livr}${String(fd.msg||'').trim()?' — '+String(fd.msg).trim():''}`.slice(0,500);
+  const btn=f.querySelector('button[type=submit]'); btn.disabled=true;
+  try{ const r=await sendToWix('Commentaires',{code:'dm:'+d.id,texte:text,pseudo:b.name});
+    COMMENTS.push({id:r.dataItem&&r.dataItem.id,code:'dm:'+d.id,text,parent:'',name:b.name,owner:me().id,at:new Date()});
+    dlg.close(); refresh(); toast('Offre publiée ! Le client est prévenu sur Bonszahé.'); }
+  catch(err){ console.warn(err); btn.disabled=false; toast('Publication impossible. Réessayez.'); }
+}
+// Pastille 🔔 : nouvelles réponses aux demandes du membre.
+function dmReplyAlerts(onlyNew){
+  if(!me()) return [];
+  const mine=new Set(DEMANDES.filter(d=>d.owner===me().id).map(d=>'dm:'+d.id)), seen=onlyNew?alertSeen():0;
+  return COMMENTS.filter(c=>mine.has(c.code)&&c.owner!==me().id&&+c.at>seen&&!isHidden(c)).sort((a,z)=>z.at-a.at);
+}
+
 /* ---------- Demandes : « quelqu’un a un code pour… ? » ---------- */
 let dmFilter='ouvertes';
 const dmReplies=id=>countComments('dm:'+id);
 function dmCard(d,link=true){
   const b=d.biz&&bizBy(d.biz), cat=d.cat&&catBy(d.cat), n=dmReplies(d.id);
-  const inner=`<div class="dmhead"><strong>${esc(d.name)}</strong><small class="muted">· ${ago(d.at)}</small>${d.status==='resolue'?'<span class="pill ok">✓ Résolue</span>':''}</div>
+  const inner=`<div class="dmhead"><strong>${esc(d.name)}</strong><small class="muted">· ${ago(d.at)}</small>${d.status==='resolue'?`<span class="pill ok">✓ ${d.type==='achat'?'Trouvé':'Résolue'}</span>`:d.status==='expiree'?'<span class="pill">Expirée</span>':''}</div>
     <p class="dmtext">${esc(d.text)}</p>
-    <div class="dmtags">${b?`<span class="pill">${esc(b.name)}</span>`:''}${cat?`<span class="pill">${esc(cat.name)}</span>`:''}<span class="dmn">💬 ${n} réponse${n>1?'s':''}</span></div>`;
+    <div class="dmtags">${achatTags(d)}${b?`<span class="pill">${esc(b.name)}</span>`:''}${cat?`<span class="pill">${esc(cat.name)}</span>`:''}<span class="dmn">${d.type==='achat'?'💼':'💬'} ${n} ${d.type==='achat'?'offre'+(n>1?'s':'')+' et réponse'+(n>1?'s':''):'réponse'+(n>1?'s':'')}</span></div>`;
   return link?`<a class="dm card" href="#/demandes/${encodeURIComponent(d.id)}">${inner}</a>`:`<div class="dm card">${inner}</div>`;
 }
 function pageDemandes(params){
-  dmFilter=params.get('f')==='toutes'?'toutes':'ouvertes';
-  const list=DEMANDES.filter(d=>dmFilter==='toutes'||d.status!=='resolue');
+  dmFilter=['toutes','achats','codes'].includes(params.get('f'))?params.get('f'):'ouvertes';
+  const list=DEMANDES.filter(d=>dmFilter==='toutes'||(dmFilter==='achats'?achatOpen(d):dmFilter==='codes'?d.type==='code'&&d.status==='ouverte':d.status==='ouverte'));
   return `<div class="wrap">
-    ${upcomingEvents().length?backBtn('#/'):''}<div class="pagehead"><h1>🙋 Demandes</h1><p class="muted">Vous cherchez un code ou un bon plan ? Demandez à la communauté, et aidez les autres en répondant.</p></div>
+    ${upcomingEvents().length?backBtn('#/'):''}<div class="pagehead"><h1>🙋 Demandes</h1><p class="muted">Vous cherchez un code promo, ou vous avez un achat à faire ? Décrivez votre besoin : la communauté et les entreprises de l’île vous répondent.</p></div>
     ${me()?`<form class="form card" id="demandeForm">
+      <div class="seg full dmtype" role="radiogroup" aria-label="Type de demande"><label><input type="radio" name="type" value="code" checked> 🎟️ Je cherche un code</label><label><input type="radio" name="type" value="achat"> 🛒 Je cherche à acheter</label></div>
       <label>Votre demande<textarea name="texte" required maxlength="300" rows="3" placeholder="Ex. Quelqu’un a un code pour une livraison gratuite chez… ?"></textarea></label>
+      <div class="achatfields" hidden>
+        <div class="two"><label>Budget maximum (€) <span class="opt">(facultatif)</span><input name="budget" type="number" min="0" step="1" inputmode="numeric" placeholder="Ex. 350"></label><label>Votre commune${communeSelect('commune','')}</label></div>
+        <div class="two"><label>Délai<select name="delai">${Object.entries(DELAIS).map(([k,l])=>`<option value="${k}"${k==='semaine'?' selected':''}>${l}</option>`).join('')}</select></label><label class="check"><input type="checkbox" name="livraison" value="1"> Je souhaite être livré</label></div>
+        <p class="note">Vos coordonnées restent privées : les entreprises répondent ici, et vous les contactez si une offre vous intéresse.</p>
+      </div>
       <div class="two"><label>Entreprise <span class="opt">(facultatif)</span><select name="entreprise"><option value="">Aucune en particulier</option>${[...B].sort((a,z)=>a.name.localeCompare(z.name,'fr')).map(b=>`<option value="${b.slug}">${esc(b.name)}</option>`).join('')}</select></label>
       <label>Catégorie <span class="opt">(facultatif)</span><select name="categorie"><option value="">Toutes</option>${CATS.map(c=>`<option value="${c.slug}">${c.name}</option>`).join('')}</select></label></div>
       <button class="btn btn-primary" type="submit">Publier ma demande</button>
     </form>`:`<div class="card"><p class="muted">Connectez-vous pour publier une demande ou y répondre.</p><button class="btn btn-primary btn-sm" data-needlogin="demande">Se connecter</button></div>`}
-    <div class="toolbar u13"><div class="seg full" role="group" aria-label="Filtrer les demandes"><a href="#/demandes" aria-pressed="${dmFilter==='ouvertes'}">Ouvertes</a><a href="#/demandes?f=toutes" aria-pressed="${dmFilter==='toutes'}">Toutes</a></div></div>
+    <div class="toolbar u13"><div class="seg full" role="group" aria-label="Filtrer les demandes"><a href="#/demandes" aria-pressed="${dmFilter==='ouvertes'}">Ouvertes</a><a href="#/demandes?f=achats" aria-pressed="${dmFilter==='achats'}">🛒 Achats</a><a href="#/demandes?f=codes" aria-pressed="${dmFilter==='codes'}">🎟️ Codes</a><a href="#/demandes?f=toutes" aria-pressed="${dmFilter==='toutes'}">Toutes</a></div></div>
     <div class="dmlist">${list.length?list.map(d=>dmCard(d)).join(''):empty('Aucune demande pour l’instant','Soyez le premier à demander un bon plan !','')}</div>
     <div class="u8"></div>
   </div>`;
@@ -2040,7 +2102,9 @@ function pageDemande(id){
     <h1 class="pagetitle">Demande de ${esc(d.name)}</h1>
     <div class="dealpage"><div class="stack">
       ${dmCard(d,false)}
-      <div class="bandbtns">${mine?`${d.status!=='resolue'?`<button class="btn btn-primary btn-sm" data-dmresolve="${esc(d.id)}">${ic('check')}Marquer comme résolue</button>`:''}<button class="btn btn-ghost btn-sm" data-dmdel="${esc(d.id)}">Supprimer</button>`:`<button class="btn btn-sun btn-sm" data-propose="${d.biz||''}">${ic('plus')}J’ai un code : le partager</button>`}
+      ${d.type==='achat'&&mine?'<p class="note">Une offre vous intéresse ? Ouvrez la fiche de l’entreprise pour l’appeler ou lui écrire. Vos coordonnées ne sont jamais publiées.</p>':''}
+      ${achatOpen(d)&&!mine&&myBizList().length?`<button class="btn btn-sun" data-offer="${esc(d.id)}">💼 Faire une offre</button>`:''}
+      <div class="bandbtns">${mine?`${d.status!=='resolue'?`<button class="btn btn-primary btn-sm" data-dmresolve="${esc(d.id)}">${ic('check')}${d.type==='achat'?'J’ai trouvé':'Marquer comme résolue'}</button>`:''}<button class="btn btn-ghost btn-sm" data-dmdel="${esc(d.id)}">Supprimer</button>`:d.type==='achat'?'':`<button class="btn btn-sun btn-sm" data-propose="${d.biz||''}">${ic('plus')}J’ai un code : le partager</button>`}
         <a class="btn btn-wa btn-sm" href="${waHref(`🙋 ${d.text} — aidez sur Bonszahé 👉 ${pageUrl('#/')}demandes/${encodeURIComponent(d.id)}`)}" target="_blank" rel="noopener">Partager</a></div>
       ${commentsBlock({id:'dm:'+d.id,biz:d.biz})}
     </div></div>
@@ -2048,7 +2112,7 @@ function pageDemande(id){
   </div>`;
 }
 async function saveDemande(d,statut){
-  await call('PUT',`/wix-data/v2/items/${encodeURIComponent(d.id)}`,{dataCollectionId:'Demandes',dataItem:{id:d.id,data:{texte:d.text,entreprise:d.entId||'',categorie:d.cat||'',pseudo:d.name,statut}}});
+  await call('PUT',`/wix-data/v2/items/${encodeURIComponent(d.id)}`,{dataCollectionId:'Demandes',dataItem:{id:d.id,data:Object.assign({texte:d.text,entreprise:d.entId||'',categorie:d.cat||'',pseudo:d.name,statut,type:d.type},d.type==='achat'?{budget:d.budget||null,commune:d.commune,delai:d.delai,livraison:d.livraison}:{})}});
   d.status=statut;
 }
 
@@ -2346,7 +2410,7 @@ function route(){
   syncTabbar();
   document.querySelectorAll('[data-nav]').forEach(a=>{ a.getAttribute('data-nav')===nav?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current'); });
   document.getElementById('loginBtn').textContent=me()?me().name:'Connexion';
-  const nAlert=p==='alertes'?0:alertDeals(true).length+alertCatalogues(true).length;
+  const nAlert=p==='alertes'?0:alertDeals(true).length+alertCatalogues(true).length+dmReplyAlerts(true).length;
   document.querySelectorAll('#loginBtn,.bottomnav a[data-nav="profil"]').forEach(el=>nAlert?el.setAttribute('data-alert',nAlert>9?'9+':nAlert):el.removeAttribute('data-alert'));
   if(p==='profil') drawPro();
   if(p==='carte') drawMap();
@@ -2649,6 +2713,7 @@ document.addEventListener('click',async e=>{
   }
   else if(t.id==='nearMe'){ nearMe(t); }
   else if(t.dataset.proevent){ proEventDialog(t.dataset.proevent); }
+  else if(t.dataset.offer){ offerDialog(t.dataset.offer); }
   else if(t.dataset.prixform!==undefined){ prixDialog(t.dataset.prixform); }
   else if(t.dataset.confprix){ if(!me()){ requireLogin('Connectez-vous pour confirmer un prix.',()=>refresh()); return; } t.disabled=true; try{ const on=await toggleConfirmPrix(t.dataset.confprix); refresh(); toast(on?'Merci, prix confirmé !':'Confirmation retirée.'); }catch(err){ console.warn(err); t.disabled=false; toast('Action impossible. Réessayez.'); } }
   else if((t.dataset.hideprix||t.dataset.showprix)&&isAdmin()){ t.disabled=true; try{ if(t.dataset.hideprix){ const r=await sendToWix('MasquagesPrix',{releve:t.dataset.hideprix,motif:'Prix incorrect'}); PRICE_HIDDEN[t.dataset.hideprix]=r.dataItem&&r.dataItem.id; } else { const id=t.dataset.showprix; await call('DELETE',`/wix-data/v2/items/${encodeURIComponent(PRICE_HIDDEN[id])}?dataCollectionId=MasquagesPrix`); delete PRICE_HIDDEN[id]; } refresh(); }catch(err){ console.warn(err); t.disabled=false; toast('Action impossible. Réessayez.'); } }
@@ -2676,6 +2741,7 @@ dlg.addEventListener('close',()=>{ posMap=dropMap(posMap); if(!dlgByNav&&history
 document.addEventListener('change',e=>{
   if(e.target.name==='type'&&e.target.closest('#proposeForm')){ const cf=document.querySelector('#proposeForm .codefield'); const st=e.target.value==='magasin'; cf.hidden=st; cf.querySelector('input').required=!st; }
   const id=e.target.id;
+  if(e.target.name==='type'&&e.target.closest('#demandeForm')){ const a=e.target.value==='achat', f=e.target.closest('form'); f.querySelector('.achatfields').hidden=!a; f.texte.placeholder=a?'Ex. Une machine à laver 7 kg, livrée à Sada':'Ex. Quelqu’un a un code pour une livraison gratuite chez… ?'; }
   if(e.target.name==='type'&&e.target.closest('#alertForm')){ document.querySelectorAll('#alertForm .af').forEach(l=>l.hidden=!l.classList.contains('af-'+e.target.value)); }
   if(id==='codeSort'){ codeState.sort=e.target.value; drawCodes(); }
   if(id==='codeType'){ codeState.type=e.target.value; drawCodes(); }
@@ -2796,10 +2862,13 @@ document.addEventListener('submit',async e=>{
   else if(f.id==='demandeForm'){
     e.preventDefault(); if(!me()) return;
     const d=Object.fromEntries(new FormData(f)); const texte=String(d.texte||'').trim().slice(0,300); if(!texte) return;
+    const achat=d.type==='achat';
+    if(achat&&DEMANDES.filter(x=>x.owner===me().id&&x.type==='achat'&&Date.now()-x.at<7*DAY).length>=ACHAT_RULES.perWeek){ toast(`Vous avez déjà publié ${ACHAT_RULES.perWeek} demandes d’achat cette semaine.`); return; }
     const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Publication…';
     const ent=d.entreprise?(bizId[d.entreprise]||''):'';
-    try{ const r=await sendToWix('Demandes',{texte,entreprise:ent,categorie:d.categorie||'',pseudo:me().name,statut:'ouverte'});
-      const id=r.dataItem&&r.dataItem.id; DEMANDES.unshift({id,text:texte,entId:ent,biz:d.entreprise||'',cat:d.categorie||'',name:me().name,status:'ouverte',owner:me().id,at:new Date()});
+    const extra=achat?{type:'achat',budget:+d.budget||null,commune:d.commune||'',delai:d.delai||'',livraison:!!d.livraison}:{type:'code'};
+    try{ const r=await sendToWix('Demandes',Object.assign({texte,entreprise:ent,categorie:d.categorie||'',pseudo:me().name,statut:'ouverte'},extra));
+      const id=r.dataItem&&r.dataItem.id; DEMANDES.unshift({id,text:texte,entId:ent,biz:d.entreprise||'',cat:d.categorie||'',name:me().name,status:'ouverte',owner:me().id,at:new Date(),type:extra.type,budget:+d.budget||0,commune:d.commune||'',delai:d.delai||'',livraison:!!d.livraison});
       go('#/demandes/'+encodeURIComponent(id)); toast('Demande publiée ! La communauté va vous répondre.'); }
     catch(err){ console.warn(err); btn.disabled=false; btn.textContent='Publier ma demande'; toast(err.status===401||err.status===403?'Session expirée : reconnectez-vous.':'Publication impossible. Réessayez.'); }
   }
@@ -2822,6 +2891,7 @@ document.addEventListener('submit',async e=>{
       .then(()=>{ dlg.close(); toast('Merci ! Votre événement sera publié après vérification.'); loadMine().then(()=>{ if(curH().startsWith('#/profil')) refresh(); }); })
       .catch(ex=>{ console.warn(ex); btn.disabled=false; btn.textContent='Envoyer l’événement'; toast(ex.status===401||ex.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'); });
   }
+  else if(f.id==='offerForm'){ e.preventDefault(); sendOffer(f); }
   else if(f.id==='prixForm'){ e.preventDefault(); sendPrix(f); }
   else if(f.id==='proCatalogForm'){
     e.preventDefault(); const b=ownerOf(f.dataset.biz); if(!b) return;

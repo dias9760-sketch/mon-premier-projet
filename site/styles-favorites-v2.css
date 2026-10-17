@@ -870,3 +870,14 @@ body:has(.fab) #app{padding-bottom:72px}
 .pricerow small{color:var(--muted)}
 .pricerow.stale{opacity:.55}
 .pricerow.odd b{text-decoration:line-through dotted}
+/* v35 : demandes d'achat */
+.dmtype{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.dmtype label{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border-radius:12px;cursor:pointer;font-weight:600;text-align:center}
+.dmtype input{position:absolute;opacity:0;pointer-events:none}
+.dmtype label:has(input:checked){background:var(--surface);box-shadow:var(--shadow);color:var(--corail)}
+.dmtype label:has(input:focus-visible){outline:2px solid var(--corail)}
+.pill.achat{background:#E8F4FF;color:#0B4F8A}
+.achatfields{display:grid;gap:12px}
+.achatfields[hidden]{display:none}
+.leads{margin-bottom:12px}
+.leads h3{margin:0 0 4px}
