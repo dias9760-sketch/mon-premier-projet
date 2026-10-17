@@ -881,3 +881,12 @@ body:has(.fab) #app{padding-bottom:72px}
 .achatfields[hidden]{display:none}
 .leads{margin-bottom:12px}
 .leads h3{margin:0 0 4px}
+/* v36 : carburants et gaz */
+.fuel{border-color:#F5C89A;background:color-mix(in srgb,#FFB23F 8%,var(--surface))}
+.fuel h2{margin:0 0 4px}
+.fuellist{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+.fuellist li{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line)}
+.fuellist li:first-child{border-top:0}
+.fuellist b{font-size:1.1rem}
+.fuellist small.up{color:#B03A16;font-weight:700}
+.fuellist small.down{color:var(--vert);font-weight:700}

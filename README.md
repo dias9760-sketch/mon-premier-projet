@@ -54,3 +54,10 @@ La collection `Demandes` porte un `type` (`code` ou `achat`) et, pour un achat :
 Les entreprises voient les demandes de leur catégorie dans l'espace pro (« Clients qui cherchent à acheter ») et répondent par une offre
 (commentaire avec badge de leur fiche). 3 demandes d'achat par semaine et par membre, fermeture automatique après 30 jours.
 Une automatisation Wix envoie un e-mail au propriétaire à chaque nouvelle demande.
+
+## Carburants et gaz (prix maximums de la préfecture)
+
+Collection `PrixReglementes` (mois `AAAA-MM`, produit `sp95` / `gazole` / `petrole` / `melange` / `gaz12`, prix, unité, source).
+Le site affiche le dernier mois publié qui n'est pas dans le futur, avec l'écart au mois précédent. Les produits suivis qui portent
+`reglemente` (essence, gazole, gaz 12 kg) signalent les relevés au-dessus du maximum. Une tâche planifiée met la collection à jour
+chaque 1er du mois à partir du communiqué de la préfecture.

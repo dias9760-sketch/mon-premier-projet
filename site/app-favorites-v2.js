@@ -127,7 +127,7 @@ let DEMANDES=[], PARRAINAGES=[], RECOMPENSES=[], TEMPS=[];
 // Exclusions et validations du classement : seules les lignes créées par le propriétaire du site comptent.
 let EXCLUS={}, VALIDATIONS={};
 let CATALOGUES=[];
-let PRODUITS=[], MAGASINS_PRIX=[], RELEVES=[], CONFIRMS=[], PRICE_HIDDEN={};
+let PRODUITS=[], MAGASINS_PRIX=[], RELEVES=[], CONFIRMS=[], PRICE_HIDDEN={}, REGLEMENTES=[];
 let dataSource='snapshot';
 let tokenPromise=null;
 function getVisitorToken(){
@@ -329,13 +329,13 @@ const SALES={boutique:'Boutique physique','en-ligne':'Vente en ligne / livraison
 // Date et heure complètes d'un champ système Wix ({$date:…}), pour le classement Tendance.
 const stamp=v=>{ const d=new Date(typeof v==='object'&&v?v.$date:v); return isNaN(d)?new Date(TODAY):d; };
 async function loadData(){
-  const [ents,codes,votes,events,moros,comms,likes,reports,moder,dms,parr,recs,tfs,excl,vals,catas,prods,mags,rels,confs,hids]=await Promise.all([
+  const [ents,codes,votes,events,moros,comms,likes,reports,moder,dms,parr,recs,tfs,excl,vals,catas,prods,mags,rels,confs,hids,regs]=await Promise.all([
     queryAll('Entreprises'),queryAll('CodesPromo'),
     queryAll('Votes').catch(()=>[]),queryAll('Evenements').catch(()=>[]),queryAll('Moro').catch(()=>[]),
     queryAll('Commentaires').catch(()=>[]),queryAll('JaimeCommentaires').catch(()=>[]),queryAll('Signalements').catch(()=>[]),queryAll('Moderation').catch(()=>[]),
     queryAll('Demandes').catch(()=>[]),queryAll('Parrainages').catch(()=>[]),queryAll('Recompenses').catch(()=>[]),queryAll('TempsForts').catch(()=>[]),
     queryAll('Exclusions').catch(()=>[]),queryAll('ValidationsClassement').catch(()=>[]),queryAll('Catalogues').catch(()=>[]),
-    queryAll('ProduitsSuivis').catch(()=>[]),queryAll('MagasinsPrix').catch(()=>[]),queryAll('RelevesPrix').catch(()=>[]),queryAll('ConfirmationsPrix').catch(()=>[]),queryAll('MasquagesPrix').catch(()=>[])
+    queryAll('ProduitsSuivis').catch(()=>[]),queryAll('MagasinsPrix').catch(()=>[]),queryAll('RelevesPrix').catch(()=>[]),queryAll('ConfirmationsPrix').catch(()=>[]),queryAll('MasquagesPrix').catch(()=>[]),queryAll('PrixReglementes').catch(()=>[])
   ]);
   const idToSlug={}; const used=new Set();
   const list=ents.filter(e=>e.publiee!==false&&e.nom).map(e=>{
@@ -370,10 +370,11 @@ async function loadData(){
   VALIDATIONS={}; vals.filter(x=>x._owner===ADMIN_ID&&x.mois).forEach(x=>VALIDATIONS[String(x.mois).slice(0,7)]={row:x._id,ids:String(x.gagnants||'').split(/[\s,;]+/).filter(Boolean),noms:String(x.noms||'').split(' | ').filter(Boolean),at:stamp(x._createdDate)});
   CATALOGUES=catas.filter(x=>x.publie===true&&x.titre&&/^https?:\/\//.test(x.lien||'')).map(x=>{ const biz=idToSlug[refId(x.entreprise)]||B.find(b=>b.slug===x.entreprise)?.slug||'';
     return {id:x._id,biz,enseigne:x.enseigne||'',cat:biz?bizBy(biz).cat:catFrom(x.categorie),type:key(x.type).includes('arriv')?'arrivage':'catalogue',title:x.titre,link:x.lien,cover:imgUrl(x.couverture)||imgUrl(x.couvertureLien),desc:x.description||'',start:dateFrom(x.debut),end:dateFrom(x.fin),checked:dateFrom(x.verifieLe),at:stamp(x._createdDate)}; }).filter(c=>c.biz||c.enseigne);
-  PRODUITS=prods.filter(x=>x.nom&&x.actif!==false).map(x=>({id:x._id,nom:x.nom,format:x.format||'',emoji:x.emoji||'🛒',ordre:+x.ordre||99})).sort((a,z)=>a.ordre-z.ordre);
+  PRODUITS=prods.filter(x=>x.nom&&x.actif!==false).map(x=>({id:x._id,nom:x.nom,format:x.format||'',emoji:x.emoji||'🛒',ordre:+x.ordre||99,reglemente:x.reglemente||''})).sort((a,z)=>a.ordre-z.ordre);
   MAGASINS_PRIX=mags.filter(x=>x.nom&&x.actif!==false).map(x=>({nom:x.nom,commune:communeFrom(x.commune)}));
   RELEVES=rels.filter(x=>x.produit&&x.magasin&&+x.prix>0).map(x=>({id:x._id,produit:x.produit,magasin:String(x.magasin).slice(0,80),commune:communeFrom(x.commune),prix:+x.prix,day:dateFrom(x.date)||dateFrom(x._createdDate)||TODAY,pseudo:x.pseudo||'',owner:x._owner,at:stamp(x._createdDate)}));
   CONFIRMS=confs.filter(x=>x.releve).map(x=>({id:x._id,releve:x.releve,owner:x._owner,at:stamp(x._createdDate)}));
+  REGLEMENTES=regs.filter(x=>/^\d{4}-\d{2}$/.test(String(x.mois||''))&&x.produit&&+x.prix>0).map(x=>({mois:x.mois,produit:x.produit,libelle:x.libelle||x.produit,prix:+x.prix,unite:x.unite||'',source:x.source||''}));
   PRICE_HIDDEN={}; hids.filter(x=>x._owner===ADMIN_ID&&x.releve).forEach(x=>PRICE_HIDDEN[x.releve]=x._id);
   dataSource='wix';
 }
@@ -1637,6 +1638,34 @@ function pageSemaine(){
   </div>`;
 }
 
+/* ---------- Carburants et gaz : prix maximums fixés chaque mois par la préfecture ---------- */
+const REG_ORDER=['sp95','gazole','petrole','melange','gaz12'];
+const REG_EMOJI={sp95:'⛽',gazole:'🚚',petrole:'🪔',melange:'🛵',gaz12:'🔥'};
+const regMonths=()=>[...new Set(REGLEMENTES.map(r=>r.mois))].sort();
+// Prix en vigueur : le dernier mois publié qui n'est pas dans le futur.
+function regCurrent(){
+  const k=monthKey(TODAY), ms=regMonths().filter(m=>m<=k), cur=ms[ms.length-1], prev=ms[ms.length-2];
+  if(!cur) return null;
+  const at=(m,p)=>REGLEMENTES.find(r=>r.mois===m&&r.produit===p);
+  const rows=REG_ORDER.map(p=>{ const r=at(cur,p); if(!r) return null; const b=prev&&at(prev,p); return Object.assign({delta:b?Math.round((r.prix-b.prix)*100)/100:null},r); }).filter(Boolean);
+  return {mois:cur,rows,source:(rows.find(r=>r.source)||{}).source||''};
+}
+const regMax=prod=>{ const c=prod&&prod.reglemente&&regCurrent(); const r=c&&c.rows.find(x=>x.produit===prod.reglemente); return r?r.prix:null; };
+const fmtDelta=d=>d===null?'':d===0?'<small class="muted">=</small>':`<small class="${d>0?'up':'down'}">${d>0?'+':'−'}${fmtPrice(Math.abs(d))}</small>`;
+function fuelText(c){
+  const L=[`⛽ *Prix des carburants à Mayotte – ${monthName(c.mois)}*`,'Prix maximums fixés par la préfecture :',''];
+  c.rows.forEach(r=>L.push(`${REG_EMOJI[r.produit]||'•'} ${r.libelle} : *${fmtPrice(r.prix)}*${r.unite==='€/L'?' le litre':''}${r.delta?` (${r.delta>0?'+':'−'}${fmtPrice(Math.abs(r.delta))})`:''}`));
+  L.push('','👉 Tous les prix de Mayotte : '+pageUrl('#/')+'prix');
+  return L.join('\n');
+}
+function fuelCard(){
+  const c=regCurrent(); if(!c) return '';
+  return `<div class="card fuel u13"><div class="head"><div><h2>⛽ Carburants et gaz : ${monthName(c.mois)}</h2><p class="muted">Prix maximums fixés par la préfecture de Mayotte, en vigueur depuis le 1er ${MONTHS[+c.mois.slice(5)-1]}. Mis à jour chaque mois.</p></div></div>
+    <ul class="fuellist">${c.rows.map(r=>`<li><span>${REG_EMOJI[r.produit]||''} ${esc(r.libelle)}</span><b>${fmtPrice(r.prix)}<small class="muted">${r.unite==='€/L'?' /L':''}</small></b>${fmtDelta(r.delta)}</li>`).join('')}</ul>
+    <div class="bandbtns u10"><a class="btn btn-wa btn-sm" href="${waHref(fuelText(c))}" target="_blank" rel="noopener">Partager sur WhatsApp</a>${c.source?`<a class="link" href="${esc(c.source)}" target="_blank" rel="noopener">Source</a>`:''}</div>
+    <p class="note">Une station ou un commerce vend plus cher que le maximum ? Signalez le prix : il sera marqué « au-dessus du prix maximum ».</p></div>`;
+}
+
 /* ---------- Observatoire des prix ---------- */
 // Les membres relèvent le prix de produits courants ; un prix très éloigné des autres reste « à vérifier » tant qu'un autre membre ne l'a pas confirmé.
 const PRICE_RULES={perDay:10,outlier:.6,staleDays:30,maxDays:60,rewardPerDay:5,points:2};
@@ -1653,7 +1682,8 @@ function priceRows(prodId,com=''){
     const others=recent.filter(x=>x.id!==r.id&&priceDays(x)<=PRICE_RULES.staleDays).map(x=>x.prix);
     const conf=confirmersOf(r.id); conf.delete(r.owner);
     const odd=others.length>=3&&Math.abs(r.prix-median(others))/median(others)>PRICE_RULES.outlier&&!conf.size;
-    return Object.assign({},r,{odd,conf:conf.size,stale:priceDays(r)>PRICE_RULES.staleDays});
+    const max=regMax(PRODUITS.find(p=>p.id===prodId)), over=max!==null&&r.prix>max+.005;
+    return Object.assign({},r,{odd,over,max,conf:conf.size,stale:priceDays(r)>PRICE_RULES.staleDays});
   }).sort((a,z)=>a.odd-z.odd||a.stale-z.stale||a.prix-z.prix);
 }
 const bestPrice=(prodId,com)=>priceRows(prodId,com).find(r=>!r.odd&&!r.stale);
@@ -1665,7 +1695,7 @@ function recapPanier(com){
 }
 function priceRow(r){
   const mine=me()&&r.owner===me().id, conf=myConfirm(r.id);
-  return `<li class="pricerow${r.odd?' odd':''}${r.stale?' stale':''}"><div class="grow"><strong>${esc(r.magasin)}</strong><small>${r.commune?esc(comBy(r.commune).name)+' · ':''}${priceDays(r)?'il y a '+priceDays(r)+' j':'aujourd’hui'} · par ${esc(r.pseudo||'Membre')}${r.conf?` · ✓ confirmé ${r.conf} fois`:''}${r.odd?' · <span class="pill wait">À vérifier</span>':''}</small></div>
+  return `<li class="pricerow${r.odd?' odd':''}${r.stale?' stale':''}"><div class="grow"><strong>${esc(r.magasin)}</strong><small>${r.commune?esc(comBy(r.commune).name)+' · ':''}${priceDays(r)?'il y a '+priceDays(r)+' j':'aujourd’hui'} · par ${esc(r.pseudo||'Membre')}${r.conf?` · ✓ confirmé ${r.conf} fois`:''}${r.odd?' · <span class="pill wait">À vérifier</span>':''}${r.over?` · <span class="pill no">⚠️ Au-dessus du prix maximum (${fmtPrice(r.max)})</span>`:''}</small></div>
     <b>${fmtPrice(r.prix)}</b>${mine?'':`<button class="btn btn-ghost btn-sm" data-confprix="${esc(r.id)}" aria-pressed="${!!conf}">${conf?'✓ Confirmé':'Je confirme'}</button>`}</li>`;
 }
 function pagePrix(params){
@@ -1675,11 +1705,12 @@ function pagePrix(params){
   return `<div class="wrap">
     ${backBtn('#/')}<div class="pagehead"><h1>💰 Prix à Mayotte</h1><p class="muted">Les prix des produits du quotidien relevés par les habitants, magasin par magasin. Comparez avant de faire vos courses et aidez les autres en signalant les prix que vous voyez.</p>
       <div class="bandbtns u10"><button class="btn btn-sun" data-prixform="">${ic('plus')}Signaler un prix</button>${withPrice.length?`<a class="btn btn-wa" href="${waHref(txt)}" target="_blank" rel="noopener">Partager le panier malin</a>`:''}</div></div>
-    <div class="filters"><label class="sel"><span>Commune</span><select id="prixCom">${selOpts([['','Toute l’île'],...[...COMMUNES].sort((a,z)=>a.name.localeCompare(z.name,'fr')).map(c=>[c.slug,c.name])],com)}</select></label></div>
+    ${fuelCard()}
+    <div class="filters u13"><label class="sel"><span>Commune</span><select id="prixCom">${selOpts([['','Toute l’île'],...[...COMMUNES].sort((a,z)=>a.name.localeCompare(z.name,'fr')).map(c=>[c.slug,c.name])],com)}</select></label></div>
     ${withPrice.length?`<div class="card panier u13"><h2>🧺 Le panier malin${com?' à '+esc(comBy(com).name):''}</h2><p class="muted">Le prix le plus bas relevé ces 30 derniers jours pour chaque produit.</p>
       <ul class="panierlist">${withPrice.map(p=>{ const b=bestPrice(p.id,com); return `<li><span>${p.emoji} ${esc(p.nom)} <small class="muted">${esc(p.format)}</small></span><b>${fmtPrice(b.prix)}</b><small class="muted">${esc(b.magasin)}</small></li>`; }).join('')}</ul></div>`:''}
     <div class="prodgrid u13">${PRODUITS.map(p=>{ const rows=priceRows(p.id,com), b=bestPrice(p.id,com);
-      return `<details class="card prod"${rows.length&&rows.length<=3?' open':''}><summary><span class="prodemo">${p.emoji}</span><span class="grow"><strong>${esc(p.nom)}</strong><small class="muted">${esc(p.format)}</small></span>${b?`<span class="best"><b>${fmtPrice(b.prix)}</b><small>${esc(b.magasin)}</small></span>`:'<small class="muted">Pas encore de prix</small>'}</summary>
+      return `<details class="card prod"${rows.length&&rows.length<=3?' open':''}><summary><span class="prodemo">${p.emoji}</span><span class="grow"><strong>${esc(p.nom)}</strong><small class="muted">${esc(p.format)}${regMax(p)!==null?` · maximum légal ${fmtPrice(regMax(p))}`:''}</small></span>${b?`<span class="best"><b>${fmtPrice(b.prix)}</b><small>${esc(b.magasin)}</small></span>`:'<small class="muted">Pas encore de prix</small>'}</summary>
         ${rows.length?`<ul class="pricerows">${rows.map(priceRow).join('')}</ul>`:`<p class="muted">Vous connaissez le prix ? <button class="linkbtn link" data-prixform="${p.id}">Signalez-le</button></p>`}</details>`; }).join('')}</div>
     <p class="note u13">Prix relevés par la communauté, à vérifier en magasin. Un prix très différent des autres est marqué « À vérifier » jusqu’à ce qu’un autre membre le confirme. Un relevé confirmé par un autre membre rapporte ${PRICE_RULES.points} points (${PRICE_RULES.rewardPerDay} relevés récompensés par jour).</p>
     <div class="u8"></div>
