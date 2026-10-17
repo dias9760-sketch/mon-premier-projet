@@ -2745,7 +2745,7 @@ const canInstall=()=>!isStandalone()&&(!!installEvt||isIOS());
 function syncInstall(){ document.querySelectorAll('footer [data-install]').forEach(a=>a.hidden=!canInstall()); }
 function installCard(){
   if(!canInstall()) return '';
-  return `<div class="card installcard"><img src="/icons/icon-192.png" alt="" width="56" height="56"><div class="grow"><h3>Bonszahé sur votre écran d’accueil</h3><p class="muted">Ouvrez les bons plans en un geste, comme une application. Gratuit, sans passer par un store.</p></div><button class="btn btn-primary btn-sm" data-install="">📲 Installer</button></div>`;
+  return `<div class="card installcard"><img src="https://bonszahe.com/icons/icon-192.png" alt="" width="56" height="56"><div class="grow"><h3>Bonszahé sur votre écran d’accueil</h3><p class="muted">Ouvrez les bons plans en un geste, comme une application. Gratuit, sans passer par un store.</p></div><button class="btn btn-primary btn-sm" data-install="">📲 Installer</button></div>`;
 }
 async function installApp(){
   if(installEvt){ installEvt.prompt(); const r=await installEvt.userChoice.catch(()=>null); installEvt=null; syncInstall(); if(r&&r.outcome==='accepted') toast('🎉 Bonszahé est installé sur votre téléphone !'); refresh(); return; }
