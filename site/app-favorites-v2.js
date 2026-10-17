@@ -124,6 +124,8 @@ let VOTES=[];
 let MOROS=[];
 let COMMENTS=[], LIKES=[], REPORTS=[], MODERATION={};
 let DEMANDES=[], PARRAINAGES=[], RECOMPENSES=[], TEMPS=[];
+// Exclusions et validations du classement : seules les lignes créées par le propriétaire du site comptent.
+let EXCLUS={}, VALIDATIONS={};
 let dataSource='snapshot';
 let tokenPromise=null;
 function getVisitorToken(){
@@ -325,11 +327,12 @@ const SALES={boutique:'Boutique physique','en-ligne':'Vente en ligne / livraison
 // Date et heure complètes d'un champ système Wix ({$date:…}), pour le classement Tendance.
 const stamp=v=>{ const d=new Date(typeof v==='object'&&v?v.$date:v); return isNaN(d)?new Date(TODAY):d; };
 async function loadData(){
-  const [ents,codes,votes,events,moros,comms,likes,reports,moder,dms,parr,recs,tfs]=await Promise.all([
+  const [ents,codes,votes,events,moros,comms,likes,reports,moder,dms,parr,recs,tfs,excl,vals]=await Promise.all([
     queryAll('Entreprises'),queryAll('CodesPromo'),
     queryAll('Votes').catch(()=>[]),queryAll('Evenements').catch(()=>[]),queryAll('Moro').catch(()=>[]),
     queryAll('Commentaires').catch(()=>[]),queryAll('JaimeCommentaires').catch(()=>[]),queryAll('Signalements').catch(()=>[]),queryAll('Moderation').catch(()=>[]),
-    queryAll('Demandes').catch(()=>[]),queryAll('Parrainages').catch(()=>[]),queryAll('Recompenses').catch(()=>[]),queryAll('TempsForts').catch(()=>[])
+    queryAll('Demandes').catch(()=>[]),queryAll('Parrainages').catch(()=>[]),queryAll('Recompenses').catch(()=>[]),queryAll('TempsForts').catch(()=>[]),
+    queryAll('Exclusions').catch(()=>[]),queryAll('ValidationsClassement').catch(()=>[])
   ]);
   const idToSlug={}; const used=new Set();
   const list=ents.filter(e=>e.publiee!==false&&e.nom).map(e=>{
@@ -342,13 +345,13 @@ async function loadData(){
   B=list; bizId={}; Object.keys(idToSlug).forEach(id=>bizId[idToSlug[id]]=id);
   VOTES=votes.filter(v=>v.code&&(v.sens==='up'||v.sens==='down')).map(v=>({id:v._id,code:v.code,dir:v.sens,owner:v._owner,at:dateFrom(v._updatedDate||v._createdDate)||TODAY}));
   COMMENTS=comms.filter(x=>x.code&&x.texte).map(x=>({id:x._id,code:x.code,text:String(x.texte).slice(0,500),parent:x.parent||'',name:x.pseudo||'',owner:x._owner,at:stamp(x._createdDate)}));
-  LIKES=likes.filter(x=>x.commentaire).map(x=>({id:x._id,comment:x.commentaire,owner:x._owner}));
-  REPORTS=reports.filter(x=>x.commentaire).map(x=>({id:x._id,comment:x.commentaire,owner:x._owner}));
+  LIKES=likes.filter(x=>x.commentaire).map(x=>({id:x._id,comment:x.commentaire,owner:x._owner,at:stamp(x._createdDate)}));
+  REPORTS=reports.filter(x=>x.commentaire).map(x=>({id:x._id,comment:x.commentaire,owner:x._owner,at:stamp(x._createdDate)}));
   MODERATION={}; moder.forEach(x=>{ if(x.commentaire) MODERATION[x.commentaire]=String(x.decision||'').toLowerCase().includes('masq')?'masque':'approuve'; });
   MOROS=moros.filter(v=>v.code&&(v.sens==='moro'||v.sens==='maji')).map(v=>({id:v._id,code:v.code,dir:v.sens,owner:v._owner,at:stamp(v._updatedDate||v._createdDate)}));
   baseCodes=codes.filter(c=>(c.code||c.typeOffre==='magasin')&&idToSlug[refId(c.entreprise)]).map(c=>{
     const exp=dateFrom(c.dateExpiration);
-    return {id:c._id,biz:idToSlug[refId(c.entreprise)],deal:c.avantage||'Bon plan',detail:c.detail||'',code:String(c.code||'').trim(),store:c.typeOffre==='magasin',cond:c.conditions||'',exp:exp||inDays(3650),noExp:!exp,verified:!!c.verifie,baseUp:+c.votesOui||0,baseDown:+c.votesNon||0,added:dateFrom(c._createdDate)||TODAY,addedAt:stamp(c._createdDate),status:statutFrom(c.statut),link:c.lienOffre||'',by:c.contributeur||'',byName:c.contributeurNom||'',tf:String(c.tempsForts||'').split(/[\s,;]+/).filter(Boolean)};
+    return {id:c._id,biz:idToSlug[refId(c.entreprise)],deal:c.avantage||'Bon plan',detail:c.detail||'',code:String(c.code||'').trim(),store:c.typeOffre==='magasin',cond:c.conditions||'',exp:exp||inDays(3650),noExp:!exp,verified:!!c.verifie,baseUp:+c.votesOui||0,baseDown:+c.votesNon||0,added:dateFrom(c._createdDate)||TODAY,addedAt:stamp(c._createdDate),updatedAt:stamp(c._updatedDate||c._createdDate),status:statutFrom(c.statut),link:c.lienOffre||'',by:c.contributeur||'',byName:c.contributeurNom||'',tf:String(c.tempsForts||'').split(/[\s,;]+/).filter(Boolean)};
   });
   EVENTS=events.filter(e=>e.publie!==false&&e.titre&&dateFrom(e.date)).map(e=>({
     id:e._id,title:e.titre,date:dateFrom(e.date),end:dateFrom(e.dateFin),time:e.heure||'',commune:communeFrom(e.commune),communeName:e.commune||'',place:e.lieu||'',desc:e.description||'',img:imgUrl(e.image),link:e.lien||'',biz:idToSlug[refId(e.entreprise)]||''
@@ -358,6 +361,8 @@ async function loadData(){
   PARRAINAGES=parr.filter(x=>x.parrain&&x._owner&&x.parrain!==x._owner).map(x=>({parrain:x.parrain,filleul:x._owner,name:x.filleulNom||'',at:stamp(x._createdDate)})).sort((a,b)=>a.at-b.at).filter(x=>!seenF.has(x.filleul)&&seenF.add(x.filleul));
   RECOMPENSES=recs.filter(x=>x.mois&&x.titre).map(x=>({mois:String(x.mois).slice(0,7),rang:+x.rang||0,titre:x.titre,desc:x.description||'',biz:idToSlug[x.entreprise]||'',img:imgUrl(x.image),gagnant:x.gagnant||''}));
   TEMPS=tfs.filter(x=>x.slug&&x.titre).map(x=>({slug:x.slug,title:x.titre,emoji:x.emoji||'⭐',desc:x.description||'',start:dateFrom(x.debut),end:dateFrom(x.fin),cats:String(x.categories||'').split(/[\s,;]+/).filter(Boolean),ordre:+x.ordre||0})).sort((a,b)=>a.ordre-b.ordre);
+  EXCLUS={}; excl.filter(x=>x._owner===ADMIN_ID&&x.membre).forEach(x=>EXCLUS[x.membre]={row:x._id,nom:x.nom||'',motif:x.motif||'',at:stamp(x._createdDate)});
+  VALIDATIONS={}; vals.filter(x=>x._owner===ADMIN_ID&&x.mois).forEach(x=>VALIDATIONS[String(x.mois).slice(0,7)]={row:x._id,ids:String(x.gagnants||'').split(/[\s,;]+/).filter(Boolean),noms:String(x.noms||'').split(' | ').filter(Boolean),at:stamp(x._createdDate)});
   dataSource='wix';
 }
 async function sendToWix(collection,data){
@@ -972,7 +977,7 @@ async function toggleLike(cid){
   const l=myLike(cid);
   if(l){ await call('DELETE',`/wix-data/v2/items/${encodeURIComponent(l.id)}?dataCollectionId=JaimeCommentaires`); LIKES=LIKES.filter(x=>x.id!==l.id); return false; }
   const r=await sendToWix('JaimeCommentaires',{commentaire:cid});
-  LIKES.push({id:r.dataItem&&r.dataItem.id,comment:cid,owner:me().id}); return true;
+  LIKES.push({id:r.dataItem&&r.dataItem.id,comment:cid,owner:me().id,at:new Date()}); return true;
 }
 function reportDialog(cid){
   openDialog(`<header><div><h2 id="dlgTitle">Signaler ce commentaire</h2><p class="u14 note">Au bout de ${MASK_AT} signalements, le commentaire est masqué automatiquement.</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
@@ -1039,23 +1044,109 @@ function pageFavs(){
 }
 
 /* ---------- Points, niveaux et badges ---------- */
-// Barème : 10 points par code publié, 2 par Moro reçu, 1 par « fonctionne » reçu, 1 par avis donné (Moro/Maji ou « ça marche »).
+// Barème : 10 pts par code publié, 2 par Moro reçu, 1 par « fonctionne » reçu, 1 par avis donné, 1 par commentaire et par « j’aime » reçu, 15 par filleul actif.
+// Règles anti-triche : voir RULES. Tout est recalculé à partir des données du CMS, donc les règles s'appliquent à tous les membres.
 const LEVELS=[[0,'Nouveau membre'],[25,'Débrouillard'],[100,'Chasseur de bons plans'],[250,'Expert des bons plans'],[500,'Légende de l’île']];
+const ADMIN_ID='3215661d-f239-4c1c-bcc1-e157a03af406';
+const isAdmin=()=>!!me()&&me().id===ADMIN_ID;
+const RULES={trustDays:7,perVoterMonth:5,likesPerComment:5,codesPerDay:3,codeWaitH:48,penalty:10,badDays:7,commentMin:20,votesPerDay:5,commentsPerDay:5,refPerMonth:5,prizeDays:30};
+const DAY=864e5;
+const textKey=s=>key(s).replace(/[^a-z0-9]+/g,'');
+// Code retiré peu après sa publication, ou signalé comme ne fonctionnant pas : pénalité.
+const badCode=c=>flagged(c)||(c.status==='retire'&&c.updatedAt-c.addedAt<RULES.badDays*DAY);
+let PTS=null;
+const ptsKey=()=>[baseCodes.length,VOTES.length,MOROS.length,COMMENTS.length,LIKES.length,REPORTS.length,PARRAINAGES.length,Object.keys(EXCLUS).join(),Object.values(MODERATION).join(),VOTES.map(v=>v.dir[0]).join(''),MOROS.map(v=>v.dir[2]).join('')].join('|');
+function pointsEngine(){
+  const k=ptsKey(); if(PTS&&PTS.k===k) return PTS;
+  const now=Date.now(), codes=allCodes(), byId={};
+  codes.forEach(c=>byId[c.id]=c);
+  // Ancienneté : première activité du membre sur Bonszahé.
+  const first={}; const seen=(id,at)=>{ if(id&&at&&(!first[id]||at<first[id])) first[id]=at; };
+  codes.forEach(c=>seen(c.by,c.addedAt)); VOTES.forEach(v=>seen(v.owner,v.at)); MOROS.forEach(v=>seen(v.owner,v.at));
+  COMMENTS.forEach(x=>seen(x.owner,x.at)); LIKES.forEach(x=>seen(x.owner,x.at)); REPORTS.forEach(x=>seen(x.owner,x.at)); PARRAINAGES.forEach(x=>seen(x.filleul,x.at));
+  const trusted=(id,at)=>!!first[id]&&!EXCLUS[id]&&at-first[id]>=RULES.trustDays*DAY;
+  const ev={}, pending={}, flags={};
+  const add=(id,at,pts,kind)=>{ if(!id||EXCLUS[id]||!pts) return; (ev[id]||(ev[id]=[])).push({at,pts,k:kind}); };
+  const flag=(id,txt)=>{ if(id&&!EXCLUS[id]) (flags[id]||(flags[id]=new Set())).add(txt); };
+  // Points donnés par un autre membre : compte de confiance, plafonnés par donneur et par mois.
+  const gifts=[], given={};
+  const give=(from,to,at,pts,kind)=>{ if(!from||!to||from===to) return; gifts.push({from,to,at,pts,kind}); };
+  // Un avis par membre et par code : le plus récent.
+  const latest=list=>{ const m={}; list.forEach(v=>{ const kk=v.code+'|'+v.owner; if(!m[kk]||m[kk].at<=v.at) m[kk]=v; }); return Object.values(m); };
+  const votes=latest(VOTES), moros=latest(MOROS);
+  // Codes : doublons, 3 par jour, 10 pts à la confirmation ou après 48 h, pénalité si retiré vite ou signalé.
+  const firstOf={};
+  codes.filter(c=>c.status!=='refuse'&&c.status!=='attente').sort((a,z)=>a.addedAt-z.addedAt).forEach(c=>{ const kk=c.biz+'|'+(c.store?'magasin|'+textKey(c.deal):c.code.toUpperCase()); if(!firstOf[kk]) firstOf[kk]=c.id; c._dup=firstOf[kk]!==c.id; });
+  const perDayCodes={};
+  codes.filter(c=>c.by&&(c.status==='valide'||c.status==='retire')).sort((a,z)=>a.addedAt-z.addedAt).forEach(c=>{
+    if(badCode(c)){ add(c.by,c.status==='retire'?c.updatedAt:new Date(now),-RULES.penalty,'penalite'); flag(c.by,'Code retiré ou signalé'); return; }
+    if(c._dup){ flag(c.by,'Doublon de code'); return; }
+    const dk=c.by+'|'+dayKey(c.addedAt); perDayCodes[dk]=(perDayCodes[dk]||0)+1;
+    if(perDayCodes[dk]>RULES.codesPerDay){ flag(c.by,'Plus de '+RULES.codesPerDay+' codes en un jour'); return; }
+    const ok=votes.filter(v=>v.code===c.id&&v.dir==='up'&&v.owner!==c.by&&trusted(v.owner,v.at)).sort((a,z)=>a.at-z.at)[0];
+    const earn=Math.min(c.verified?+c.addedAt:Infinity,ok?+ok.at:Infinity,+c.addedAt+RULES.codeWaitH*36e5);
+    if(earn>now){ pending[c.by]=(pending[c.by]||0)+RULES.penalty; return; }
+    add(c.by,new Date(earn),10,'code');
+  });
+  const rewarded=c=>c&&c.by&&(c.status==='valide'||c.status==='retire')&&!badCode(c);
+  votes.forEach(v=>{ const c=byId[v.code]; if(v.dir==='up'&&rewarded(c)) give(v.owner,c.by,v.at,1,'fonctionne'); });
+  moros.forEach(v=>{ const c=byId[v.code]; if(v.dir==='moro'&&rewarded(c)) give(v.owner,c.by,v.at,2,'moro'); });
+  const cmById={}; COMMENTS.forEach(x=>cmById[x.id]=x);
+  const likeSeen={}, likeN={};
+  LIKES.slice().sort((a,z)=>a.at-z.at).forEach(l=>{ const cm=cmById[l.comment]; if(!cm||isHidden(cm)) return; const kk=l.comment+'|'+l.owner; if(likeSeen[kk]) return; likeSeen[kk]=1;
+    if(!trusted(l.owner,l.at)||l.owner===cm.owner) return; likeN[l.comment]=(likeN[l.comment]||0)+1; if(likeN[l.comment]<=RULES.likesPerComment) give(l.owner,cm.owner,l.at,1,'jaime'); });
+  const raw={}, fresh={};
+  gifts.sort((a,z)=>a.at-z.at).forEach(g=>{
+    const pair=g.from+'>'+g.to, mk=pair+'|'+monthKey(g.at);
+    raw[pair]=(raw[pair]||0)+g.pts;
+    if(!trusted(g.from,g.at)){ (fresh[g.to]||(fresh[g.to]=new Set())).add(g.from); return; }
+    const left=RULES.perVoterMonth-(given[mk]||0); if(left<=0) return;
+    const p=Math.min(left,g.pts); given[mk]=(given[mk]||0)+p; add(g.to,g.at,p,g.kind);
+  });
+  // Avis donnés : 1 pt par code (Moro/Maji et « ça marche » séparément), jamais sur ses propres codes, 5 par jour.
+  const perDayVotes={};
+  votes.map(v=>Object.assign({t:'v'},v)).concat(moros.map(v=>Object.assign({t:'m'},v))).sort((a,z)=>a.at-z.at).forEach(v=>{
+    const c=byId[v.code]; if(c&&c.by===v.owner) return;
+    const dk=v.owner+'|'+dayKey(v.at); perDayVotes[dk]=(perDayVotes[dk]||0)+1;
+    if(perDayVotes[dk]<=RULES.votesPerDay) add(v.owner,v.at,1,'avis');
+  });
+  // Commentaires : 20 caractères minimum, pas de texte recopié, 5 par jour.
+  const perDayCm={}, texts={};
+  COMMENTS.slice().sort((a,z)=>a.at-z.at).forEach(x=>{
+    if(isHidden(x)) return; const t=textKey(x.text);
+    if(String(x.text).trim().length<RULES.commentMin) return;
+    const tk=x.owner+'|'+t; if(texts[tk]){ flag(x.owner,'Commentaires recopiés'); return; } texts[tk]=1;
+    const dk=x.owner+'|'+dayKey(x.at); perDayCm[dk]=(perDayCm[dk]||0)+1;
+    if(perDayCm[dk]<=RULES.commentsPerDay) add(x.owner,x.at,1,'commentaire');
+  });
+  // Parrainage : filleul de plus de 7 jours avec une vraie contribution (un code, 3 avis ou un commentaire), 5 par mois.
+  const activeF=new Set(), perMonthRef={};
+  PARRAINAGES.forEach(x=>{
+    const e=ev[x.filleul]||[], n=kind=>e.filter(y=>y.k===kind).length;
+    if(EXCLUS[x.filleul]||!first[x.filleul]||now-first[x.filleul]<RULES.trustDays*DAY) return;
+    if(!(n('code')||n('commentaire')||n('avis')>=3)) return;
+    activeF.add(x.filleul);
+    const at=new Date(Math.max(+x.at,+first[x.filleul]+RULES.trustDays*DAY)), mk=x.parrain+'|'+monthKey(at);
+    perMonthRef[mk]=(perMonthRef[mk]||0)+1;
+    if(perMonthRef[mk]<=RULES.refPerMonth) add(x.parrain,at,15,'parrainage'); else flag(x.parrain,'Plus de '+RULES.refPerMonth+' filleuls en un mois');
+  });
+  PTS={k,ev,first,pending,flags,raw,fresh,activeF,trusted};
+  return PTS;
+}
+const pointsIn=(id,from,to)=>(pointsEngine().ev[id]||[]).filter(e=>(!from||e.at>=from)&&(!to||e.at<to)).reduce((s,e)=>s+e.pts,0);
 function statsFor(memberId){
   const codes=allCodes().filter(c=>c.by===memberId&&c.status==='valide');
   const upReceived=codes.reduce((s,c)=>s+c.up,0);
   const moroReceived=codes.reduce((s,c)=>s+c.moro,0);
   const bestHeat=codes.reduce((m,c)=>Math.max(m,c.heat),0);
   const myComments=COMMENTS.filter(x=>x.owner===memberId&&!isHidden(x));
-  const perDay={}; myComments.forEach(x=>{ const k=x.at.toISOString().slice(0,10); perDay[k]=Math.min(5,(perDay[k]||0)+1); });
-  const commentPts=Object.values(perDay).reduce((a,b)=>a+b,0);
   const likesReceived=myComments.reduce((s,x)=>s+likesOf(x.id),0);
   const bestComment=myComments.reduce((m,x)=>Math.max(m,likesOf(x.id)),0);
   const votesGiven=new Set(VOTES.filter(v=>v.owner===memberId).map(v=>v.code)).size+new Set(MOROS.filter(v=>v.owner===memberId).map(v=>v.code)).size;
   const cats=new Set(codes.map(c=>bizBy(c.biz).cat)).size;
   const best=codes.reduce((m,c)=>Math.max(m,c.up),0);
   const filleuls=filleulsOf(memberId).filter(x=>x.active).length;
-  return {filleuls,codes,upReceived,moroReceived,bestHeat,votesGiven,cats,best,comments:myComments.length,likesReceived,bestComment,points:codes.length*10+moroReceived*2+upReceived+votesGiven+commentPts+likesReceived+filleuls*15};
+  return {filleuls,codes,upReceived,moroReceived,bestHeat,votesGiven,cats,best,comments:myComments.length,likesReceived,bestComment,points:Math.max(0,pointsIn(memberId)),pending:pointsEngine().pending[memberId]||0,excluded:!!EXCLUS[memberId]};
 }
 const BADGES=[
   {name:'Premier bon plan',desc:'Partager 1 code',icon:'plus',val:s=>[s.codes.length,1]},
@@ -1071,10 +1162,10 @@ const BADGES=[
   {name:'Ambassadeur',desc:'Parrainer 3 membres actifs',icon:'heart',val:s=>[s.filleuls,3]}
 ];
 function levelOf(p){ let i=0; LEVELS.forEach((l,j)=>{ if(p>=l[0]) i=j; }); return {name:LEVELS[i][1],next:LEVELS[i+1]}; }
+const memberName=id=>(baseCodes.find(c=>c.by===id&&c.byName)||{}).byName||(COMMENTS.find(x=>x.owner===id&&x.name)||{}).name||(PARRAINAGES.find(x=>x.filleul===id&&x.name)||{}).name||(EXCLUS[id]&&EXCLUS[id].nom)||'Membre';
 function leaderboard(){
-  const ids=[...new Set([...baseCodes.filter(c=>c.by).map(c=>c.by),...COMMENTS.map(x=>x.owner),...PARRAINAGES.map(x=>x.parrain)])];
-  return ids.map(id=>{ const s=statsFor(id); const name=(baseCodes.find(c=>c.by===id&&c.byName)||{}).byName||(COMMENTS.find(x=>x.owner===id&&x.name)||{}).name||'Membre'; return Object.assign({id,name},s); })
-    .filter(x=>x.points>0).sort((a,b)=>b.points-a.points);
+  const ids=Object.keys(pointsEngine().ev).filter(id=>!EXCLUS[id]);
+  return ids.map(id=>Object.assign({id,name:memberName(id)},statsFor(id))).filter(x=>x.points>0).sort((a,b)=>b.points-a.points);
 }
 function badgeGrid(s){
   return `<div class="badges">${BADGES.map(bd=>{ const [v,goal]=bd.val(s); const ok=v>=goal; return `<div class="bdg${ok?' on':''}">
@@ -1139,7 +1230,9 @@ function pageProfile(){
     <div class="card level">
       <div class="lvhead"><span class="lvic">${ic('badge')}</span><div><small class="muted">Votre niveau</small><strong>${esc(lv.name)}</strong></div><b class="pts">${s.points} pts</b></div>
       <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></div>
-      <p class="note">${lv.next?`Encore ${lv.next[0]-s.points} points pour devenir « ${esc(lv.next[1])} ».`:'Niveau maximum atteint, bravo !'} 10 pts par code publié, 2 pts par Moro 🔥 reçu, 1 pt par « fonctionne » reçu, 1 pt par avis donné, 1 pt par commentaire (5 par jour max.) et par « j’aime » reçu, 15 pts par filleul actif.</p>
+      <p class="note">${lv.next?`Encore ${lv.next[0]-s.points} points pour devenir « ${esc(lv.next[1])} ».`:'Niveau maximum atteint, bravo !'}${s.pending?` <strong>+${s.pending} pts en attente</strong> : ils arrivent dès qu’un membre confirme votre code, ou 48 h après sa publication.`:''}</p>
+      ${s.excluded?`<p class="authmsg">Votre compte ne participe plus au programme de points. Une question ? <a class="link" href="#/contact">Contactez-nous</a>.</p>`:''}
+      ${pointsHelp()}
     </div>
     <div class="stats four">
       <div class="stat"><b>${s.codes.length}</b><span>Codes partagés</span></div>
@@ -1149,7 +1242,7 @@ function pageProfile(){
     </div>
     <div class="stack">
       <a class="btn btn-wa" href="${waHref(`Je suis « ${lv.name} » sur Bonszahé avec ${s.points} points 🔥 Rejoins la communauté des bons plans de Mayotte 👉 ${location.origin}/`)}" target="_blank" rel="noopener">Partager mon niveau sur WhatsApp</a>
-      <div class="quick"><a href="#/alertes">🔔<span>Mes alertes${MINE.alerts.length?' ('+MINE.alerts.length+')':''}</span></a><a href="#/demandes">🙋<span>Demandes</span></a><a href="#/recompenses">🎁<span>Récompenses</span></a></div>
+      <div class="quick"><a href="#/alertes">🔔<span>Mes alertes${MINE.alerts.length?' ('+MINE.alerts.length+')':''}</span></a><a href="#/demandes">🙋<span>Demandes</span></a><a href="#/recompenses">🎁<span>Récompenses</span></a>${isAdmin()?'<a href="#/controle">🛡️<span>Contrôle</span></a>':''}</div>
       ${referralCard()}
       <div><div class="head"><h2>Mes badges</h2><a class="link" href="#/classement">Voir le classement</a></div>${badgeGrid(s)}</div>
       <div>
@@ -1325,7 +1418,7 @@ function pageRanking(){
   const lb=leaderboard().slice(0,50);
   const mine=me()&&lb.findIndex(x=>x.id===me().id);
   return `<div class="wrap">
-    ${backBtn('#/profil')}<div class="pagehead"><h1>Classement de la communauté</h1><a class="btn btn-wa btn-sm u13" href="${waHref(`🏆 Le classement des chasseurs de bons plans de Mayotte sur Bonszahé 👉 ${pageUrl('#/')}classement`)}" target="_blank" rel="noopener">Partager le classement</a><p class="muted">Merci à celles et ceux qui partagent leurs bons plans ! 10 pts par code publié, 2 pts par Moro 🔥 reçu, 1 pt par « fonctionne » reçu, 1 pt par avis donné, 1 pt par commentaire (5 par jour max.) et par « j’aime » reçu, 15 pts par filleul actif.</p></div>
+    ${backBtn('#/profil')}<div class="pagehead"><h1>Classement de la communauté</h1><a class="btn btn-wa btn-sm u13" href="${waHref(`🏆 Le classement des chasseurs de bons plans de Mayotte sur Bonszahé 👉 ${pageUrl('#/')}classement`)}" target="_blank" rel="noopener">Partager le classement</a><p class="muted">Merci à celles et ceux qui partagent leurs bons plans !</p>${pointsHelp()}</div>
     <div class="u13">${lb.length?`<ol class="ranking">${lb.map((x,i)=>`<li class="${me()&&x.id===me().id?'me':''}"><span class="rk">${i+1}</span><div class="grow"><strong>${esc(x.name)}</strong><small>${esc(levelOf(x.points).name)} · ${x.codes.length} code${x.codes.length>1?'s':''} partagé${x.codes.length>1?'s':''}</small></div><b>${x.points} pts</b></li>`).join('')}</ol>`:
       empty('Le classement attend ses premiers chasseurs de bons plans','Partagez un code pour y apparaître.',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}
     ${me()&&mine<0?`<p class="note">Vous n’apparaissez pas encore : partagez votre premier code !</p>`:''}</div>
@@ -1678,8 +1771,7 @@ async function saveDemande(d,statut){
 
 /* ---------- Parrainage ---------- */
 const inviteUrl=()=>`${pageUrl('#/')}invite/${encodeURIComponent(me().id)}?n=${encodeURIComponent(me().name)}`;
-const isActiveMember=id=>baseCodes.some(c=>c.by===id)||VOTES.some(v=>v.owner===id)||MOROS.some(v=>v.owner===id)||COMMENTS.some(x=>x.owner===id&&!isHidden(x));
-const filleulsOf=id=>PARRAINAGES.filter(p=>p.parrain===id).map(p=>Object.assign({active:isActiveMember(p.filleul)},p));
+const filleulsOf=id=>PARRAINAGES.filter(p=>p.parrain===id).map(p=>Object.assign({active:pointsEngine().activeF.has(p.filleul)},p));
 function pageInvite(id,params){
   const name=(params.get('n')||'').slice(0,40);
   if(!me()||me().id!==id){ try{ localStorage.setItem('bonszahe:parrain',JSON.stringify({id,at:Date.now()})); }catch(e){} }
@@ -1701,7 +1793,7 @@ async function recordReferral(createdAt){
 function referralCard(){
   const f=filleulsOf(me().id), act=f.filter(x=>x.active).length;
   return `<div class="card refcard"><h3>🤝 Parrainage</h3>
-    <p class="muted">Invitez vos proches : <strong>+15 points</strong> pour vous à chaque filleul actif (un code, un avis ou un commentaire), et le badge Ambassadeur dès 3 filleuls actifs.</p>
+    <p class="muted">Invitez vos proches : <strong>+15 points</strong> pour vous à chaque filleul actif (inscrit depuis 7 jours, avec un code publié, 3 avis ou un commentaire ; 5 filleuls récompensés par mois), et le badge Ambassadeur dès 3 filleuls actifs.</p>
     <div class="bandbtns"><a class="btn btn-wa btn-sm" href="${waHref(`Rejoins-moi sur Bonszahé, les bons plans et codes promo de Mayotte 🔥 👉 ${inviteUrl()}`)}" target="_blank" rel="noopener">Inviter sur WhatsApp</a><button class="btn btn-ghost btn-sm" data-copylink="${esc(inviteUrl())}">${ic('copy')}Copier mon lien</button></div>
     ${f.length?`<p class="u10"><strong>${f.length} filleul${f.length>1?'s':''}</strong>, dont ${act} actif${act>1?'s':''} : ${f.map(x=>`${esc(x.name||'Membre')}${x.active?' ✓':' (en attente)'}`).join(', ')}</p>`:''}
   </div>`;
@@ -1711,45 +1803,122 @@ function referralCard(){
 const MONTHS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 const monthKey=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
 const monthName=k=>{ const [y,m]=k.split('-'); return MONTHS[+m-1]+' '+y; };
-function monthPoints(id,from,to){
-  const inM=d=>d>=from&&d<to;
-  const codes=allCodes().filter(c=>c.by===id&&c.status==='valide');
-  const ids=new Set(codes.map(c=>c.id));
-  let p=codes.filter(c=>inM(c.addedAt)).length*10;
-  p+=MOROS.filter(v=>ids.has(v.code)&&v.dir==='moro'&&inM(v.at)).length*2;
-  p+=VOTES.filter(v=>ids.has(v.code)&&v.dir==='up'&&inM(v.at)).length;
-  p+=new Set(VOTES.filter(v=>v.owner===id&&inM(v.at)).map(v=>v.code)).size+new Set(MOROS.filter(v=>v.owner===id&&inM(v.at)).map(v=>v.code)).size;
-  const perDay={}; COMMENTS.filter(x=>x.owner===id&&!isHidden(x)&&inM(x.at)).forEach(x=>{ const k=x.at.toISOString().slice(0,10); perDay[k]=Math.min(5,(perDay[k]||0)+1); });
-  p+=Object.values(perDay).reduce((a,b)=>a+b,0);
-  p+=PARRAINAGES.filter(x=>x.parrain===id&&inM(x.at)&&isActiveMember(x.filleul)).length*15;
-  return p;
+const monthPoints=(id,from,to)=>Math.max(0,pointsIn(id,from,to));
+const monthRange=k=>{ const [y,m]=k.split('-').map(Number); return [new Date(y,m-1,1),new Date(y,m,1)]; };
+const prevMonthKey=()=>monthKey(new Date(TODAY.getFullYear(),TODAY.getMonth()-1,1));
+// Lots réservés aux comptes actifs depuis au moins 30 jours à la clôture du mois.
+const prizeEligible=(id,k)=>{ const f=pointsEngine().first[id]; return !!f&&monthRange(k)[1]-f>=RULES.prizeDays*DAY; };
+function monthBoard(k=monthKey(TODAY)){
+  const [from,to]=monthRange(k);
+  // En cas d'égalité, le membre arrivé le premier à ce total passe devant.
+  const reached=(id,total)=>{ let sum=0; const e=(pointsEngine().ev[id]||[]).filter(x=>x.at>=from&&x.at<to).sort((a,z)=>a.at-z.at); for(const x of e){ sum+=x.pts; if(sum>=total) return +x.at; } return Infinity; };
+  const list=leaderboard().map(x=>Object.assign({},x,{month:monthPoints(x.id,from,to),eligible:prizeEligible(x.id,k)})).filter(x=>x.month>0);
+  list.forEach(x=>x.reached=reached(x.id,x.month));
+  list.sort((a,z)=>z.month-a.month||a.reached-z.reached);
+  let rank=0; list.forEach(x=>{ if(x.eligible&&rank<3) x.prize=++rank; });
+  return list;
 }
-function monthBoard(){
-  const from=new Date(TODAY.getFullYear(),TODAY.getMonth(),1), to=new Date(TODAY.getFullYear(),TODAY.getMonth()+1,1);
-  return leaderboard().map(x=>Object.assign({},x,{month:monthPoints(x.id,from,to)})).filter(x=>x.month>0).sort((a,z)=>z.month-a.month);
-}
+const POINTS_RULES=`<ul>
+  <li><strong>10 pts par code publié</strong>, crédités dès qu’un membre confirme qu’il fonctionne ou 48 h après la publication. 3 codes par jour au maximum rapportent des points ; un code déjà publié (doublon) ne rapporte rien.</li>
+  <li><strong>−10 pts</strong> si un code est signalé comme ne fonctionnant pas par la communauté, ou retiré par l’entreprise moins de 7 jours après sa publication.</li>
+  <li><strong>2 pts par Moro 🔥, 1 pt par « fonctionne » et par « j’aime » reçus</strong>, uniquement de la part de membres inscrits depuis au moins 7 jours. Un même membre peut vous faire gagner 5 pts par mois au maximum, et un commentaire rapporte au plus 5 « j’aime ».</li>
+  <li><strong>1 pt par avis donné</strong> (Moro/Maji ou « ça marche »), 5 par jour au maximum, jamais sur vos propres codes.</li>
+  <li><strong>1 pt par commentaire</strong> d’au moins 20 caractères, 5 par jour au maximum ; un commentaire recopié ne compte pas.</li>
+  <li><strong>15 pts par filleul actif</strong> : inscrit depuis au moins 7 jours, avec un code publié, 3 avis ou un commentaire. 5 filleuls récompensés par mois au maximum.</li>
+</ul>`;
+const pointsHelp=()=>`<details class="ptshelp"><summary>Comment sont comptés les points ?</summary><div class="prose">${POINTS_RULES}</div></details>`;
 function pageRecompenses(){
   const k=monthKey(TODAY), lots=RECOMPENSES.filter(r=>r.mois===k).sort((a,z)=>(a.rang||9)-(z.rang||9));
   const past=RECOMPENSES.filter(r=>r.mois<k&&r.gagnant).sort((a,z)=>z.mois.localeCompare(a.mois)||a.rang-z.rang).slice(0,6);
-  const board=monthBoard().slice(0,10), mine=me()&&monthBoard().findIndex(x=>x.id===me().id);
+  const all=monthBoard(), board=all.slice(0,10), mine=me()?all.findIndex(x=>x.id===me().id):-1;
   const end=new Date(TODAY.getFullYear(),TODAY.getMonth()+1,0);
+  const pk=prevMonthKey(), pv=VALIDATIONS[pk], hadPrev=monthBoard(pk).length>0;
+  const meRow=mine>=0&&all[mine];
   return `<div class="wrap">
     ${backBtn('#/profil')}<div class="pagehead"><h1>🎁 Récompenses du mois</h1><p class="muted">Chaque mois, les 3 membres qui gagnent le plus de points remportent des lots offerts par les entreprises partenaires. Classement de ${monthName(k)}, clôture le ${dayMonth(end)} à minuit.</p></div>
+    ${pv?`<div class="card winners"><h2>🏆 Les gagnants de ${monthName(pk)}</h2><p>${pv.noms.map((n,i)=>`${MEDALS[i]||'🎁'} <strong>${esc(n)}</strong>`).join(' · ')||'Aucun gagnant ce mois-ci.'}</p><p class="muted">Résultats vérifiés et validés par l’équipe Bonszahé. Bravo à toutes et à tous !</p></div>`:hadPrev&&TODAY.getDate()<=15?`<p class="authmsg">⏳ Les résultats de ${monthName(pk)} sont en cours de vérification par l’équipe Bonszahé. Les gagnants seront annoncés ici très bientôt.</p>`:''}
     <div class="head"><h2>Les lots de ${monthName(k)}</h2></div>
     ${lots.length?`<div class="lots">${lots.map(r=>{ const b=r.biz&&bizBy(r.biz); return `<div class="lot card">${r.img?`<img src="${esc(r.img)}" alt="" loading="lazy">`:''}<span class="lotrank">${MEDALS[(r.rang||1)-1]||'🎁'} ${r.rang?r.rang+(r.rang===1?'re':'e')+' place':'Lot'}</span><strong>${esc(r.titre)}</strong>${r.desc?`<small>${esc(r.desc)}</small>`:''}${b?`<a class="bizline" href="#/entreprises/${b.slug}">${logo(b)}<span>Offert par ${esc(b.name)}</span></a>`:''}</div>`; }).join('')}</div>`:
       `<div class="card"><p>Les lots de ce mois arrivent bientôt.</p><p class="muted">Vous êtes une entreprise ? Offrez un lot et gagnez en visibilité auprès de la communauté. <a class="link" href="#/contact">Contactez-nous</a>.</p></div>`}
-    <div class="head u13"><div><h2>Classement de ${monthName(k)}</h2><p class="muted">Seuls les points gagnés ce mois-ci comptent.</p></div></div>
-    ${board.length?`<ol class="ranking">${board.map((x,i)=>`<li class="${me()&&x.id===me().id?'me':''}"><span class="rk">${i+1}</span><div class="grow"><strong>${esc(x.name)}</strong><small>${esc(levelOf(x.points).name)}</small></div><b>${x.month} pts</b></li>`).join('')}</ol>`:empty('Le classement du mois démarre','Partagez un code ou donnez votre avis pour marquer vos premiers points.',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}
-    ${me()?`<p class="note">${mine>=0?`Vous êtes ${mine+1}${mine?'e':'er'} ce mois-ci avec ${monthBoard()[mine].month} points.`:'Vous n’avez pas encore de points ce mois-ci.'}</p>`:''}
+    <div class="head u13"><div><h2>Classement provisoire de ${monthName(k)}</h2><p class="muted">Seuls les points gagnés ce mois-ci comptent. Le classement devient définitif après vérification par l’équipe Bonszahé.</p></div></div>
+    ${board.length?`<ol class="ranking">${board.map((x,i)=>`<li class="${me()&&x.id===me().id?'me':''}"><span class="rk">${i+1}</span><div class="grow"><strong>${esc(x.name)}${x.prize?` ${MEDALS[x.prize-1]}`:''}</strong><small>${esc(levelOf(x.points).name)}${x.eligible?'':' · compte de moins de 30 jours, pas encore éligible aux lots'}</small></div><b>${x.month} pts</b></li>`).join('')}</ol>`:empty('Le classement du mois démarre','Partagez un code ou donnez votre avis pour marquer vos premiers points.',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}
+    ${me()?`<p class="note">${meRow?`Vous êtes ${mine+1}${mine?'e':'er'} ce mois-ci avec ${meRow.month} points.${meRow.eligible?'':' Votre compte sera éligible aux lots après 30 jours d’activité sur Bonszahé.'}`:EXCLUS[me().id]?'Votre compte ne participe pas au programme de points.':'Vous n’avez pas encore de points ce mois-ci.'}</p>`:''}
+    ${pointsHelp()}
     ${past.length?`<div class="head u13"><h2>Les derniers gagnants</h2></div><div class="list">${past.map(r=>`<div class="li"><div class="grow"><strong>${esc(r.gagnant)}</strong><small>${monthName(r.mois)} · ${esc(r.titre)}</small></div><span class="pill ok">${MEDALS[(r.rang||1)-1]||'🎁'}</span></div>`).join('')}</div>`:''}
     <details class="card u13" id="reglement"><summary><strong>Règlement</strong></summary><div class="prose">
       <p>Les récompenses du mois sont organisées par ${EDITEUR.nom}, éditeur de Bonszahé. La participation est gratuite et sans obligation d’achat : il suffit d’avoir un compte membre.</p>
-      <p>Les points sont ceux affichés sur Bonszahé (10 par code publié, 2 par Moro 🔥 reçu, 1 par « fonctionne » reçu, 1 par avis donné, 1 par commentaire dans la limite de 5 par jour, 15 par filleul actif), comptés du 1er au dernier jour du mois.</p>
-      <p>Les 3 membres qui ont le plus de points à la clôture gagnent les lots dans l’ordre du classement. En cas d’égalité, le membre arrivé le premier à ce total l’emporte. Les gagnants sont contactés par e-mail et leur pseudo est publié sur cette page.</p>
-      <p>Les points obtenus par la fraude (faux codes, comptes multiples, commentaires masqués ou abusifs) sont retirés et peuvent entraîner l’exclusion. Les lots ne sont ni échangeables ni remboursables.</p>
+      <p>Les points sont ceux affichés sur Bonszahé, comptés du 1er au dernier jour du mois, selon le barème suivant :</p>
+      ${POINTS_RULES}
+      <p>Pour recevoir un lot, le compte doit être actif sur Bonszahé depuis au moins 30 jours à la clôture du mois. Les 3 membres éligibles qui ont le plus de points gagnent les lots dans l’ordre du classement. En cas d’égalité, le membre arrivé le premier à ce total l’emporte.</p>
+      <p>Le classement affiché pendant le mois est provisoire. Après la clôture, l’équipe Bonszahé vérifie les points avant de valider les gagnants, qui sont contactés par e-mail et dont le pseudo est publié sur cette page.</p>
+      <p>Bonszahé peut retirer les points obtenus de façon abusive et exclure du programme, sans préavis, tout membre qui triche : comptes multiples, votes arrangés entre membres, faux codes, doublons, commentaires recopiés ou sans intérêt. Un membre exclu ne gagne plus de points et ne peut pas recevoir de lot. Les lots ne sont ni échangeables ni remboursables.</p>
     </div></details>
     <div class="u8"></div>
   </div>`;
+}
+
+/* ---------- Contrôle du programme de points (réservé au propriétaire du site) ---------- */
+function suspects(){
+  const P=pointsEngine(), out={}, now=Date.now();
+  const note=(id,txt)=>{ if(id&&!EXCLUS[id]) (out[id]||(out[id]=new Set())).add(txt); };
+  Object.entries(P.flags).forEach(([id,set])=>set.forEach(t=>note(id,t)));
+  Object.entries(P.raw).forEach(([pair,pts])=>{ const [a,b]=pair.split('>');
+    if(pts>=3&&(P.raw[b+'>'+a]||0)>=3&&a<b){ note(a,'Votes croisés avec '+memberName(b)); note(b,'Votes croisés avec '+memberName(a)); }
+    if(pts>=10) note(b,'Reçoit beaucoup de votes de '+memberName(a)); });
+  Object.entries(P.fresh).forEach(([id,set])=>{ if(set.size>=3) note(id,`Soutenu par ${set.size} comptes récents`); });
+  const acts={}; [...VOTES,...MOROS,...COMMENTS,...LIKES].forEach(x=>acts[x.owner]=(acts[x.owner]||0)+1); baseCodes.forEach(c=>{ if(c.by) acts[c.by]=(acts[c.by]||0)+1; });
+  Object.entries(acts).forEach(([id,n])=>{ if(n>=15&&P.first[id]&&now-P.first[id]<RULES.trustDays*DAY) note(id,`Compte récent très actif (${n} actions)`); });
+  return Object.entries(out).map(([id,set])=>({id,name:memberName(id),why:[...set],month:monthPoints(id,...monthRange(monthKey(TODAY)))})).sort((a,z)=>z.why.length-a.why.length||z.month-a.month);
+}
+function boardRows(list,withPrize){
+  return list.length?`<ol class="ranking">${list.map((x,i)=>`<li><span class="rk">${i+1}</span><div class="grow"><strong>${esc(x.name)}${withPrize&&x.prize?` ${MEDALS[x.prize-1]}`:''}</strong><small>${x.eligible?'Éligible aux lots':'Compte de moins de 30 jours'} · ${x.points} pts au total</small></div><b>${x.month} pts</b><button class="btn btn-ghost btn-sm" data-exclude="${esc(x.id)}">Exclure</button></li>`).join('')}</ol>`:'<p class="muted">Aucun point pour ce mois.</p>';
+}
+function pageControle(){
+  if(!isAdmin()) return notFound('Cette page n’existe pas','Le lien est peut-être incomplet ou ancien.','<a class="btn btn-primary" href="#/">Retour à l’accueil</a>','#/');
+  const k=monthKey(TODAY), pk=prevMonthKey(), pv=VALIDATIONS[pk], prev=monthBoard(pk), cur=monthBoard(k).slice(0,20), sus=suspects(), ex=Object.entries(EXCLUS);
+  const win=prev.filter(x=>x.prize).sort((a,z)=>a.prize-z.prize);
+  return `<div class="wrap">
+    ${backBtn('#/profil')}<div class="pagehead"><h1>🛡️ Contrôle du programme de points</h1><p class="muted">Page visible par vous seul. Vérifiez les comportements suspects, excluez les tricheurs et validez les gagnants du mois avant de les annoncer.</p></div>
+    <div class="card"><div class="head"><h2>Gagnants de ${monthName(pk)}</h2></div>
+      ${pv?`<p>✅ Classement validé le ${fmt(pv.at)} : ${pv.noms.map((n,i)=>`${MEDALS[i]||''} <strong>${esc(n)}</strong>`).join(' · ')||'aucun gagnant'}.</p><button class="btn btn-ghost btn-sm" data-unvalidate="${esc(pk)}">Annuler la validation</button>`:
+        `${win.length?`<p>Gagnants proposés (3 premiers comptes éligibles) : ${win.map(x=>`${MEDALS[x.prize-1]} <strong>${esc(x.name)}</strong> (${x.month} pts)`).join(' · ')}.</p><p class="muted">Excluez d’abord un tricheur si besoin : le suivant prend automatiquement sa place.</p><button class="btn btn-primary btn-sm" data-validate="${esc(pk)}">Valider et annoncer les gagnants</button>`:'<p class="muted">Aucun membre éligible pour ce mois.</p>'}`}
+      <details class="u10"><summary>Classement complet de ${monthName(pk)}</summary>${boardRows(prev.slice(0,20),true)}</details>
+    </div>
+    <div class="head u13"><div><h2>Activités à vérifier</h2><p class="muted">Signaux calculés automatiquement. Un signal n’est pas une preuve : regardez le profil avant d’exclure.</p></div></div>
+    ${sus.length?`<div class="list">${sus.map(x=>`<div class="li"><div class="grow"><strong>${esc(x.name)}</strong><small>${x.why.map(esc).join(' · ')} · ${x.month} pts ce mois-ci</small></div><button class="btn btn-ghost btn-sm" data-exclude="${esc(x.id)}">Exclure</button></div>`).join('')}</div>`:'<p class="muted">Rien de suspect pour le moment. 👍</p>'}
+    <div class="head u13"><h2>Classement provisoire de ${monthName(k)}</h2></div>
+    ${boardRows(cur,true)}
+    <div class="head u13"><h2>Membres exclus</h2></div>
+    ${ex.length?`<div class="list">${ex.map(([id,x])=>`<div class="li"><div class="grow"><strong>${esc(x.nom||memberName(id))}</strong><small>${esc(x.motif||'Sans motif')} · depuis le ${fmt(x.at)}</small></div><button class="btn btn-ghost btn-sm" data-reinstate="${esc(id)}">Réintégrer</button></div>`).join('')}</div>`:'<p class="muted">Aucun membre exclu.</p>'}
+    <div class="u8"></div>
+  </div>`;
+}
+function excludeDialog(id){
+  openDialog(`<header><div><h2 id="dlgTitle">Exclure ${esc(memberName(id))} ?</h2><p class="u14 note">Ses points sont retirés, ses votes ne comptent plus et il ne peut plus gagner de lot. Vous pourrez le réintégrer à tout moment.</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+  <form class="form" id="excludeForm" data-id="${esc(id)}">
+    <label for="exm">Motif (pour vous)</label><input id="exm" name="motif" maxlength="200" placeholder="Ex. : comptes multiples, votes arrangés…">
+    <button class="btn btn-primary" type="submit">Exclure du programme</button>
+  </form>`);
+}
+async function excludeMember(id,motif){
+  const nom=memberName(id);
+  const r=await sendToWix('Exclusions',{membre:id,nom,motif});
+  EXCLUS[id]={row:r.dataItem&&r.dataItem.id,nom,motif,at:new Date()};
+}
+async function reinstateMember(id){
+  const x=EXCLUS[id]; if(!x) return;
+  await call('DELETE',`/wix-data/v2/items/${encodeURIComponent(x.row)}?dataCollectionId=Exclusions`);
+  delete EXCLUS[id];
+}
+async function validateMonth(k){
+  const win=monthBoard(k).filter(x=>x.prize).sort((a,z)=>a.prize-z.prize);
+  const r=await sendToWix('ValidationsClassement',{mois:k,gagnants:win.map(x=>x.id).join(','),noms:win.map(x=>x.name).join(' | ')});
+  VALIDATIONS[k]={row:r.dataItem&&r.dataItem.id,ids:win.map(x=>x.id),noms:win.map(x=>x.name),at:new Date()};
+}
+async function unvalidateMonth(k){
+  const v=VALIDATIONS[k]; if(!v) return;
+  await call('DELETE',`/wix-data/v2/items/${encodeURIComponent(v.row)}?dataCollectionId=ValidationsClassement`);
+  delete VALIDATIONS[k];
 }
 
 /* ---------- Retrait d'un code par l'entreprise qui gère la fiche ---------- */
@@ -1853,6 +2022,7 @@ function route(){
   else if(p==='demandes'){ html=pageDemandes(params); title='Demandes de bons plans | Bonszahé'; }
   else if(p==='invite'&&parts[1]){ html=pageInvite(decodeURIComponent(parts[1]),params); nav='profil'; title='Invitation | Bonszahé'; }
   else if(p==='recompenses'){ html=pageRecompenses(); nav='profil'; title='Récompenses du mois | Bonszahé'; }
+  else if(p==='controle'){ html=pageControle(); nav='profil'; title='Contrôle | Bonszahé'; }
   else if(p==='temps-forts'&&parts[1]){ html=pageTempsFort(parts[1]); nav='home'; const t=tfBy(parts[1]); if(t) title=`${t.title} : les bons plans à Mayotte | Bonszahé`; }
   else if(p==='temps-forts'){ html=pageTempsForts(); nav='home'; title='Temps forts à Mayotte | Bonszahé'; }
   else if(p==='a-propos'){ html=pageAbout(); title='À propos | Bonszahé'; }
@@ -2145,6 +2315,16 @@ document.addEventListener('click',async e=>{
   else if(t.dataset.claim!==undefined){ claimDialog(t.dataset.claim); }
   else if(t.dataset.editbiz){ editBizDialog(t.dataset.editbiz); }
   else if(t.dataset.retire){ retireDialog(t.dataset.retire); }
+  else if(t.dataset.exclude&&isAdmin()){ excludeDialog(t.dataset.exclude); }
+  else if((t.dataset.reinstate||t.dataset.validate||t.dataset.unvalidate)&&isAdmin()){
+    t.disabled=true;
+    try{
+      if(t.dataset.reinstate){ await reinstateMember(t.dataset.reinstate); toast('Membre réintégré au programme de points.'); }
+      else if(t.dataset.validate){ await validateMonth(t.dataset.validate); toast('🏆 Gagnants validés : ils sont annoncés sur la page Récompenses.'); }
+      else{ await unvalidateMonth(t.dataset.unvalidate); toast('Validation annulée.'); }
+      refresh();
+    }catch(err){ console.warn(err); t.disabled=false; toast('Enregistrement impossible. Réessayez.'); }
+  }
   else if(t.dataset.properiod){ proDays=+t.dataset.properiod; drawPro(); }
   else if(t.dataset.focus){ focusShop(t.dataset.focus); }
   else if(t.dataset.follow){
@@ -2286,10 +2466,16 @@ document.addEventListener('submit',async e=>{
     try{ await sendToWix('MessagesContact',{nom:d.nom.trim(),email:d.email.trim(),sujet:d.sujet,message:d.message.trim(),traite:false}); f.outerHTML='<p class="authmsg">Merci, votre message est bien envoyé. Nous vous répondons par e-mail.</p>'; }
     catch(err){ console.warn(err); btn.disabled=false; btn.textContent='Envoyer'; toast('Envoi impossible pour le moment. Réessayez dans un instant.'); }
   }
+  else if(f.id==='excludeForm'){
+    e.preventDefault(); if(!isAdmin()) return;
+    const btn=f.querySelector('button[type=submit]'); btn.disabled=true;
+    try{ await excludeMember(f.dataset.id,(new FormData(f).get('motif')||'').toString().trim().slice(0,200)); dlg.close(); refresh(); toast('Membre exclu du programme de points.'); }
+    catch(err){ console.warn(err); btn.disabled=false; toast('Exclusion impossible. Réessayez.'); }
+  }
   else if(f.id==='reportForm'){
     e.preventDefault(); const cid=f.dataset.cid; const motif=(new FormData(f).get('motif')||'Autre').toString();
     const btn=f.querySelector('button[type=submit]'); btn.disabled=true;
-    try{ const r=await sendToWix('Signalements',{commentaire:cid,motif}); REPORTS.push({id:r.dataItem&&r.dataItem.id,comment:cid,owner:me().id}); dlg.close(); refresh(); toast('Merci, le commentaire est signalé.'); }
+    try{ const r=await sendToWix('Signalements',{commentaire:cid,motif}); REPORTS.push({id:r.dataItem&&r.dataItem.id,comment:cid,owner:me().id,at:new Date()}); dlg.close(); refresh(); toast('Merci, le commentaire est signalé.'); }
     catch(err){ console.warn(err); btn.disabled=false; toast('Signalement impossible. Réessayez.'); }
   }
   else if(f.id==='alertForm'){

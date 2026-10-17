@@ -15,3 +15,14 @@ Les données (entreprises, codes, membres, demandes) restent dans le CMS Wix et 
 - `functions/_middleware.js` (Cloudflare Pages Functions) : pré-rendu de chaque page pour Google et les aperçus WhatsApp/Facebook, `/sitemap.xml`, redirections 301 de www.bonszahe.com et bonszahe.pages.dev vers bonszahe.com.
 - `site/robots.txt`, `site/og-bonszahe.jpg` (image de partage 1200×630), `site/_routes.json` (les fichiers statiques ne passent pas par les Functions).
 - Sur la copie Wix, publier aussi `seo.js` (les fichiers `functions/`, `robots.txt`, `_routes.json` et l'image servent uniquement à Cloudflare).
+
+## Programme de points : règles anti-triche
+
+Les points sont recalculés dans le navigateur à partir des données du CMS (`pointsEngine()` dans `site/app-favorites-v2.js`, seuils dans `RULES`) :
+comptes de confiance (7 jours d'activité), 5 pts max par donneur et par mois, 5 « j'aime » max par commentaire, 3 codes récompensés par jour,
+doublons à 0 pt, 10 pts à la confirmation ou après 48 h, −10 pts si un code est signalé ou retiré dans les 7 jours, commentaires de 20 caractères
+minimum sans copie, 5 avis récompensés par jour, parrainage strict (5 par mois), lots réservés aux comptes de 30 jours.
+
+La page `/controle` (visible seulement par le compte du propriétaire, `ADMIN_ID`) liste les activités suspectes, permet d'exclure ou de réintégrer
+un membre (collection `Exclusions`) et de valider les gagnants du mois (collection `ValidationsClassement`). Dans ces deux collections,
+seules les lignes créées par le propriétaire sont prises en compte.

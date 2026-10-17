@@ -15,7 +15,7 @@ const CATS=[
 const COMMUNES=[['mtsamboro','Mtsamboro'],['acoua','Acoua'],['bandraboua','Bandraboua'],['mtsangamouji','M’Tsangamouji'],['koungou','Koungou'],
   ['tsingoni','Tsingoni'],['mamoudzou','Mamoudzou'],['dzaoudzi','Dzaoudzi'],['pamandzi','Pamandzi'],['chiconi','Chiconi'],['ouangani','Ouangani'],
   ['dembeni','Dembéni'],['sada','Sada'],['chirongui','Chirongui'],['bandrele','Bandrélé'],['boueni','Bouéni'],['kani-keli','Kani-Kéli']].map(([slug,name])=>({slug,name}));
-const PRIVATE=['profil','favoris','alertes','recherche','invite'];
+const PRIVATE=['profil','favoris','alertes','recherche','invite','controle'];
 
 const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const key=s=>norm(s).replace(/[^a-z0-9]/g,'');
@@ -170,7 +170,7 @@ function meta(path,params,data,opts){
   else if(p==='contact'){ title='Contact | Bonszahé'; desc='Contactez Bonszahé : questions, partenariats, référencement de votre entreprise à Mayotte.'; body=block('Contact',esc(desc)); }
   else if(p==='mentions-legales'){ title='Mentions légales | Bonszahé'; desc='Mentions légales du site Bonszahé.'; body=block('Mentions légales',''); }
   else if(p==='confidentialite'){ title='Politique de confidentialité | Bonszahé'; desc='Comment Bonszahé protège vos données personnelles.'; body=block('Politique de confidentialité',''); }
-  else if(PRIVATE.includes(p)){ robots='noindex,follow'; title={profil:'Mon profil',favoris:'Mes favoris',alertes:'Mes alertes',recherche:'Recherche',invite:'Invitation'}[p]+' | Bonszahé'; desc='Codes promo et bons plans à Mayotte sur Bonszahé.'; }
+  else if(PRIVATE.includes(p)){ robots='noindex,follow'; title={profil:'Mon profil',favoris:'Mes favoris',alertes:'Mes alertes',recherche:'Recherche',invite:'Invitation',controle:'Contrôle'}[p]+' | Bonszahé'; desc='Codes promo et bons plans à Mayotte sur Bonszahé.'; }
   else{ status=404; robots='noindex,follow'; title='Page introuvable | Bonszahé'; desc='Cette page n’existe pas sur Bonszahé.'; body=block('Page introuvable','',`<p><a href="/">Retour à l’accueil</a></p>`); }
   if(opts.withoutBody) body='';
   return {title,desc,canonical:urlOf(canonical),robots,image,type,ld,body,status};

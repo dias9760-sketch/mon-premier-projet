@@ -810,3 +810,11 @@ body:has(.fab) #app{padding-bottom:72px}
 .ideathanks{display:grid;gap:12px;line-height:1.5}
 .ideathanks p{margin:0}
 .ideathanks .btn{justify-self:start;margin-top:4px}
+/* v29 : programme de points (règles, gagnants, contrôle) */
+.ptshelp{margin-top:10px;max-width:720px}
+.ptshelp summary{cursor:pointer;font-weight:700;color:var(--corail)}
+.ptshelp ul,#reglement ul{margin:8px 0;padding-left:20px;display:grid;gap:6px;line-height:1.5}
+.card.winners{margin-bottom:16px;border-color:#FFD04F;background:color-mix(in srgb,#FFD04F 14%,var(--surface))}
+.card.winners h2{margin:0 0 6px}
+.card.winners p{margin:4px 0}
+.ranking li .btn{flex:none}
