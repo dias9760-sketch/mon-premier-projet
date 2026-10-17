@@ -155,6 +155,8 @@ function meta(path,params,data,opts){
     body=block('Carte des magasins','Les boutiques de l’île, leurs offres en magasin et l’itinéraire pour y aller.',comLinks(data)); }
   else if(p==='evenements'){ canonical='/evenements'; title='Événements, marchés et ventes privées à Mayotte | Bonszahé';
     desc='L’agenda des marchés, ventes privées, fêtes, concerts et animations des entreprises de Mayotte.'; body=block('Événements à Mayotte',esc(desc)); }
+  else if(p==='semaine'){ canonical='/semaine'; title='Les bons plans de la semaine à Mayotte | Bonszahé';
+    desc='Le récap des meilleurs codes promo et bons plans de Mayotte cette semaine : les plus chauds, les nouveautés, les dernières chances et l’agenda.'; body=block('Les bons plans de la semaine',esc(desc)); }
   else if(p==='catalogues'){ canonical='/catalogues'; title='Catalogues & arrivages des magasins de Mayotte | Bonszahé';
     desc='Les catalogues promotionnels et les arrivages des commerces de Mayotte au même endroit : alimentation, maison, high-tech, beauté, enfants…'; body=block('Catalogues & arrivages à Mayotte',esc(desc)); }
   else if(p==='demandes'&&id){ title='Demande de bon plan à Mayotte | Bonszahé'; desc='Un membre cherche un code promo ou un bon plan à Mayotte : aidez-le en répondant sur Bonszahé.'; body=block('Demande de bon plan',esc(desc)); }
@@ -182,7 +184,7 @@ function meta(path,params,data,opts){
 function sitemap(data,today){
   const u=(path,last,pri,freq)=>`<url><loc>${esc(urlOf(path))}</loc>${last?`<lastmod>${iso(last)}</lastmod>`:''}<changefreq>${freq}</changefreq><priority>${pri}</priority></url>`;
   const out=[u('/',today,'1.0','daily'),u('/codes',today,'0.9','daily'),u('/entreprises',today,'0.9','daily'),u('/tendances',today,'0.8','daily'),
-    u('/categories',null,'0.6','weekly'),u('/carte',null,'0.6','weekly'),u('/evenements',null,'0.6','weekly'),u('/catalogues',today,'0.7','daily'),u('/demandes',null,'0.5','daily'),
+    u('/categories',null,'0.6','weekly'),u('/carte',null,'0.6','weekly'),u('/evenements',null,'0.6','weekly'),u('/catalogues',today,'0.7','daily'),u('/semaine',today,'0.7','daily'),u('/demandes',null,'0.5','daily'),
     u('/temps-forts',null,'0.6','monthly'),u('/a-propos',null,'0.3','yearly'),u('/contact',null,'0.3','yearly')];
   CATS.filter(c=>data.biz.some(b=>b.cat===c.slug)).forEach(c=>out.push(u('/entreprises?cat='+c.slug,null,'0.7','weekly')));
   COMMUNES.filter(c=>data.biz.some(b=>b.commune===c.slug)).forEach(c=>out.push(u('/entreprises?c='+c.slug,null,'0.7','weekly')));

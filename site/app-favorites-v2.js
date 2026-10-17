@@ -586,6 +586,10 @@ function pageHome(){
     <div class="wrap">
       <div class="head"><div><h2>🔥 Ça chauffe en ce moment</h2><p class="muted">Les bons plans qui récoltent le plus de Moro.</p></div><a class="link" href="#/tendances">Voir les tendances</a></div>
       ${hotBlock(hot)}
+      <div class="band week u13">
+        <div><h2><span aria-hidden="true">📲 </span>Les bons plans de la semaine</h2><p>Le meilleur de la semaine en un seul message : partagez-le dans vos groupes WhatsApp en un clic.</p></div>
+        <a class="btn btn-wa" href="#/semaine">Voir le récap de la semaine</a>
+      </div>
     </div>
   </section>
 
@@ -1519,6 +1523,48 @@ function proCatalogDialog(slug){
   </form>`);
 }
 
+/* ---------- Les bons plans de la semaine (récap à partager sur WhatsApp) ---------- */
+function weekRecap(){
+  const since=Date.now()-7*864e5, act=activeCodes();
+  // Chaleur de la semaine : Moro 🔥 et « ça marche » reçus ces 7 derniers jours.
+  const score={}; MOROS.forEach(v=>{ if(v.dir==='moro'&&+v.at>=since) score[v.code]=(score[v.code]||0)+2; }); VOTES.forEach(v=>{ if(v.dir==='up'&&+v.at>=since) score[v.code]=(score[v.code]||0)+1; });
+  const hot=act.filter(c=>score[c.id]).sort((a,z)=>score[z.id]-score[a.id]||z.heat-a.heat).slice(0,5);
+  const taken=new Set(hot.map(c=>c.id));
+  const fresh=act.filter(c=>+c.addedAt>=since&&!taken.has(c.id)).sort((a,z)=>z.addedAt-a.addedAt).slice(0,6);
+  fresh.forEach(c=>taken.add(c.id));
+  const last=act.filter(c=>!c.noExp&&daysLeft(c)<=3&&!taken.has(c.id)).sort((a,z)=>a.exp-z.exp).slice(0,5);
+  const catas=activeCatalogues().filter(c=>+c.at>=since||(c.start&&+c.start>=since)).slice(0,4);
+  const evs=upcomingEvents().filter(e=>e.date<=inDays(7)).slice(0,4);
+  return {hot,fresh,last,catas,evs,from:new Date(TODAY),to:inDays(7)};
+}
+const recapDeal=c=>`${c.deal} chez ${bizBy(c.biz).name}${c.store?' (en magasin)':c.code?' – code '+c.code:''}`;
+function recapText(r){
+  const d=x=>x.toLocaleDateString('fr-FR',{day:'numeric',month:'long'}), L=[`🔥 *Les bons plans Bonszahé de la semaine*`,`Du ${d(r.from)} au ${d(r.to)}`];
+  if(r.hot.length) L.push('',`🌋 *Ça chauffe*`,...r.hot.map((c,i)=>`${i+1}. ${recapDeal(c)}`));
+  if(r.fresh.length) L.push('',`🆕 *Nouveautés*`,...r.fresh.map(c=>'• '+recapDeal(c)));
+  if(r.last.length) L.push('',`⏳ *Dernière chance*`,...r.last.map(c=>`• ${recapDeal(c)} (jusqu’au ${d(c.exp)})`));
+  if(r.catas.length) L.push('',`📖 *Catalogues & arrivages*`,...r.catas.map(c=>`• ${c.title} – ${cataName(c)}`));
+  if(r.evs.length) L.push('',`📅 *Agenda*`,...r.evs.map(e=>`• ${e.title} – ${e.date.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}`));
+  L.push('',`👉 Tous les détails : ${pageUrl('#/')}semaine`);
+  return L.join('\n');
+}
+function pageSemaine(){
+  const r=weekRecap(), txt=recapText(r), n=r.hot.length+r.fresh.length+r.last.length+r.catas.length+r.evs.length;
+  const sec=(title,sub,html)=>`<div class="u13"><div class="head"><div><h2>${title}</h2>${sub?`<p class="muted">${sub}</p>`:''}</div></div>${html}</div>`;
+  return `<div class="wrap">
+    ${backBtn('#/')}<div class="pagehead"><h1>📲 Les bons plans de la semaine</h1><p class="muted">Du ${r.from.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})} au ${r.to.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})} : le meilleur de Bonszahé, mis à jour en continu. Partagez-le dans vos groupes en un clic !</p>
+      <div class="bandbtns u10"><a class="btn btn-wa" href="${waHref(txt)}" target="_blank" rel="noopener">Partager sur WhatsApp</a><button class="btn btn-ghost" data-copytext="${esc(txt)}">${ic('copy')}Copier le message</button></div></div>
+    ${n?'':empty('La semaine démarre','Les bons plans de la semaine apparaîtront ici dès les premiers codes et Moro 🔥.','<a class="btn btn-primary" href="#/codes">Voir tous les codes</a>')}
+    ${r.hot.length?sec('🌋 Ça chauffe cette semaine','Les bons plans qui ont reçu le plus de Moro 🔥 ces 7 derniers jours.',`<div class="coupons">${r.hot.map(c=>coupon(c)).join('')}</div>`):''}
+    ${r.fresh.length?sec('🆕 Nouveautés','Ajoutés ces 7 derniers jours.',`<div class="coupons">${r.fresh.map(c=>coupon(c)).join('')}</div>`):''}
+    ${r.last.length?sec('⏳ Dernière chance','Ces codes expirent dans moins de 3 jours.',`<div class="coupons">${r.last.map(c=>coupon(c)).join('')}</div>`):''}
+    ${r.catas.length?sec('📖 Catalogues & arrivages','',`<div class="catalogs">${r.catas.map(c=>catalogueCard(c)).join('')}</div>`):''}
+    ${r.evs.length?sec('📅 Agenda des 7 prochains jours','',`<div class="events">${r.evs.map(eventCard).join('')}</div>`):''}
+    <details class="card u13 recapmsg"><summary><strong>Voir le message qui sera partagé</strong></summary><pre>${esc(txt)}</pre></details>
+    <div class="u8"></div>
+  </div>`;
+}
+
 function pageEvents(params){
   const sel=params.get('c')||'';
   const all=upcomingEvents();
@@ -2100,6 +2146,7 @@ function route(){
   else if(p==='demandes'){ html=pageDemandes(params); title='Demandes de bons plans | Bonszahé'; }
   else if(p==='invite'&&parts[1]){ html=pageInvite(decodeURIComponent(parts[1]),params); nav='profil'; title='Invitation | Bonszahé'; }
   else if(p==='recompenses'){ html=pageRecompenses(); nav='profil'; title='Récompenses du mois | Bonszahé'; }
+  else if(p==='semaine'){ html=pageSemaine(); nav='home'; title='Les bons plans de la semaine à Mayotte | Bonszahé'; }
   else if(p==='catalogues'){ html=pageCatalogues(params); nav='home'; title='Catalogues & arrivages des magasins de Mayotte | Bonszahé'; }
   else if(p==='controle'){ html=pageControle(); nav='profil'; title='Contrôle | Bonszahé'; }
   else if(p==='temps-forts'&&parts[1]){ html=pageTempsFort(parts[1]); nav='home'; const t=tfBy(parts[1]); if(t) title=`${t.title} : les bons plans à Mayotte | Bonszahé`; }
@@ -2382,6 +2429,7 @@ document.addEventListener('click',async e=>{
   }
   else if(t.dataset.csort){ commentSort=t.dataset.csort; refresh(); }
   else if(t.dataset.needlogin){ requireLogin(t.dataset.needlogin==='demande'?'Connectez-vous pour publier une demande ou y répondre.':'Connectez-vous pour commenter : chaque commentaire vous rapporte 1 point.',()=>refresh()); }
+  else if(t.dataset.copytext){ const ok=await copy(t.dataset.copytext); toast(ok?'Message copié : collez-le dans WhatsApp, Facebook ou Instagram !':'Copie impossible : sélectionnez le message ci-dessous.'); }
   else if(t.dataset.copylink){ const ok=await copy(t.dataset.copylink); toast(ok?'Lien copié : collez-le où vous voulez !':'Copiez le lien : '+t.dataset.copylink); }
   else if(t.dataset.fav){
     e.preventDefault();

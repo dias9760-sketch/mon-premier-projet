@@ -831,3 +831,8 @@ body:has(.fab) #app{padding-bottom:72px}
 .catbody small{line-height:1.4}
 .cattags{display:flex;flex-wrap:wrap;gap:6px}
 @media (min-width:700px){.commu{grid-template-columns:repeat(3,1fr)}}
+/* v32 : récap de la semaine */
+.band.week{background:linear-gradient(120deg,#E4F8EA,#CFF1DA);color:#0F3D22;border:1px solid #B7E6C6}
+.band.week h2{color:#0F3D22}
+.band.week p{color:#2F5A40}
+.recapmsg pre{white-space:pre-wrap;font:inherit;font-size:.92rem;line-height:1.5;margin:10px 0 0;background:var(--soft);border-radius:12px;padding:12px}
