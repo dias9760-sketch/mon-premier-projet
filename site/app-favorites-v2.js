@@ -636,6 +636,10 @@ function pageHome(){
         <div><h2>Vous êtes une entreprise ?</h2><p>Revendiquez votre fiche : publiez vos offres officielles et suivez combien de personnes voient votre page et copient vos codes.</p></div>
         <button class="btn btn-sun" data-claim="">${ic('store')}Ajouter ou revendiquer mon entreprise</button>
       </div>
+      <div class="band idea">
+        <div><h2><span aria-hidden="true">💡 </span>Votre avis fait grandir Bonszahé</h2><p>Une fonctionnalité qui vous manque, une idée pour trouver encore plus de bons plans, un souci sur le site ? Dites-le-nous : nous lisons chaque message et vous suivez la réponse dans votre profil.</p></div>
+        <button class="btn btn-ghost" data-suggest="">${ic('plus')}Donner mon avis</button>
+      </div>
     </div>
   </section>`;
 }

@@ -804,3 +804,6 @@ body:has(.fab) #app{padding-bottom:72px}
 .foot-idea{background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer;text-align:left}
 .form label.check{display:flex;flex-direction:row;align-items:center;gap:10px;font-weight:500;line-height:1.35}
 .form label.check input{margin:0;width:20px;height:20px}
+.band.idea{background:linear-gradient(120deg,#FFF6DA,#FFEFC2);color:#4A3412;border:1.5px dashed #F2C04A}
+.band.idea h2{color:#3A2A10}
+.band.idea p{color:#5E4A2A}
