@@ -26,3 +26,10 @@ minimum sans copie, 5 avis récompensés par jour, parrainage strict (5 par mois
 La page `/controle` (visible seulement par le compte du propriétaire, `ADMIN_ID`) liste les activités suspectes, permet d'exclure ou de réintégrer
 un membre (collection `Exclusions`) et de valider les gagnants du mois (collection `ValidationsClassement`). Dans ces deux collections,
 seules les lignes créées par le propriétaire sont prises en compte.
+
+## Catalogues & arrivages
+
+Collection `Catalogues` (lecture publique, écriture réservée au propriétaire) : seules les lignes avec « Publié » coché s'affichent, et les
+catalogues dont la date de fin est passée disparaissent seuls. Les entreprises proposent un catalogue depuis leur fiche
+(collection `CataloguesProposes`) : une automatisation Wix l'ajoute dans `Catalogues` avec « Publié » décoché et envoie un e-mail au
+propriétaire. Bonszahé renvoie toujours vers le catalogue officiel, rien n'est recopié.

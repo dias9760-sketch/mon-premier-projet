@@ -126,6 +126,7 @@ let COMMENTS=[], LIKES=[], REPORTS=[], MODERATION={};
 let DEMANDES=[], PARRAINAGES=[], RECOMPENSES=[], TEMPS=[];
 // Exclusions et validations du classement : seules les lignes créées par le propriétaire du site comptent.
 let EXCLUS={}, VALIDATIONS={};
+let CATALOGUES=[];
 let dataSource='snapshot';
 let tokenPromise=null;
 function getVisitorToken(){
@@ -327,12 +328,12 @@ const SALES={boutique:'Boutique physique','en-ligne':'Vente en ligne / livraison
 // Date et heure complètes d'un champ système Wix ({$date:…}), pour le classement Tendance.
 const stamp=v=>{ const d=new Date(typeof v==='object'&&v?v.$date:v); return isNaN(d)?new Date(TODAY):d; };
 async function loadData(){
-  const [ents,codes,votes,events,moros,comms,likes,reports,moder,dms,parr,recs,tfs,excl,vals]=await Promise.all([
+  const [ents,codes,votes,events,moros,comms,likes,reports,moder,dms,parr,recs,tfs,excl,vals,catas]=await Promise.all([
     queryAll('Entreprises'),queryAll('CodesPromo'),
     queryAll('Votes').catch(()=>[]),queryAll('Evenements').catch(()=>[]),queryAll('Moro').catch(()=>[]),
     queryAll('Commentaires').catch(()=>[]),queryAll('JaimeCommentaires').catch(()=>[]),queryAll('Signalements').catch(()=>[]),queryAll('Moderation').catch(()=>[]),
     queryAll('Demandes').catch(()=>[]),queryAll('Parrainages').catch(()=>[]),queryAll('Recompenses').catch(()=>[]),queryAll('TempsForts').catch(()=>[]),
-    queryAll('Exclusions').catch(()=>[]),queryAll('ValidationsClassement').catch(()=>[])
+    queryAll('Exclusions').catch(()=>[]),queryAll('ValidationsClassement').catch(()=>[]),queryAll('Catalogues').catch(()=>[])
   ]);
   const idToSlug={}; const used=new Set();
   const list=ents.filter(e=>e.publiee!==false&&e.nom).map(e=>{
@@ -363,6 +364,8 @@ async function loadData(){
   TEMPS=tfs.filter(x=>x.slug&&x.titre).map(x=>({slug:x.slug,title:x.titre,emoji:x.emoji||'⭐',desc:x.description||'',start:dateFrom(x.debut),end:dateFrom(x.fin),cats:String(x.categories||'').split(/[\s,;]+/).filter(Boolean),ordre:+x.ordre||0})).sort((a,b)=>a.ordre-b.ordre);
   EXCLUS={}; excl.filter(x=>x._owner===ADMIN_ID&&x.membre).forEach(x=>EXCLUS[x.membre]={row:x._id,nom:x.nom||'',motif:x.motif||'',at:stamp(x._createdDate)});
   VALIDATIONS={}; vals.filter(x=>x._owner===ADMIN_ID&&x.mois).forEach(x=>VALIDATIONS[String(x.mois).slice(0,7)]={row:x._id,ids:String(x.gagnants||'').split(/[\s,;]+/).filter(Boolean),noms:String(x.noms||'').split(' | ').filter(Boolean),at:stamp(x._createdDate)});
+  CATALOGUES=catas.filter(x=>x.publie===true&&x.titre&&/^https?:\/\//.test(x.lien||'')).map(x=>{ const biz=idToSlug[refId(x.entreprise)]||B.find(b=>b.slug===x.entreprise)?.slug||'';
+    return {id:x._id,biz,enseigne:x.enseigne||'',cat:biz?bizBy(biz).cat:catFrom(x.categorie),type:key(x.type).includes('arriv')?'arrivage':'catalogue',title:x.titre,link:x.lien,cover:imgUrl(x.couverture)||imgUrl(x.couvertureLien),desc:x.description||'',start:dateFrom(x.debut),end:dateFrom(x.fin),checked:dateFrom(x.verifieLe),at:stamp(x._createdDate)}; }).filter(c=>c.biz||c.enseigne);
   dataSource='wix';
 }
 async function sendToWix(collection,data){
@@ -590,6 +593,7 @@ function pageHome(){
     <div class="wrap commu">
       <a class="commucard" href="#/demandes"><span class="tfemo">🙋</span><strong>Vous cherchez un code ?</strong><small>${DEMANDES.filter(d=>d.status!=='resolue').length?DEMANDES.filter(d=>d.status!=='resolue').length+' demande(s) en cours. ':''}Demandez à la communauté.</small></a>
       <a class="commucard" href="#/recompenses"><span class="tfemo">🎁</span><strong>Récompenses du mois</strong><small>Les 3 meilleurs contributeurs gagnent des lots.</small></a>
+      <a class="commucard" href="#/catalogues"><span class="tfemo">📖</span><strong>Catalogues & arrivages</strong><small>${activeCatalogues().length?activeCatalogues().length+' catalogue'+(activeCatalogues().length>1?'s':'')+' en cours. ':''}Les promos des magasins de l’île.</small></a>
     </div>
   </section>
 
@@ -708,6 +712,7 @@ function pageBusiness(slug){
         ${b.web?`<a class="btn btn-primary" href="${esc(b.web)}" target="_blank" rel="noopener" data-track="site" data-trackbiz="${slug}">${ic('ext')}Visiter le site</a>`:''}
         ${b.phone?`<a class="btn btn-ghost" href="tel:${esc(b.phone.replace(/\s/g,''))}" data-track="appel" data-trackbiz="${slug}">${ic('call')}Appeler</a>`:''}
         ${b.email?`<a class="btn btn-ghost" href="mailto:${esc(b.email)}">${ic('mail')}Contacter</a>`:''}
+        ${catalogsOf(slug).length?`<a class="btn btn-sun" href="${esc(catalogsOf(slug)[0].link)}" target="_blank" rel="noopener">📖 Voir le catalogue${isPdf(catalogsOf(slug)[0].link)?' (PDF)':''}</a>`:''}
         ${followBtn('entreprise',slug,'Suivre')}
         <a class="btn btn-wa" href="${waHref(`Découvrez ${b.name} et ses bons plans sur Bonszahé 👉 ${pageUrl('#/')}entreprises/${slug}`)}" target="_blank" rel="noopener">Partager</a>
         <button class="iconbtn" data-fav="${slug}" aria-pressed="${fav}" aria-label="${fav?'Retirer des':'Ajouter aux'} favoris">${ic('heart')}</button>
@@ -728,6 +733,7 @@ function pageBusiness(slug){
           ${codes.length?`<div class="coupons">${codes.map(c=>coupon(c,{showBiz:false})).join('')}</div>`:
             empty('Pas encore de code pour '+esc(b.name),'Si vous en connaissez un, proposez-le : il apparaîtra ici immédiatement.',`<button class="btn btn-sun" data-propose="${slug}">${ic('plus')}Proposer un code promo</button>`)}
         </div>
+        ${catalogsOf(slug).length?`<div><div class="head"><h2>Catalogues & arrivages ${esc(b.name)}</h2><a class="link" href="#/catalogues">Tous les catalogues</a></div><div class="catalogs">${catalogsOf(slug).map(c=>catalogueCard(c,false)).join('')}</div></div>`:''}
         ${bizEvents.length?`<div><div class="head"><h2>Événements ${esc(b.name)}</h2></div><div class="events">${bizEvents.map(eventCard).join('')}</div></div>`:''}
         <div class="card">
           <h3>À propos de ${esc(b.name)}</h3>
@@ -744,7 +750,7 @@ function pageBusiness(slug){
         ${me()&&b.owners.includes(me().id)?`<div class="card">
           <h3>Vous gérez cette fiche</h3>
           <p class="muted">Mettez à jour vos informations, annoncez un événement et suivez vos statistiques.</p>
-          <div class="bandbtns"><button class="btn btn-ghost btn-sm" data-editbiz="${slug}">Modifier ma fiche</button><button class="btn btn-ghost btn-sm" data-proevent="${slug}">Annoncer un événement</button><a class="btn btn-ghost btn-sm" href="#/profil">Mes statistiques</a></div>
+          <div class="bandbtns"><button class="btn btn-ghost btn-sm" data-editbiz="${slug}">Modifier ma fiche</button><button class="btn btn-ghost btn-sm" data-proevent="${slug}">Annoncer un événement</button><button class="btn btn-ghost btn-sm" data-procatalog="${slug}">Proposer un catalogue</button><a class="btn btn-ghost btn-sm" href="#/profil">Mes statistiques</a></div>
         </div>`:`<div class="card">
           <h3>Vous êtes le propriétaire ?</h3>
           <p class="muted">Revendiquez la fiche pour publier vos offres officielles et suivre vos statistiques : vues de la page, codes copiés, clics.</p>
@@ -1352,7 +1358,7 @@ async function drawPro(){
     const tips=proTips(b,all,live,views,actions);
     return `<div class="card pro">
       <div class="lvhead">${logo(b,'md')}<div><strong>${esc(b.name)}</strong><small class="muted">${plural(live.length,'offre en ligne','offres en ligne')}</small></div><a class="btn btn-ghost btn-sm" href="#/entreprises/${b.slug}">Voir ma fiche</a></div>
-      <div class="bandbtns"><button class="btn btn-sun btn-sm" data-propose="${b.slug}">${ic('plus')}Publier une offre</button><button class="btn btn-ghost btn-sm" data-editbiz="${b.slug}">Modifier ma fiche</button><button class="btn btn-ghost btn-sm" data-proevent="${b.slug}">Annoncer un événement</button></div>
+      <div class="bandbtns"><button class="btn btn-sun btn-sm" data-propose="${b.slug}">${ic('plus')}Publier une offre</button><button class="btn btn-ghost btn-sm" data-editbiz="${b.slug}">Modifier ma fiche</button><button class="btn btn-ghost btn-sm" data-proevent="${b.slug}">Annoncer un événement</button><button class="btn btn-ghost btn-sm" data-procatalog="${b.slug}">Proposer un catalogue</button></div>
       ${edits.length||evs.length?`<div class="list">${edits.map(x=>`<div class="li"><div class="grow"><strong>Modification de la fiche</strong><small>Envoyée le ${fmt(x.at)}</small></div><span class="pill ${x.status==='Refusée'?'no':'wait'}">${x.status==='Refusée'?'Refusée':'En vérification'}</span></div>`).join('')}${evs.map(x=>`<div class="li"><div class="grow"><strong>${esc(x.title)}</strong><small>Événement du ${fmt(x.date)}</small></div><span class="pill wait">En vérification</span></div>`).join('')}</div>`:''}
       <div class="phead"><h3>Vos statistiques</h3><div class="seg" role="group" aria-label="Période">${PRO_PERIODS.map(([d,l])=>`<button type="button" data-properiod="${d}" aria-pressed="${d===days}">${l}</button>`).join('')}</div></div>
       <p class="pperiod muted">Du ${start.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})} au ${TODAY.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}</p>
@@ -1450,6 +1456,69 @@ function eventCard(e){
     </div>
   </article>`;
 }
+/* ---------- Catalogues & arrivages ---------- */
+// On renvoie toujours vers le catalogue officiel de l'enseigne : rien n'est recopié sur Bonszahé.
+const CATA_TYPES={catalogue:'📖 Catalogue',arrivage:'📦 Arrivage'};
+const activeCatalogues=()=>CATALOGUES.filter(c=>!c.end||c.end>=TODAY).sort((a,z)=>(z.start||z.at)-(a.start||a.at));
+const catalogsOf=slug=>activeCatalogues().filter(c=>c.biz===slug);
+const cataName=c=>c.biz?bizBy(c.biz).name:c.enseigne||'Enseigne';
+const isPdf=u=>/\.pdf($|[?#])/i.test(u);
+const dayShort=d=>d.toLocaleDateString('fr-FR',{day:'numeric',month:'long'});
+function cataWhen(c){
+  if(c.start&&c.start>TODAY) return 'À partir du '+dayShort(c.start)+(c.end?' jusqu’au '+dayShort(c.end):'');
+  if(c.start&&c.end) return 'Du '+dayShort(c.start)+' au '+dayShort(c.end);
+  if(c.end) return 'Jusqu’au '+dayShort(c.end);
+  return '';
+}
+function catalogueCard(c,showBiz=true){
+  const b=c.biz&&bizBy(c.biz), when=cataWhen(c), n=c.biz?codesOf(c.biz).length:0;
+  const soon=c.end&&daysLeft({exp:c.end})<=3;
+  return `<article class="catcard">
+    <a class="catcover" href="${esc(c.link)}" target="_blank" rel="noopener" aria-label="Consulter ${esc(c.title)}">${c.cover?`<img src="${esc(c.cover)}" alt="" loading="lazy">`:`<span class="catph cv cv-${c.cat}">${c.type==='arrivage'?'📦':'📖'}<b>${esc(cataName(c))}</b></span>`}</a>
+    <div class="catbody">
+      <div class="cattags"><span class="pill">${CATA_TYPES[c.type]}</span>${soon?'<span class="pill soon">Se termine bientôt</span>':''}</div>
+      <h3>${esc(c.title)}</h3>
+      ${showBiz?(b?`<a class="bizline" href="#/entreprises/${b.slug}">${logo(b)}<span>${esc(b.name)}</span></a>`:`<p class="bizline"><strong>${esc(c.enseigne)}</strong></p>`):''}
+      ${when?`<p class="evmeta">${ic('clock')}${esc(when)}</p>`:''}
+      ${c.desc?`<p class="evdesc">${esc(c.desc)}</p>`:''}
+      <a class="btn btn-primary btn-sm" href="${esc(c.link)}" target="_blank" rel="noopener">${ic('ext')}Consulter le ${c.type==='arrivage'?'détail':'catalogue'}${isPdf(c.link)?' (PDF)':''}</a>
+      ${showBiz&&n?`<a class="link" href="#/entreprises/${b.slug}">+ ${n} code${n>1?'s':''} promo chez ${esc(b.name)}</a>`:''}
+      <small class="muted">${c.checked?'Vérifié le '+fmt(c.checked)+' · ':''}Prix et stocks à confirmer auprès de la boutique.</small>
+    </div>
+  </article>`;
+}
+function pageCatalogues(params){
+  const type=CATA_TYPES[params.get('type')]?params.get('type'):'', cat=params.get('cat')||'';
+  const all=activeCatalogues(), cats=CATS.filter(x=>all.some(c=>c.cat===x.slug));
+  const list=all.filter(c=>(!type||c.type===type)&&(!cat||c.cat===cat));
+  const q=(t,k)=>{ const p=new URLSearchParams(); if(t) p.set('type',t); if(k) p.set('cat',k); const s=p.toString(); return '#/catalogues'+(s?'?'+s:''); };
+  const isPro=me()&&B.find(b=>b.owners.includes(me().id));
+  return `<div class="wrap">
+    ${backBtn('#/')}<div class="pagehead"><h1>📖 Catalogues & arrivages à Mayotte</h1><p class="muted">Les catalogues promotionnels et les arrivages des commerces de l’île, réunis au même endroit. Chaque lien ouvre le catalogue officiel de l’enseigne.</p></div>
+    <div class="toolbar"><div class="seg" role="group" aria-label="Type">${[['','Tout'],['catalogue','Catalogues'],['arrivage','Arrivages']].map(([k,l])=>`<a href="${q(k,cat)}" aria-pressed="${type===k}">${l}</a>`).join('')}</div></div>
+    ${cats.length>1?`<div class="chips u10">${[{slug:'',name:'Toutes les catégories'},...cats].map(x=>`<a class="chip${cat===x.slug?' on':''}" href="${q(type,x.slug)}">${esc(x.name)}</a>`).join('')}</div>`:''}
+    <div class="u13">${list.length?`<div class="catalogs">${list.map(c=>catalogueCard(c)).join('')}</div>`:
+      empty(all.length?'Aucun catalogue pour ce filtre':'Les premiers catalogues arrivent bientôt','Suivez vos commerces préférés avec le bouton 🔔 Suivre : vous verrez leurs nouveaux catalogues dans vos alertes.','<a class="btn btn-primary" href="#/entreprises">Voir les entreprises</a>')}</div>
+    <div class="card u13"><h3>Vous êtes une entreprise ?</h3><p class="muted">Faites connaître votre catalogue ou votre dernier arrivage gratuitement. ${isPro?'Proposez-le depuis votre fiche : il est publié après vérification.':'Revendiquez votre fiche, puis proposez votre catalogue depuis votre espace pro.'}</p>
+      ${isPro?`<button class="btn btn-sun btn-sm" data-procatalog="${isPro.slug}">${ic('plus')}Proposer un catalogue</button>`:`<a class="btn btn-ghost btn-sm" href="#/entreprises">Trouver ma fiche</a>`}</div>
+    <div class="u8"></div>
+  </div>`;
+}
+function proCatalogDialog(slug){
+  const b=ownerOf(slug); if(!b){ toast('Seul le gestionnaire de la fiche peut proposer un catalogue.'); return; }
+  openDialog(`<header><div><h2 id="dlgTitle">Proposer un catalogue ou un arrivage</h2><p class="u14 note">Il apparaîtra sur votre fiche et dans la rubrique Catalogues & arrivages après vérification.</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+  <form class="form" id="proCatalogForm" data-biz="${b.slug}">
+    <label>Type<select name="type"><option value="Catalogue">📖 Catalogue promotionnel</option><option value="Arrivage">📦 Arrivage / nouveaux produits</option></select></label>
+    <label>Titre<input name="titre" required maxlength="90" placeholder="Ex. Catalogue spécial rentrée, Arrivage conteneur de novembre"></label>
+    <label>Lien vers le catalogue<input name="lien" type="url" required maxlength="300" placeholder="https:// (site, PDF, page Facebook…)"></label>
+    <div class="two"><label>Début <span class="opt">(facultatif)</span><input name="debut" type="date"></label><label>Fin <span class="opt">(facultatif)</span><input name="fin" type="date" min="${isoDay(TODAY)}"></label></div>
+    <label>Image de couverture <span class="opt">(lien, facultatif)</span><input name="couvertureLien" type="url" maxlength="300" placeholder="https://…jpg"></label>
+    <label>Description <span class="opt">(facultatif)</span><textarea name="description" maxlength="400" rows="3" placeholder="Ex. Électroménager, literie et décoration à prix réduits"></textarea></label>
+    <p class="note err" id="catErr" role="alert"></p>
+    <button class="btn btn-primary" type="submit">Envoyer pour publication</button>
+  </form>`);
+}
+
 function pageEvents(params){
   const sel=params.get('c')||'';
   const all=upcomingEvents();
@@ -1691,6 +1760,12 @@ function alertDeals(onlyNew){
   const seen=onlyNew?alertSeen():0;
   return activeCodes().filter(c=>c.by!==me().id&&+c.addedAt>seen&&MINE.alerts.some(a=>+c.addedAt>=+a.at-864e5&&alertMatch(a,c))).sort((a,z)=>z.addedAt-a.addedAt);
 }
+// Les alertes suivent aussi les nouveaux catalogues et arrivages.
+function alertCatalogues(onlyNew){
+  if(!me()||!MINE.alerts.length) return [];
+  const seen=onlyNew?alertSeen():0;
+  return activeCatalogues().filter(c=>+c.at>seen&&MINE.alerts.some(a=>+c.at>=+a.at-864e5&&(a.type==='entreprise'?c.biz===a.valeur:a.type==='categorie'?c.cat===a.valeur:norm(cataName(c)+' '+c.title+' '+c.desc).includes(norm(a.valeur)))));
+}
 const followed=(type,valeur)=>MINE.alerts.find(a=>a.type===type&&a.valeur===valeur);
 const followBtn=(type,valeur,label,cls='btn btn-ghost')=>{ const on=!!(me()&&followed(type,valeur)); return `<button class="${cls}" data-follow="${type}" data-val="${esc(valeur)}" data-label="${esc(label)}" aria-pressed="${on}">🔔 ${on?'Alerte activée':label}</button>`; };
 async function toggleFollow(type,valeur,label){
@@ -1702,9 +1777,9 @@ async function toggleFollow(type,valeur,label){
 }
 function pageAlertes(){
   if(!me()) return `<div class="u16 wrap">${backBtn('#/profil')}<div class="pagehead"><h1>🔔 Mes alertes</h1><p class="muted">Connectez-vous pour être prévenu dès qu’un bon plan correspond à ce que vous cherchez.</p></div>${authBox()}<div class="u8"></div></div>`;
-  const seen=alertSeen(), deals=alertDeals(false);
+  const seen=alertSeen(), deals=alertDeals(false), catas=alertCatalogues(false);
   const html=`<div class="wrap">
-    ${backBtn('#/profil')}<div class="pagehead"><h1>🔔 Mes alertes</h1><p class="muted">Suivez un mot-clé, une entreprise ou une catégorie : les nouveaux bons plans qui correspondent apparaissent ici, et une pastille 🔔 vous prévient à votre prochaine visite.</p></div>
+    ${backBtn('#/profil')}<div class="pagehead"><h1>🔔 Mes alertes</h1><p class="muted">Suivez un mot-clé, une entreprise ou une catégorie : les nouveaux bons plans, catalogues et arrivages qui correspondent apparaissent ici, et une pastille 🔔 vous prévient à votre prochaine visite.</p></div>
     <form class="form card" id="alertForm">
       <div class="two"><label>Je veux suivre<select name="type">${Object.entries(ALERT_TYPES).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select></label>
       <label class="af af-mot">Mot-clé<input name="mot" maxlength="40" placeholder="Ex. canapé, livraison, iPhone…"></label>
@@ -1715,6 +1790,7 @@ function pageAlertes(){
     ${MINE.alerts.length?`<div class="chips u13 wrapchips">${MINE.alerts.map(a=>`<span class="chip on">${esc(ALERT_TYPES[a.type]||'')} : ${esc(alertLabel(a))}<button class="chipx" data-delalert="${esc(a.id)}" aria-label="Supprimer l’alerte">${ic('x')}</button></span>`).join('')}</div>`:''}
     <div class="head u13"><div><h2>Pour vous</h2><p class="muted">${MINE.alerts.length?'Les bons plans en ligne qui correspondent à vos alertes.':'Créez votre première alerte ci-dessus.'}</p></div></div>
     ${deals.length?`<div class="coupons">${deals.map(c=>(+c.addedAt>seen?coupon(c).replace('<article class="coupon','<article class="coupon isnew'):coupon(c))).join('')}</div>`:MINE.alerts.length?empty('Rien de nouveau pour l’instant','Vous serez prévenu dès qu’un bon plan correspondra.',''):''}
+    ${catas.length?`<div class="head u13"><h2>Catalogues & arrivages</h2></div><div class="catalogs">${catas.map(c=>catalogueCard(c)).join('')}</div>`:''}
     <p class="note u13">Les notifications sur téléphone arriveront avec l’application Bonszahé.</p>
     <div class="u8"></div>
   </div>`;
@@ -2024,6 +2100,7 @@ function route(){
   else if(p==='demandes'){ html=pageDemandes(params); title='Demandes de bons plans | Bonszahé'; }
   else if(p==='invite'&&parts[1]){ html=pageInvite(decodeURIComponent(parts[1]),params); nav='profil'; title='Invitation | Bonszahé'; }
   else if(p==='recompenses'){ html=pageRecompenses(); nav='profil'; title='Récompenses du mois | Bonszahé'; }
+  else if(p==='catalogues'){ html=pageCatalogues(params); nav='home'; title='Catalogues & arrivages des magasins de Mayotte | Bonszahé'; }
   else if(p==='controle'){ html=pageControle(); nav='profil'; title='Contrôle | Bonszahé'; }
   else if(p==='temps-forts'&&parts[1]){ html=pageTempsFort(parts[1]); nav='home'; const t=tfBy(parts[1]); if(t) title=`${t.title} : les bons plans à Mayotte | Bonszahé`; }
   else if(p==='temps-forts'){ html=pageTempsForts(); nav='home'; title='Temps forts à Mayotte | Bonszahé'; }
@@ -2051,7 +2128,7 @@ function route(){
   syncTabbar();
   document.querySelectorAll('[data-nav]').forEach(a=>{ a.getAttribute('data-nav')===nav?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current'); });
   document.getElementById('loginBtn').textContent=me()?me().name:'Connexion';
-  const nAlert=p==='alertes'?0:alertDeals(true).length;
+  const nAlert=p==='alertes'?0:alertDeals(true).length+alertCatalogues(true).length;
   document.querySelectorAll('#loginBtn,.bottomnav a[data-nav="profil"]').forEach(el=>nAlert?el.setAttribute('data-alert',nAlert>9?'9+':nAlert):el.removeAttribute('data-alert'));
   if(p==='profil') drawPro();
   if(p==='carte') drawMap();
@@ -2352,6 +2429,7 @@ document.addEventListener('click',async e=>{
   }
   else if(t.id==='nearMe'){ nearMe(t); }
   else if(t.dataset.proevent){ proEventDialog(t.dataset.proevent); }
+  else if(t.dataset.procatalog){ proCatalogDialog(t.dataset.procatalog); }
   else if(t.id==='codeReset'){ go('#/codes'); }
   else if(t.id==='dirReset'){ go('#/entreprises'); }
   else if(t.hasAttribute('data-close')){ dlg.close(); }
@@ -2517,6 +2595,15 @@ document.addEventListener('submit',async e=>{
     sendToWix('EvenementsProposes',Object.assign({titre:t('titre'),date:d.date,heure:t('heure'),commune:d.commune?comBy(d.commune).name:'',lieu:t('lieu'),description:t('description'),lien:t('lien'),entreprise:b.id,membreId:me().id,membreNom:me().name},d.dateFin?{dateFin:d.dateFin}:{}))
       .then(()=>{ dlg.close(); toast('Merci ! Votre événement sera publié après vérification.'); loadMine().then(()=>{ if(curH().startsWith('#/profil')) refresh(); }); })
       .catch(ex=>{ console.warn(ex); btn.disabled=false; btn.textContent='Envoyer l’événement'; toast(ex.status===401||ex.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'); });
+  }
+  else if(f.id==='proCatalogForm'){
+    e.preventDefault(); const b=ownerOf(f.dataset.biz); if(!b) return;
+    const d=Object.fromEntries(new FormData(f)); const t=k=>String(d[k]||'').trim();
+    if(d.debut&&d.fin&&d.fin<d.debut){ document.getElementById('catErr').textContent='La date de fin doit être après la date de début.'; return; }
+    const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Envoi…';
+    sendToWix('CataloguesProposes',Object.assign({type:d.type==='Arrivage'?'Arrivage':'Catalogue',titre:t('titre'),lien:t('lien'),couvertureLien:t('couvertureLien'),description:t('description'),entreprise:b.id,nomEntreprise:b.name,membreId:me().id,membreNom:me().name},d.debut?{debut:d.debut}:{},d.fin?{fin:d.fin}:{}))
+      .then(()=>{ dlg.close(); toast('Merci ! Votre catalogue sera publié après vérification.'); })
+      .catch(ex=>{ console.warn(ex); btn.disabled=false; btn.textContent='Envoyer pour publication'; toast(ex.status===401||ex.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'); });
   }
   else if(f.id==='retireForm'){ e.preventDefault(); retireCode(f); }
   else if(f.id==='suggestForm'){ e.preventDefault(); sendIdea(f); }

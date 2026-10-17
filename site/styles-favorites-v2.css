@@ -818,3 +818,16 @@ body:has(.fab) #app{padding-bottom:72px}
 .card.winners h2{margin:0 0 6px}
 .card.winners p{margin:4px 0}
 .ranking li .btn{flex:none}
+/* v31 : catalogues & arrivages */
+.catalogs{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.catcard{background:var(--surface);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column}
+.catcover{display:block;aspect-ratio:4/3;overflow:hidden;background:var(--soft)}
+.catcover img{width:100%;height:100%;object-fit:cover;display:block}
+.catph{display:grid;place-content:center;justify-items:center;gap:6px;width:100%;height:100%;font-size:2.6rem;text-align:center;padding:12px}
+.catph b{font-family:var(--display);font-size:1.1rem;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.35)}
+.catbody{display:grid;gap:8px;padding:14px 16px 16px;align-content:start;flex:1}
+.catbody h3{margin:0;font-size:1.05rem;line-height:1.3}
+.catbody .btn{justify-self:start}
+.catbody small{line-height:1.4}
+.cattags{display:flex;flex-wrap:wrap;gap:6px}
+@media (min-width:700px){.commu{grid-template-columns:repeat(3,1fr)}}
