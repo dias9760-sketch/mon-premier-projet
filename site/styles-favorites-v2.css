@@ -836,3 +836,14 @@ body:has(.fab) #app{padding-bottom:72px}
 .band.week h2{color:#0F3D22}
 .band.week p{color:#2F5A40}
 .recapmsg pre{white-space:pre-wrap;font:inherit;font-size:.92rem;line-height:1.5;margin:10px 0 0;background:var(--soft);border-radius:12px;padding:12px}
+/* v33 : ouvert maintenant, application installable */
+.openpill{display:inline-flex;align-items:center;gap:6px;font-size:.82rem;font-weight:600;padding:3px 10px;border-radius:999px;margin-top:6px;justify-self:start;width:fit-content}
+.openpill::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.openpill.on{background:var(--vert-50);color:var(--vert)}
+.openpill.soon{background:var(--soleil-50);color:#8A5D00}
+.openpill.off{background:#FDE8E2;color:#B03A16}
+.installcard{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.installcard img{border-radius:14px;flex:none}
+.installcard .grow{flex:1;min-width:180px}
+.installcard h3{margin:0 0 4px}
+.steps{margin:0 0 12px;padding-left:22px;display:grid;gap:10px;line-height:1.5}

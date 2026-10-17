@@ -483,6 +483,57 @@ function coupon(c,{showBiz=true,noLink=false}={}){
   </article>`;
 }
 
+/* ---------- Horaires : « Ouvert maintenant » ---------- */
+// Lit des horaires écrits librement (« Lun-Ven 8h-12h et 14h-17h · Sam 8h-12h », « Du lundi au samedi 8h30-18h », « 7j/7 9h-20h »).
+// Renvoie 7 listes de plages en minutes (0 = lundi), ou null si le texte n'est pas compréhensible : on n'affiche alors rien.
+const DAYS_RE='(lun|mar|mer|jeu|ven|sam|dim)(?:di|credi|dredi|edi|anche)?\\b\\.?';
+const DAY_IDX={lun:0,mar:1,mer:2,jeu:3,ven:4,sam:5,dim:6};
+const DAY_NAMES=['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
+const HOURS_TOKEN=new RegExp(`(7\\s*j\\s*/\\s*7|7\\s*jours?\\s*(?:sur|/)\\s*7|tous les jours)|(?:du\\s+)?${DAYS_RE}\\s*(?:-|–|à|a|au)\\s*${DAYS_RE}|${DAYS_RE}|(\\d{1,2})\\s*(?:h|:)\\s*(\\d{2})?\\s*(?:-|–|à|a)\\s*(\\d{1,2})\\s*(?:h|:)?\\s*(\\d{2})?`,'g');
+const hoursCache={};
+function parseHours(txt){
+  if(!txt) return null;
+  if(txt in hoursCache) return hoursCache[txt];
+  const s=norm(txt).replace(/midi/g,'12h').replace(/minuit/g,'24h');
+  const week=[[],[],[],[],[],[],[]]; let days=[], lastTime=false, sawDay=false, any=false, m;
+  HOURS_TOKEN.lastIndex=0;
+  while((m=HOURS_TOKEN.exec(s))){
+    if(m[1]||m[2]||m[4]){
+      let d;
+      if(m[1]) d=[0,1,2,3,4,5,6];
+      else if(m[2]){ const a=DAY_IDX[m[2]], b=DAY_IDX[m[3]]; d=[]; for(let i=a;;i=(i+1)%7){ d.push(i); if(i===b||d.length>7) break; } }
+      else d=[DAY_IDX[m[4]]];
+      days=lastTime||!sawDay?d:[...new Set([...days,...d])]; sawDay=true; lastTime=false;
+    }else{
+      const a=+m[5]*60+(+m[6]||0); let b=+m[7]*60+(+m[8]||0);
+      if(+m[5]>24||+m[7]>24) continue;
+      if(b<=a) b=24*60;
+      days.forEach(i=>week[i].push([a,b])); if(days.length) any=true; lastTime=true;
+    }
+  }
+  return hoursCache[txt]=sawDay&&any?week:null;
+}
+// Heure de Mayotte (UTC+3), quel que soit le fuseau du visiteur.
+function mayotteNow(){ const n=new Date(Date.now()+3*36e5); return {day:(n.getUTCDay()+6)%7,min:n.getUTCHours()*60+n.getUTCMinutes()}; }
+const fmtMin=m=>{ const h=Math.floor(m/60)%24, r=m%60; return h+'h'+(r?String(r).padStart(2,'0'):''); };
+function openStatus(b){
+  const w=parseHours(b.hours); if(!w) return null;
+  const {day,min}=mayotteNow();
+  const cur=w[day].find(([a,z])=>min>=a&&min<z);
+  if(cur) return {open:true,soon:cur[1]-min<=60,label:cur[1]>=24*60?'ouvert jusqu’à minuit':'ferme à '+fmtMin(cur[1])};
+  for(let k=0;k<7;k++){
+    const d=(day+k)%7, next=w[d].filter(([a])=>k>0||a>min).sort((x,z)=>x[0]-z[0])[0];
+    if(next) return {open:false,label:'ouvre '+(k===0?'à ':k===1?'demain à ':DAY_NAMES[d]+' à ')+fmtMin(next[0])};
+  }
+  return {open:false,label:''};
+}
+const isOpenNow=b=>!!(openStatus(b)||{}).open;
+const hoursKnown=()=>B.filter(b=>parseHours(b.hours)).length;
+const SHOW_OPEN_FILTER=5; // le filtre n'apparaît qu'avec assez de fiches aux horaires lisibles
+function openPill(b){
+  const s=openStatus(b); if(!s) return '';
+  return `<span class="openpill ${s.open?(s.soon?'soon':'on'):'off'}">${s.open?'Ouvert':'Fermé'}${s.label?' · '+esc(s.label):''}</span>`;
+}
 function bizCard(b){
   const n=codesOf(b.slug).length; const fav=S.favs.includes(b.slug);
   return `<article class="biz">
@@ -491,7 +542,7 @@ function bizCard(b){
       <div class="body">
         ${logo(b,'md')}
         <div class="biz-title"><h3><a href="#/entreprises/${b.slug}">${esc(b.name)}</a></h3><button type="button" class="fav" data-fav="${b.slug}" aria-pressed="${fav}" aria-label="${fav?'Retirer':'Ajouter'} ${esc(b.name)} ${fav?'des':'aux'} favoris"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3L3 9.6l6.2-.9Z"/></svg></button></div>
-        <p class="u4 muted">${esc(catBy(b.cat).name)}</p>
+        <p class="u4 muted">${esc(catBy(b.cat).name)}</p>${openPill(b)}
         <div class="row"><span class="count ${n?'':'none'}">${n?n+' bon'+(n>1?'s':'')+' plan'+(n>1?'s':'')+' disponible'+(n>1?'s':''):'Aucun code pour le moment'}</span></div>
       </div>
 
@@ -660,7 +711,7 @@ const selOpts=(list,cur)=>list.map(([v,l])=>`<option value="${esc(v)}"${v===cur?
 const communeOpts=slugs=>[['','Toutes les communes'],...COMMUNES.filter(c=>slugs.has(c.slug)).sort((a,z)=>a.name.localeCompare(z.name,'fr')).map(c=>[c.slug,c.name])];
 let dirState={q:'',cat:'',com:'',sort:'az',deals:false};
 function pageDirectory(params){
-  dirState={q:params.get('q')||'',cat:params.get('cat')||'',com:params.get('c')||'',sort:params.get('tri')==='codes'?'codes':'az',deals:params.get('bonsplans')==='1'};
+  dirState={q:params.get('q')||'',cat:params.get('cat')||'',com:params.get('c')||'',sort:params.get('tri')==='codes'?'codes':'az',deals:params.get('bonsplans')==='1',open:params.get('ouvert')==='1'};
   return `<div class="wrap">
     ${backBtn('#/')}<div class="pagehead"><h1>${dirState.cat&&catBy(dirState.cat)?esc(catBy(dirState.cat).name)+' à Mayotte':dirState.com&&comBy(dirState.com)?'Entreprises à '+esc(comBy(dirState.com).name):'Entreprises de Mayotte'}</h1><p class="muted">${dirState.cat||dirState.com?'Leurs codes promo, offres en magasin et coordonnées.':'Toutes les entreprises référencées sur Bonszahé.'}</p></div>
     <div class="toolbar">
@@ -669,6 +720,7 @@ function pageDirectory(params){
         <label class="sel"><span>Commune</span><select id="dirCom">${selOpts(communeOpts(new Set(B.map(b=>b.commune))),dirState.com)}</select></label>
         <label class="sel"><span>Trier par</span><select id="dirSort">${selOpts([['az','Nom (A → Z)'],['codes','Plus de bons plans']],dirState.sort)}</select></label>
         <label class="check"><input type="checkbox" id="dirDeals"${dirState.deals?' checked':''}> Avec bons plans en cours</label>
+        ${hoursKnown()>=SHOW_OPEN_FILTER?`<label class="check"><input type="checkbox" id="dirOpen"${dirState.open?' checked':''}> Ouvert maintenant</label>`:''}
         <button class="btn btn-ghost btn-sm" id="dirReset" type="button">Réinitialiser</button>
       </div>
       <div class="chips" role="group" aria-label="Filtrer par catégorie">
@@ -683,12 +735,12 @@ function pageDirectory(params){
 }
 function drawDirectory(){
   const q=norm(dirState.q);
-  const list=B.filter(b=>(!dirState.cat||b.cat===dirState.cat)&&(!dirState.com||b.commune===dirState.com)&&(!dirState.deals||codesOf(b.slug).length)&&(!q||norm(b.name+' '+b.desc+' '+catBy(b.cat).name).includes(q)));
+  const list=B.filter(b=>(!dirState.cat||b.cat===dirState.cat)&&(!dirState.com||b.commune===dirState.com)&&(!dirState.deals||codesOf(b.slug).length)&&(!dirState.open||isOpenNow(b))&&(!q||norm(b.name+' '+b.desc+' '+catBy(b.cat).name).includes(q)));
   if(dirState.sort==='codes') list.sort((a,z)=>codesOf(z.slug).length-codesOf(a.slug).length||a.name.localeCompare(z.name,'fr'));
-  const active=dirState.cat||dirState.com||dirState.deals||q||dirState.sort!=='az';
+  const active=dirState.cat||dirState.com||dirState.deals||dirState.open||q||dirState.sort!=='az';
   document.getElementById('dirReset').hidden=!active;
   document.getElementById('dirCount').textContent=`${list.length} entreprise${list.length>1?'s':''}${dirState.com?' à '+comBy(dirState.com).name:''}`;
-  const cat=catBy(dirState.cat); const only=cat&&!q&&!dirState.com&&!dirState.deals;
+  const cat=catBy(dirState.cat); const only=cat&&!q&&!dirState.com&&!dirState.deals&&!dirState.open;
   document.getElementById('dirList').innerHTML=list.length?list.map(bizCard).join(''):
     `<div class="u5">${empty(only?`Aucune entreprise ${cat.name.toLowerCase()} pour l’instant`:'Aucune entreprise trouvée',only?'Cette catégorie attend ses premières entreprises. Vous en connaissez une ?':'Essayez un autre mot ou d’autres filtres.',`<button class="btn btn-primary" data-claim="">Ajouter une entreprise</button>`)}</div>`;
 }
@@ -709,7 +761,7 @@ function pageBusiness(slug){
       ${logo(b,'lg')}
       <div class="bmain">
         <h1>${esc(b.name)} ${verified?`<span title="Entreprise avec codes vérifiés">${ic('badge','class="verif"')}</span>`:''}</h1>
-        <p class="tagline muted">${esc(cat.name)}${b.sale?' &nbsp;|&nbsp; '+esc(SALES[b.sale]):''}</p>
+        <p class="tagline muted">${esc(cat.name)}${b.sale?' &nbsp;|&nbsp; '+esc(SALES[b.sale]):''}</p>${openPill(b)}
         ${b.desc?`<p class="bdesc">${esc(b.desc)}</p>`:''}
       </div>
       <div class="bactions">
@@ -1253,6 +1305,7 @@ function pageProfile(){
     <div class="stack">
       <a class="btn btn-wa" href="${waHref(`Je suis « ${lv.name} » sur Bonszahé avec ${s.points} points 🔥 Rejoins la communauté des bons plans de Mayotte 👉 ${location.origin}/`)}" target="_blank" rel="noopener">Partager mon niveau sur WhatsApp</a>
       <div class="quick"><a href="#/alertes">🔔<span>Mes alertes${MINE.alerts.length?' ('+MINE.alerts.length+')':''}</span></a><a href="#/demandes">🙋<span>Demandes</span></a><a href="#/recompenses">🎁<span>Récompenses</span></a>${isAdmin()?'<a href="#/controle">🛡️<span>Contrôle</span></a>':''}</div>
+      ${installCard()}
       ${referralCard()}
       <div><div class="head"><h2>Mes badges</h2><a class="link" href="#/classement">Voir le classement</a></div>${badgeGrid(s)}</div>
       <div>
@@ -1398,7 +1451,7 @@ function editBizDialog(slug){
       <div class="posrow"><button type="button" class="btn btn-ghost btn-sm" id="posHere">${ic('pin')}Je suis dans le magasin : utiliser ma position</button></div>
       <label>Position GPS <span class="opt">(remplie par la carte, ou collée depuis Google Maps)</span><input id="posInput" name="position" inputmode="decimal" maxlength="40" value="${esc(posStr(b.pos))}" placeholder="-12.7806, 45.2279"></label>
     </div>
-    <label>Horaires d’ouverture <span class="opt">(facultatif)</span><input name="horaires" maxlength="160" value="${esc(b.hours)}" placeholder="Lun-Ven 8h-17h, Sam 8h-12h"></label>
+    <label>Horaires d’ouverture <span class="opt">(facultatif)</span><input name="horaires" maxlength="160" value="${esc(b.hours)}" placeholder="Lun-Ven 8h-12h et 14h-17h · Sam 8h-12h"><small class="muted">Indiquez les jours puis les heures, comme dans l’exemple : votre fiche affichera « Ouvert » ou « Fermé » en temps réel.</small></label>
     <div class="two"><label>Téléphone<input name="telephone" type="tel" maxlength="30" value="${esc(b.phone)}"></label><label>E-mail de contact<input name="email" type="email" maxlength="120" value="${esc(b.email)}"></label></div>
     <label>Site web <span class="opt">(facultatif)</span><input name="siteWeb" type="url" maxlength="200" value="${esc(b.web)}" placeholder="https://"></label>
     <p class="note">Pour changer votre logo, envoyez-le via la <a class="link" href="#/contact">page Contact</a>.</p>
@@ -1639,7 +1692,7 @@ function baseMap(el,opts={}){
 }
 let mapState={com:'',focus:'',me:null}, storeMap=null, storeMarkers={}, meMarker=null;
 function pageMap(params){
-  mapState={com:params.get('c')||'',focus:params.get('b')||'',me:mapState.me};
+  mapState={com:params.get('c')||'',focus:params.get('b')||'',me:mapState.me,open:false};
   const shops=B.filter(isShop);
   const coms=new Set(shops.map(b=>b.commune).filter(Boolean));
   if(mapState.com) coms.add(mapState.com);
@@ -1648,6 +1701,7 @@ function pageMap(params){
     <div class="filters u13">
       <button class="btn btn-primary" id="nearMe" type="button">${ic('pin')}Autour de moi</button>
       <label class="sel"><span>Commune</span><select id="mapCom">${selOpts(communeOpts(coms),mapState.com)}</select></label>
+      ${hoursKnown()>=SHOW_OPEN_FILTER?`<label class="check"><input type="checkbox" id="mapOpen"> Ouvert maintenant</label>`:''}
     </div>
     <p class="note" id="geoMsg" role="status"></p>
     <div class="storemap">
@@ -1658,14 +1712,14 @@ function pageMap(params){
     <div class="u8"></div>
   </div>`;
 }
-const mapShops=()=>B.filter(b=>isShop(b)&&(!mapState.com||b.commune===mapState.com));
+const mapShops=()=>B.filter(b=>isShop(b)&&(!mapState.com||b.commune===mapState.com)&&(!mapState.open||isOpenNow(b)));
 function drawMapList(){
   const list=mapShops().map(b=>({b,d:mapState.me?kmBetween(mapState.me,b.pos):null}));
   list.sort((x,z)=>x.d!=null?x.d-z.d:x.b.name.localeCompare(z.b.name,'fr'));
   const where=mapState.com?' à '+comBy(mapState.com).name:'';
   document.getElementById('mapCount').textContent=`${list.length} magasin${list.length>1?'s':''}${where}${mapState.me?', du plus proche au plus loin':''}`;
   document.getElementById('mapList').innerHTML=list.length?list.map(({b,d})=>{ const n=storeOffers(b), all=codesOf(b.slug).length;
-    return `<div class="li shop">${logo(b)}<div class="grow"><button class="linkbtn" data-focus="${b.slug}"><strong>${esc(b.name)}</strong></button><small>${[d!=null?fmtKm(d):'',b.commune?comBy(b.commune).name:'',n?n+' offre'+(n>1?'s':'')+' en magasin':all?all+' bon'+(all>1?'s':'')+' plan'+(all>1?'s':''):''].filter(Boolean).join(' · ')}</small></div><div class="shopacts"><a class="btn btn-ghost btn-sm" href="#/entreprises/${b.slug}">Voir</a>${goLinks(b,false)}</div></div>`; }).join(''):
+    return `<div class="li shop">${logo(b)}<div class="grow"><button class="linkbtn" data-focus="${b.slug}"><strong>${esc(b.name)}</strong></button><small>${openPill(b)}${[d!=null?fmtKm(d):'',b.commune?comBy(b.commune).name:'',n?n+' offre'+(n>1?'s':'')+' en magasin':all?all+' bon'+(all>1?'s':'')+' plan'+(all>1?'s':''):''].filter(Boolean).join(' · ')}</small></div><div class="shopacts"><a class="btn btn-ghost btn-sm" href="#/entreprises/${b.slug}">Voir</a>${goLinks(b,false)}</div></div>`; }).join(''):
     empty(mapState.com?`Pas encore de magasin placé à ${esc(comBy(mapState.com).name)}`:'Aucun magasin sur la carte pour l’instant','Les entreprises placent leur magasin depuis leur espace pro.','');
   const missing=B.filter(b=>!b.pos&&b.sale!=='en-ligne'&&(!mapState.com||b.commune===mapState.com));
   document.getElementById('mapMissing').innerHTML=missing.length?`<details class="card"><summary><strong>${missing.length} entreprise${missing.length>1?'s':''} pas encore placée${missing.length>1?'s':''} sur la carte</strong></summary>
@@ -1674,7 +1728,7 @@ function drawMapList(){
 }
 function popupHtml(b){
   const n=storeOffers(b), all=codesOf(b.slug).length;
-  return `<div class="popup"><strong>${esc(b.name)}</strong><small>${esc(catBy(b.cat).name)}${b.addr?' · '+esc(b.addr):''}</small>${b.hours?`<small>${esc(b.hours)}</small>`:''}
+  return `<div class="popup"><strong>${esc(b.name)}</strong><small>${esc(catBy(b.cat).name)}${b.addr?' · '+esc(b.addr):''}</small>${b.hours?`<small>${esc(b.hours)}</small>`:''}${openPill(b)}
     ${n||all?`<span class="pill ok">${n?n+' offre'+(n>1?'s':'')+' en magasin':all+' bon'+(all>1?'s':'')+' plan'+(all>1?'s':'')}</span>`:''}
     <div class="popacts"><a class="btn btn-ghost btn-sm" href="#/entreprises/${b.slug}">Voir la fiche</a>${goLinks(b)}</div></div>`;
 }
@@ -2012,10 +2066,17 @@ function pageControle(){
     ${sus.length?`<div class="list">${sus.map(x=>`<div class="li"><div class="grow"><strong>${esc(x.name)}</strong><small>${x.why.map(esc).join(' · ')} · ${x.month} pts ce mois-ci</small></div><button class="btn btn-ghost btn-sm" data-exclude="${esc(x.id)}">Exclure</button></div>`).join('')}</div>`:'<p class="muted">Rien de suspect pour le moment. 👍</p>'}
     <div class="head u13"><h2>Classement provisoire de ${monthName(k)}</h2></div>
     ${boardRows(cur,true,k)}
+    ${hoursAudit()}
     <div class="head u13"><h2>Membres exclus</h2></div>
     ${ex.length?`<div class="list">${ex.map(([id,x])=>`<div class="li"><div class="grow"><strong>${esc(x.nom||memberName(id))}</strong><small>${esc(x.motif||'Sans motif')} · depuis le ${fmt(x.at)}</small></div><button class="btn btn-ghost btn-sm" data-reinstate="${esc(id)}">Réintégrer</button></div>`).join('')}</div>`:'<p class="muted">Aucun membre exclu.</p>'}
     <div class="u8"></div>
   </div>`;
+}
+function hoursAudit(){
+  const known=B.filter(b=>parseHours(b.hours)), bad=B.filter(b=>b.hours&&!parseHours(b.hours)), none=B.filter(b=>!b.hours);
+  return `<div class="head u13"><div><h2>Horaires des fiches</h2><p class="muted">${known.length} fiche${known.length>1?'s':''} sur ${B.length} affiche${known.length>1?'nt':''} « Ouvert / Fermé ». Le filtre « Ouvert maintenant » apparaît à partir de ${SHOW_OPEN_FILTER} fiches.</p></div></div>
+    ${bad.length?`<div class="list">${bad.map(b=>`<a class="li" href="#/entreprises/${b.slug}"><div class="grow"><strong>${esc(b.name)}</strong><small>Horaires illisibles : « ${esc(b.hours)} » (format conseillé : Lun-Ven 8h-12h et 14h-17h · Sam 8h-12h)</small></div></a>`).join('')}</div>`:''}
+    ${none.length?`<details class="card u10"><summary><strong>${none.length} fiche${none.length>1?'s':''} sans horaires</strong></summary><p class="muted u10">${none.map(b=>esc(b.name)).join(', ')}</p><p class="note">À compléter dans le CMS (champ « horaires ») ou par l’entreprise depuis « Modifier ma fiche ».</p></details>`:''}`;
 }
 function excludeDialog(id){
   openDialog(`<header><div><h2 id="dlgTitle">Exclure ${esc(memberName(id))} ?</h2><p class="u14 note">Ses points sont retirés, ses votes ne comptent plus et il ne peut plus gagner de lot. Vous pourrez le réintégrer à tout moment.</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
@@ -2380,6 +2441,7 @@ async function reloadAll(){ try{ await loadData(); await loadMine(); }catch(e){ 
 document.addEventListener('click',async e=>{
   const t=e.target.closest('button,a'); if(!t) return;
   if(t.hasAttribute('data-back')&&navStack.length>1){ e.preventDefault(); history.back(); return; }
+  if(t.dataset.install!==undefined){ e.preventDefault(); installApp(); return; }
   if(t.dataset.suggest!==undefined){ e.preventDefault(); suggestDialog(t.dataset.suggest||(B.some(b=>me()&&b.owners.includes(me().id))?'pro':'membre')); return; }
   if(t.dataset.track){ track(t.dataset.track,t.dataset.trackbiz); return; }
   if(t.dataset.caisse){ caisseDialog(t.dataset.caisse); track('caisse',t.dataset.copybiz,t.dataset.caisse); return; }
@@ -2509,6 +2571,8 @@ document.addEventListener('change',e=>{
   if(id==='dirCom'){ dirState.com=e.target.value; drawDirectory(); }
   if(id==='dirSort'){ dirState.sort=e.target.value; drawDirectory(); }
   if(id==='dirDeals'){ dirState.deals=e.target.checked; drawDirectory(); }
+  if(id==='dirOpen'){ dirState.open=e.target.checked; drawDirectory(); }
+  if(id==='mapOpen'){ mapState.open=e.target.checked; drawMapList(); if(storeMap) fitShops(); }
   if(id==='mapCom'){ mapState.com=e.target.value; drawMapList(); if(storeMap) fitShops(); }
   if(e.target.name==='typeVente'&&e.target.closest('#editBizForm')){ const box=document.getElementById('posBox'); box.hidden=e.target.value==='en-ligne'; if(!box.hidden&&posMap) setTimeout(()=>posMap.invalidateSize(),50); }
   if(e.target.name==='biz'&&e.target.closest('#claimForm')){ const nb=document.querySelector('#claimForm .newbiz'); if(nb){ nb.hidden=e.target.value!=='__new__'; nb.querySelector('input').required=!nb.hidden; } }
@@ -2673,6 +2737,30 @@ document.addEventListener('submit',async e=>{
 });
 
 app.innerHTML=`<div class="wrap skel" aria-busy="true"><p class="sr">Chargement des bons plans…</p><div class="sk sk-title"></div><div class="sk sk-line"></div><div class="sk sk-search"></div><div class="skgrid">${'<div class="sk sk-card"></div>'.repeat(3)}</div></div>`;
+/* ---------- Application installable (écran d'accueil du téléphone) ---------- */
+let installEvt=null;
+const isStandalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const isIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const canInstall=()=>!isStandalone()&&(!!installEvt||isIOS());
+function syncInstall(){ document.querySelectorAll('footer [data-install]').forEach(a=>a.hidden=!canInstall()); }
+function installCard(){
+  if(!canInstall()) return '';
+  return `<div class="card installcard"><img src="/icons/icon-192.png" alt="" width="56" height="56"><div class="grow"><h3>Bonszahé sur votre écran d’accueil</h3><p class="muted">Ouvrez les bons plans en un geste, comme une application. Gratuit, sans passer par un store.</p></div><button class="btn btn-primary btn-sm" data-install="">📲 Installer</button></div>`;
+}
+async function installApp(){
+  if(installEvt){ installEvt.prompt(); const r=await installEvt.userChoice.catch(()=>null); installEvt=null; syncInstall(); if(r&&r.outcome==='accepted') toast('🎉 Bonszahé est installé sur votre téléphone !'); refresh(); return; }
+  openDialog(`<header><div><h2 id="dlgTitle">📲 Installer Bonszahé sur iPhone</h2><p class="u14 note">Deux gestes dans Safari, et Bonszahé s’ouvre comme une application.</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+  <ol class="steps"><li>Touchez le bouton <strong>Partager</strong> <span aria-hidden="true">⬆️</span> en bas de l’écran.</li><li>Choisissez <strong>« Sur l’écran d’accueil »</strong>, puis <strong>Ajouter</strong>.</li></ol>
+  <p class="note">Sur Android, utilisez Chrome : le bouton Installer apparaît directement.</p>
+  <button class="btn btn-primary" data-close>J’ai compris</button>`);
+}
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); installEvt=e; syncInstall(); if(curH().startsWith('#/profil')) refresh(); });
+window.addEventListener('appinstalled',()=>{ installEvt=null; syncInstall(); });
+window.addEventListener('offline',()=>toast('📶 Vous êtes hors connexion : les bons plans affichés peuvent ne pas être à jour.'));
+window.addEventListener('online',()=>{ toast('Connexion retrouvée ✅'); reloadAll(); });
+if('serviceWorker' in navigator&&location.protocol==='https:') navigator.serviceWorker.register('/sw.js').catch(()=>{});
+syncInstall();
+
 loadData().then(resumeRedirectLogin).then(loadMine).catch(err=>{ console.warn('CMS Wix indisponible, affichage de la copie locale',err); B.forEach(b=>{ bizId[b.slug]=b.slug; b.owners=b.owners||[]; }); }).finally(()=>{ trackNav(curH()); route(); });
 // Vraies adresses : les liens internes changent de page sans recharger le site (enregistré en dernier, après les autres clics).
 if(PATHMODE) document.addEventListener('click',e=>{

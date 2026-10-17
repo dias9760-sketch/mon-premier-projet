@@ -33,3 +33,10 @@ Collection `Catalogues` (lecture publique, écriture réservée au propriétaire
 catalogues dont la date de fin est passée disparaissent seuls. Les entreprises proposent un catalogue depuis leur fiche
 (collection `CataloguesProposes`) : une automatisation Wix l'ajoute dans `Catalogues` avec « Publié » décoché et envoie un e-mail au
 propriétaire. Bonszahé renvoie toujours vers le catalogue officiel, rien n'est recopié.
+
+## Ouvert maintenant & application installable
+
+- Les horaires des fiches (texte libre, ex. « Lun-Ven 8h-12h et 14h-17h · Sam 8h-12h ») sont lus par `parseHours()` à l'heure de Mayotte (UTC+3).
+  Un texte illisible n'affiche rien ; la page Contrôle liste ces fiches. Le filtre « Ouvert maintenant » apparaît dès 5 fiches lisibles.
+- `site/manifest.json`, `site/icons/` (icône BZ) et `site/sw.js` (cache des fichiers du site, page d'accueil de secours hors connexion).
+  Changer `CACHE` dans `sw.js` pour vider le cache des visiteurs si besoin.

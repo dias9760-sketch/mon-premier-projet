@@ -1,0 +1,20 @@
+{
+  "name": "Bonszahé – Les bons plans de Mayotte",
+  "short_name": "Bonszahé",
+  "description": "Codes promo, bons plans, catalogues et arrivages des commerces de Mayotte.",
+  "lang": "fr",
+  "start_url": "/?source=app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FFF7EC",
+  "theme_color": "#FFE9CC",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Bons plans de la semaine", "url": "/semaine", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Catalogues & arrivages", "url": "/catalogues", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
