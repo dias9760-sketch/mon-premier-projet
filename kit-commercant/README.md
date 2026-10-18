@@ -7,6 +7,7 @@ Tout ce qu'il faut pour convaincre les entreprises de Mayotte de revendiquer leu
 | `affiche-generique.pdf` | Affiche A4 avec QR code vers bonszahe.com, pour tous les usages (salons, événements, réseaux sociaux). |
 | `affiches-entreprises.pdf` | 61 affiches A4, une par entreprise publiée, avec le QR code de **sa** fiche. À imprimer ou à joindre au premier e-mail (une page par entreprise, dans l'ordre de la liste du site). |
 | `messages.md` | Messages prêts à envoyer : WhatsApp, e-mail de prospection, relance, script d'appel ou de visite. |
+| `prospection-petites-entreprises.md` | E-mail type et message type réseaux sociaux pour les petites entreprises sans site web, présentes sur Facebook, Instagram ou TikTok. |
 | `sources-fiches.md` | Sources des horaires et descriptions ajoutés aux fiches le 17 octobre 2026, avec les points à vérifier. |
 | `email-statistiques.md` | E-mail mensuel « Votre mois sur Bonszahé » : bilan des vues, codes copiés, appels, plus ce que cherchent les habitants. Une version pour les fiches revendiquées, une pour les autres. |
 
