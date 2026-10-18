@@ -72,7 +72,7 @@ function bizLd(b,codes){
 const WEBSITE_LD={'@context':'https://schema.org','@graph':[
   {'@type':'WebSite','@id':SITE+'/#site',url:SITE+'/',name:NAME,inLanguage:'fr-FR',description:'Codes promo et bons plans des commerces de Mayotte',
    potentialAction:{'@type':'SearchAction',target:{'@type':'EntryPoint',urlTemplate:SITE+'/recherche?q={search_term_string}'},'query-input':'required name=search_term_string'}},
-  {'@type':'Organization','@id':SITE+'/#org',name:NAME,url:SITE+'/',logo:LOGO,slogan:'Achetez malin, achetez mahorais',areaServed:'Mayotte'}]};
+  {'@type':'Organization','@id':SITE+'/#org',name:NAME,url:SITE+'/',logo:LOGO,slogan:'Achetez malin, achetez mahorais',areaServed:'Mayotte',email:'contact@bonszahe.com',sameAs:['https://www.facebook.com/share/1A9v8WGbjW/','https://www.instagram.com/bonszahe','https://www.tiktok.com/@bonszahe3']}]};
 
 // Contenu HTML lisible sans JavaScript (robots, aperçus) — remplacé par l'application au chargement.
 const bizLink=b=>`<li><a href="/entreprises/${esc(b.slug)}">${esc(b.name)}</a>${b.desc?` — ${esc(clip(b.desc,140))}`:''}</li>`;

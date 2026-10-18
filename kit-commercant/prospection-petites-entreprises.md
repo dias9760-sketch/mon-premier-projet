@@ -36,6 +36,7 @@ Remplacez ce qui est entre [crochets].
 > À bientôt sur Bonszahé,
 > [Prénom Nom]
 > Bonszahé · bonszahe.com · contact@bonszahe.com
+> Facebook, Instagram @bonszahe, TikTok @bonszahe3
 
 ---
 

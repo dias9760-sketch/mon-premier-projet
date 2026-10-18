@@ -262,6 +262,10 @@ footer .wrap{padding-top:28px;padding-bottom:40px;display:grid;gap:24px;position
 @media (min-width:800px){footer .wrap{grid-template-columns:1.2fr 2fr}}
 footer .flogo{display:inline-block}
 footer .flogo img{height:60px;width:auto;display:block}
+footer .fsoc{display:flex;gap:10px;margin-top:12px}
+footer .fsoc a{width:40px;height:40px;border-radius:50%;background:#fff;color:#1F2B3D;display:grid;place-items:center;box-shadow:0 1px 0 rgba(31,43,61,.08)}
+footer .fsoc a:hover{background:var(--corail);color:#fff}
+footer .fsoc svg{width:20px;height:20px}
 footer nav{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 24px;align-content:start}
 @media (min-width:800px){footer nav{grid-template-columns:repeat(3,1fr)}}
 footer a{text-decoration:none;color:#0B3A6E;font-weight:600}

@@ -901,6 +901,7 @@ function pageContact(){
   return legalPage('Contact',`
     <p>Une question, un problème, une entreprise à ajouter ? Écrivez-nous, nous répondons par e-mail.</p>
     <p>Vous pouvez aussi nous écrire directement à <a class="link" href="mailto:contact@bonszahe.com">contact@bonszahe.com</a>.</p>
+    <p>Suivez-nous aussi sur <a class="link" href="https://www.facebook.com/share/1A9v8WGbjW/" target="_blank" rel="noopener">Facebook</a>, <a class="link" href="https://www.instagram.com/bonszahe" target="_blank" rel="noopener">Instagram</a> et <a class="link" href="https://www.tiktok.com/@bonszahe3" target="_blank" rel="noopener">TikTok</a>.</p>
     <form class="form" id="contactForm">
       <div class="two"><label>Nom<input name="nom" required maxlength="80" autocomplete="name" value="${u?esc(u.name):''}"></label><label>E-mail<input name="email" type="email" required maxlength="120" autocomplete="email" value="${u?esc(u.email):''}"></label></div>
       <label>Sujet<select name="sujet">${['Question','Signaler un problème','Entreprise / partenariat','Supprimer mon compte','Autre'].map(x=>`<option>${x}</option>`).join('')}</select></label>
