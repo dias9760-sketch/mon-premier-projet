@@ -45,7 +45,7 @@ Remplacez ce qui est entre [crochets]. Le lien de chaque fiche est `https://bons
 >
 > Bien cordialement,
 > [Prénom Nom]
-> Bonszahé · bonszahe.com
+> Bonszahé · bonszahe.com · contact@bonszahe.com
 
 **Pièce jointe :** la page de l'entreprise extraite de `affiches-entreprises.pdf`.
 

@@ -39,6 +39,7 @@ Les recherches sans résultat de la catégorie viennent de **RecherchesVides** (
 >
 > Bonne journée,
 > L'équipe Bonszahé
+> contact@bonszahe.com
 
 ---
 
@@ -61,6 +62,7 @@ Les recherches sans résultat de la catégorie viennent de **RecherchesVides** (
 >
 > Bien cordialement,
 > L'équipe Bonszahé
+> contact@bonszahe.com
 
 **Règle :** n'envoyez pas la version B à une fiche qui a eu moins de 10 vues dans le mois. Avec un chiffre trop faible, l'e-mail dessert plus qu'il ne convainc. Envoyez plutôt le message de prospection de `messages.md`.
 

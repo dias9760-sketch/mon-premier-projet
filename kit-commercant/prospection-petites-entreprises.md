@@ -35,7 +35,7 @@ Remplacez ce qui est entre [crochets].
 >
 > À bientôt sur Bonszahé,
 > [Prénom Nom]
-> bonszahe.com
+> Bonszahé · bonszahe.com · contact@bonszahe.com
 
 ---
 

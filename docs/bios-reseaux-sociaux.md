@@ -1,6 +1,6 @@
 # Bios des réseaux sociaux Bonszahé
 
-Nom partout : **Bonszahé – Bons plans Mayotte** · identifiant conseillé : **@bonszahe** (sinon @bonszahe976) · lien : **https://bonszahe.com** · photo de profil : l'icône BZ (site/icons/icon-512.png).
+Nom partout : **Bonszahé – Bons plans Mayotte** · identifiant conseillé : **@bonszahe** (sinon @bonszahe976) · lien : **https://bonszahe.com** · e-mail : **contact@bonszahe.com** (à renseigner dans le bouton « Contact » / « E-mail » de chaque profil) · photo de profil : l'icône BZ (site/icons/icon-512.png).
 
 ## Instagram (150 caractères max)
 ```
@@ -35,6 +35,7 @@ C'est gratuit, pour les habitants comme pour les entreprises.
 Commerçants : ajoutez votre entreprise gratuitement sur bonszahe.com
 
 👉 bonszahe.com
+✉️ contact@bonszahe.com
 ```
 Catégorie : « Site web de shopping et de vente au détail » + « Communauté ».
 

@@ -900,6 +900,7 @@ function pageContact(){
   const u=me();
   return legalPage('Contact',`
     <p>Une question, un problème, une entreprise à ajouter ? Écrivez-nous, nous répondons par e-mail.</p>
+    <p>Vous pouvez aussi nous écrire directement à <a class="link" href="mailto:contact@bonszahe.com">contact@bonszahe.com</a>.</p>
     <form class="form" id="contactForm">
       <div class="two"><label>Nom<input name="nom" required maxlength="80" autocomplete="name" value="${u?esc(u.name):''}"></label><label>E-mail<input name="email" type="email" required maxlength="120" autocomplete="email" value="${u?esc(u.email):''}"></label></div>
       <label>Sujet<select name="sujet">${['Question','Signaler un problème','Entreprise / partenariat','Supprimer mon compte','Autre'].map(x=>`<option>${x}</option>`).join('')}</select></label>
@@ -911,7 +912,7 @@ function pageContact(){
 function pageMentions(){
   return legalPage('Mentions légales',`
     <h2>Éditeur du site</h2>
-    <p>Bonszahé est édité par ${EDITEUR.nom}, ${EDITEUR.statut}.<br>Adresse : ${EDITEUR.adresse}<br>SIRET : ${EDITEUR.siret}<br>Contact : via la <a class="link" href="#/contact">page Contact</a>.</p>
+    <p>Bonszahé est édité par ${EDITEUR.nom}, ${EDITEUR.statut}.<br>Adresse : ${EDITEUR.adresse}<br>SIRET : ${EDITEUR.siret}<br>Contact : <a class="link" href="mailto:contact@bonszahe.com">contact@bonszahe.com</a> ou via la <a class="link" href="#/contact">page Contact</a>.</p>
     <p>Directeur de la publication : ${EDITEUR.directeur}.</p>
     <h2>Hébergement</h2>
     <p>Le site est hébergé par Wix.com Ltd., 40 Namal Tel Aviv St., Tel Aviv 6350671, Israël (www.wix.com).</p>
