@@ -407,6 +407,15 @@ function track(type,slug,codeId){
   if(type==='vue'){ const k='bonszahe:vu:'+id; try{ if(sessionStorage.getItem(k)) return; sessionStorage.setItem(k,'1'); }catch(e){} }
   sendToWix('Statistiques',Object.assign({type,entreprise:id},codeId?{code:codeId}:{})).catch(()=>{});
 }
+// Une visite par navigateur et par jour, anonyme (pour le résumé quotidien de l'administrateur).
+function trackVisit(){
+  if(navigator.webdriver||/bot|crawl|spider|preview/i.test(navigator.userAgent)) return;
+  const day=new Date().toISOString().slice(0,10); let nouveau=false;
+  try{ if(localStorage.getItem('bonszahe:visite')===day) return; nouveau=!localStorage.getItem('bonszahe:visite'); localStorage.setItem('bonszahe:visite',day); }catch(e){ return; }
+  let source=''; try{ const r=document.referrer&&new URL(document.referrer).hostname; if(r&&r!==location.hostname) source=r.replace(/^www\./,''); }catch(e){}
+  const appareil=matchMedia('(max-width:799px)').matches?'mobile':'ordinateur';
+  sendToWix('Statistiques',{type:'visite',nouveau,page:(location.pathname+location.hash).slice(0,120),source,appareil,domaine:location.hostname}).catch(()=>{});
+}
 
 /* ---------- État local (favoris) ---------- */
 const KEY='bonszahe:v2';
@@ -938,6 +947,7 @@ function pagePrivacy(){
       <li><strong>Demandes des entreprises</strong> : nom du contact, téléphone, e-mail, numéro SIRET et entreprise concernée.</li>
       <li><strong>Messages de contact</strong> : nom, e-mail et message.</li>
       <li><strong>Statistiques pour les entreprises</strong> : nombre de vues des fiches, de codes copiés, de clics et d’appels. Ces mesures ne sont pas reliées à votre identité.</li>
+      <li><strong>Mesure d’audience</strong> : une visite par jour est comptée, avec la page d’arrivée, le site d’origine (Google, Facebook…) et le type d’appareil (mobile ou ordinateur), sans cookie ni lien avec votre identité. Le site utilise aussi Cloudflare Web Analytics, un outil de statistiques sans cookie.</li>
       <li><strong>Recherches sans bon plan</strong> : quand une recherche ne trouve aucun bon plan, le mot recherché est enregistré avec un identifiant aléatoire propre à votre navigateur (jamais votre compte ni votre adresse). Les entreprises n’en voient que des tendances regroupées, à partir de 3 personnes différentes.</li>
       <li><strong>Stockage dans votre navigateur</strong> : vos favoris et votre session de connexion. Aucun cookie publicitaire n’est utilisé.</li>
       <li><strong>Localisation</strong> : seulement si vous touchez « Autour de moi » (ou, pour une entreprise, « utiliser ma position »). Elle sert dans votre navigateur à calculer les distances : elle n’est ni envoyée à Bonszahé ni enregistrée.</li>
@@ -3025,6 +3035,7 @@ window.addEventListener('offline',()=>toast('📶 Vous êtes hors connexion : le
 window.addEventListener('online',()=>{ toast('Connexion retrouvée ✅'); reloadAll(); });
 if('serviceWorker' in navigator&&location.protocol==='https:') navigator.serviceWorker.register('/sw.js').catch(()=>{});
 syncInstall();
+trackVisit();
 
 loadData().then(resumeRedirectLogin).then(loadMine).catch(err=>{ console.warn('CMS Wix indisponible, affichage de la copie locale',err); B.forEach(b=>{ bizId[b.slug]=b.slug; b.owners=b.owners||[]; }); }).finally(()=>{ trackNav(curH()); route(); });
 // Vraies adresses : les liens internes changent de page sans recharger le site (enregistré en dernier, après les autres clics).
