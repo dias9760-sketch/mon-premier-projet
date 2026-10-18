@@ -1,5 +1,5 @@
 // Bonszahé : garde les fichiers du site sur le téléphone pour un chargement rapide et un message clair hors connexion.
-const CACHE='bonszahe-v1';
+const CACHE='bonszahe-v2';
 const OFFLINE=`<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hors connexion | Bonszahé</title>
 <body style="font-family:system-ui,sans-serif;background:#FFF7EC;color:#1F2B3D;display:grid;place-items:center;min-height:100vh;margin:0;padding:24px;text-align:center">
 <div><div style="font-size:3rem">📶</div><h1 style="font-size:1.4rem">Pas de connexion pour le moment</h1><p>Vérifiez votre réseau, puis réessayez : les bons plans de Mayotte vous attendent.</p>

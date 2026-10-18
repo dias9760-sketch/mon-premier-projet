@@ -4,7 +4,7 @@
 const SITE='https://bonszahe.com';
 const NAME='Bonszahé';
 const DEFAULT_IMAGE='https://bonszahe.com/og-bonszahe.jpg';
-const LOGO='https://static.wixstatic.com/media/321566_b1e29c3d58fd46df87b51049e773a1f7~mv2.png';
+const LOGO='https://bonszahe.com/logo/logo-horizontal-couleur.png';
 const CATS=[
   ['shopping','Shopping','mode, cadeaux et shopping'],['beaute','Beauté','beauté, cosmétiques et bien-être'],
   ['maison','Maison','maison, déco, bricolage et matériaux'],['high-tech','High-Tech','téléphonie, informatique et high-tech'],
@@ -72,7 +72,7 @@ function bizLd(b,codes){
 const WEBSITE_LD={'@context':'https://schema.org','@graph':[
   {'@type':'WebSite','@id':SITE+'/#site',url:SITE+'/',name:NAME,inLanguage:'fr-FR',description:'Codes promo et bons plans des commerces de Mayotte',
    potentialAction:{'@type':'SearchAction',target:{'@type':'EntryPoint',urlTemplate:SITE+'/recherche?q={search_term_string}'},'query-input':'required name=search_term_string'}},
-  {'@type':'Organization','@id':SITE+'/#org',name:NAME,url:SITE+'/',logo:LOGO,slogan:'Achetez malin à Mayotte',areaServed:'Mayotte'}]};
+  {'@type':'Organization','@id':SITE+'/#org',name:NAME,url:SITE+'/',logo:LOGO,slogan:'Achetez malin, achetez mahorais',areaServed:'Mayotte'}]};
 
 // Contenu HTML lisible sans JavaScript (robots, aperçus) — remplacé par l'application au chargement.
 const bizLink=b=>`<li><a href="/entreprises/${esc(b.slug)}">${esc(b.name)}</a>${b.desc?` — ${esc(clip(b.desc,140))}`:''}</li>`;
