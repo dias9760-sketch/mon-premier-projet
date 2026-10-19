@@ -4,5 +4,5 @@
 // Safe to commit: WIX_CLIENT_ID is a public, buyer-facing id (it only mints anonymous visitor
 // tokens); WIX_METASITE_ID just identifies the site.
 // wix-client.js and wix-manage-banner.js read their ids from here.
-export const WIX_CLIENT_ID = "<YOUR-CLIENT-ID>";
+export const WIX_CLIENT_ID = "08dddccf-0bb8-4835-a774-f1569468f5ac";
 export const WIX_METASITE_ID = "<YOUR-METASITE-ID>";
