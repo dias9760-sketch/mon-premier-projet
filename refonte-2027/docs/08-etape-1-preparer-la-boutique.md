@@ -17,7 +17,9 @@ Rien n'est modifié sur le site actuel : on lui ajoute seulement un « client »
 
 > Le Client ID **n'est pas un mot de passe** : Wix le prévoit pour être placé dans le code d'un site. Il ne donne que des droits de visiteuse : voir les produits et remplir un panier. N'envoie en revanche **jamais** de clé API, de « client secret » ni ton mot de passe Wix.
 
-Plus tard, quand le nouveau site aura son adresse de test, on ajoutera cette adresse dans **Headless Settings › URLs › Allow Redirect Domains**. Sans ça, Wix refuse de renvoyer la cliente vers le site après le paiement.
+✅ Fait : le site de test **https://dias9760-sketch.github.io/mon-premier-projet/** est autorisé dans **Headless Settings › client Zarahissi 2027 › ⋯ › Paramètres › URLs › Domaines de redirection autorisés**. Wix exige l'adresse avec `https://`.
+
+⚠️ Ne pas remplir « Lien du front-end » avant le lancement : il est ajouté aux e-mails envoyés aux clientes.
 
 ## 3. Ce que je vérifierai avec ce code (en lecture seule)
 
