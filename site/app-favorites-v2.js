@@ -892,7 +892,7 @@ function drawCodes(){
 
 /* ---------- Pages À propos, Contact, Mentions légales, Confidentialité ---------- */
 // Les éléments entre [crochets] sont à compléter par l'éditeur du site.
-const EDITEUR={nom:'[Nom et prénom ou raison sociale]',statut:'[Statut : entreprise individuelle, association, société…]',adresse:'[Adresse postale], Mayotte',siret:'[Numéro SIRET]',directeur:'[Nom du directeur de la publication]'};
+const EDITEUR={nom:'Haybati HARDALI',statut:'',adresse:'',siret:'841 974 488 00014',directeur:'Haybati HARDALI'};
 const legalPage=(title,body)=>`<div class="wrap legal">${backBtn('#/')}<div class="pagehead"><h1>${title}</h1></div><div class="card prose">${body}</div><div class="u8"></div></div>`;
 const waHref=text=>'https://wa.me/?text='+encodeURIComponent(text);
 function pageAbout(){
@@ -922,10 +922,11 @@ function pageContact(){
 function pageMentions(){
   return legalPage('Mentions légales',`
     <h2>Éditeur du site</h2>
-    <p>Bonszahé est édité par ${EDITEUR.nom}, ${EDITEUR.statut}.<br>Adresse : ${EDITEUR.adresse}<br>SIRET : ${EDITEUR.siret}<br>Contact : <a class="link" href="mailto:contact@bonszahe.com">contact@bonszahe.com</a> ou via la <a class="link" href="#/contact">page Contact</a>.</p>
+    <p>Bonszahé est édité par ${EDITEUR.nom}${EDITEUR.statut?', '+EDITEUR.statut:''}.<br>${EDITEUR.adresse?'Adresse : '+EDITEUR.adresse+'<br>':''}SIRET : ${EDITEUR.siret}<br>Contact : <a class="link" href="mailto:contact@bonszahe.com">contact@bonszahe.com</a> ou via la <a class="link" href="#/contact">page Contact</a>.</p>
     <p>Directeur de la publication : ${EDITEUR.directeur}.</p>
     <h2>Hébergement</h2>
-    <p>Le site est hébergé par Wix.com Ltd., 40 Namal Tel Aviv St., Tel Aviv 6350671, Israël (www.wix.com).</p>
+    <p>Le site bonszahe.com est hébergé par Cloudflare, Inc., 101 Townsend Street, San Francisco, CA 94107, États-Unis (www.cloudflare.com).</p>
+    <p>Les données du site (fiches, codes, comptes membres) sont hébergées par Wix.com Ltd., 40 Namal Tel Aviv St., Tel Aviv 6350671, Israël (www.wix.com).</p>
     <h2>Contenus publiés par les membres</h2>
     <p>Les codes promo, offres, votes et commentaires sont publiés par les membres de la communauté, sous leur responsabilité. Bonszahé ne garantit pas que chaque code fonctionne : la communauté indique s’il marche encore et les codes signalés sont masqués. Tout contenu illicite ou inapproprié peut être signalé (bouton « Signaler » ou page Contact) ; il est alors retiré.</p>
     <h2>Entreprises citées</h2>
@@ -939,7 +940,7 @@ function pagePrivacy(){
   return legalPage('Politique de confidentialité',`
     <p>Cette page explique quelles données Bonszahé collecte, pourquoi, et comment exercer vos droits (Règlement général sur la protection des données, RGPD).</p>
     <h2>Responsable du traitement</h2>
-    <p>${EDITEUR.nom}, ${EDITEUR.adresse}. Contact : <a class="link" href="#/contact">page Contact</a>.</p>
+    <p>${EDITEUR.nom}${EDITEUR.adresse?', '+EDITEUR.adresse:''}. Contact : <a class="link" href="mailto:contact@bonszahe.com">contact@bonszahe.com</a> ou <a class="link" href="#/contact">page Contact</a>.</p>
     <h2>Données collectées</h2>
     <ul>
       <li><strong>Compte membre</strong> : e-mail et pseudo. Le mot de passe est géré par Wix et n’est jamais accessible à Bonszahé.</li>

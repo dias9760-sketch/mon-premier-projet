@@ -51,7 +51,7 @@
 | Réseaux sociaux | Facebook, Instagram @bonszahe, TikTok @bonszahe3 (créés en octobre 2026) |
 | Google Search Console | Site validé, sitemap envoyé (octobre 2026) |
 | Statistiques | Comptage anonyme des visites + Cloudflare Web Analytics + résumé quotidien automatique chaque matin |
-| Mentions légales | **À compléter** : éditeur, statut, adresse et SIRET à fournir |
+| Mentions légales | Éditeur : Haybati HARDALI, SIRET 841 974 488 00014, contact@bonszahe.com. **Adresse postale à ajouter** |
 | Offres payantes | Mises de côté (section 8) |
 
 ---
@@ -208,7 +208,7 @@ Le pied de page est rangé en 4 rubriques : Bons plans, Explorer, Communauté, B
 
 ## 10. Priorités actuelles
 
-1. **Compléter les mentions légales** : éditeur, statut, adresse, SIRET.
+1. **Ajouter l'adresse postale** dans les mentions légales (le reste est rempli).
 2. **Remplir le site d'offres** : contacter d'abord les entreprises qui ont déjà une offre (Simex, Somay, House Pizza, Sanistore, Waterland, Nespresso Mayotte), puis 10 entreprises par semaine.
 3. **Faire revendiquer les fiches**, avec le guide et les affiches QR code.
 4. **Animer les réseaux sociaux** : 3 publications par semaine (bon plan du jour, prix des carburants, entreprise à découvrir), et un rendez-vous « Bons plans de la semaine » le vendredi.
