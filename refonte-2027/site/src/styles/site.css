@@ -1,0 +1,51 @@
+/* =========================================================================
+   Zarahissi 2027 · Compléments pour les vraies photos et données Wix
+   (s'ajoute à tokens.css et app.css, repris du prototype)
+   ========================================================================= */
+
+/* Photos produits */
+.card__media img, .gal__slide img, .line__img img, .suggest .thumb img, .univers .ph img, .gal__thumbs img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.card__media img { position: absolute; inset: 0; transition: transform var(--zr-t-slow) var(--zr-ease), opacity var(--zr-t); }
+.card__media .img-alt { opacity: 0; }
+@media (hover: hover) {
+  .card:hover .card__media img:first-child { transform: scale(1.05); }
+  .card:hover .card__media .img-alt { opacity: 1; }
+}
+.univers .ph { overflow: hidden; }
+.line__img, .suggest .thumb { overflow: hidden; }
+.gal__slide { cursor: zoom-in; }
+.gal__thumbs button { overflow: hidden; padding: 0; }
+.zoom__img { max-width: 100%; max-height: 90vh; object-fit: contain; animation: zoomIn var(--zr-t) var(--zr-ease); }
+.badge--stock { background: var(--zr-encre-2); color: var(--zr-blanc); }
+.card.epuise .card__media img { opacity: .55; }
+
+/* États de chargement et d'erreur */
+.etat { text-align: center; padding: 40px 16px; color: var(--zr-encre-2); display: grid; gap: 14px; justify-items: center; grid-column: 1 / -1; }
+.plus { display: flex; justify-content: center; padding: 24px 0 8px; }
+.compte { font-size: 13px; color: var(--zr-encre-2); text-align: center; margin-top: 8px; }
+
+/* Fiche produit : options réelles Wix */
+.pdp__desc { color: var(--zr-encre-2); font-size: 15px; }
+.pdp__desc p { margin: 0 0 8px; }
+.pdp__desc ul { padding-left: 18px; margin: 0 0 8px; }
+.toggle-opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; padding: 10px 14px; border: 1px solid var(--zr-ligne-2); background: var(--zr-blanc); border-radius: 2px; cursor: pointer; }
+.toggle-opt input { width: 22px; height: 22px; accent-color: var(--zr-marine); flex: none; }
+.toggle-opt span { flex: 1; font-weight: 500; }
+.toggle-opt small { color: var(--zr-encre-2); }
+.toggle-opt:has(input:checked) { border-color: var(--zr-marine); box-shadow: inset 0 0 0 1px var(--zr-marine); }
+.seg.indispo { opacity: .45; text-decoration: line-through; }
+.swatch-wrap { display: grid; justify-items: center; gap: 4px; font-size: 12px; color: var(--zr-encre-2); }
+.pdp > *, .pdp__info > * { min-width: 0; }
+.preview--texte { display: block; overflow-wrap: anywhere; min-height: 120px; padding: 34px 16px 18px; text-align: center; font-family: var(--zr-font-gravure); font-size: 44px; line-height: 1.1; word-break: break-word; color: var(--zr-or-700); }
+.preview--texte::before { font-family: var(--zr-font-texte); }
+.preview--texte small { display: block; font-family: var(--zr-font-texte); font-size: 12px; color: var(--zr-encre-2); margin-top: 8px; }
+.pdp__stock { font-size: 14px; font-weight: 500; }
+.pdp__stock.ok { color: var(--zr-succes); }
+.pdp__stock.ko { color: var(--zr-terracotta); }
+
+/* Panier Wix */
+.line__opts span { display: block; }
+.line.indispo { opacity: .6; }
+.cart-note { font-size: 13px; color: var(--zr-encre-2); }

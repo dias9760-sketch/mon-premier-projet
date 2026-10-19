@@ -1,0 +1,77 @@
+/* =========================================================================
+   Zarahissi 2027 · Design system « Lagon chic » : les tokens
+   Ces variables correspondent 1:1 aux réglages de thème de Wix Studio
+   (Site Styles › Couleurs / Typographie). Ne pas utiliser de couleur en dur
+   ailleurs que dans ce fichier.
+   ========================================================================= */
+:root {
+  /* --- Couleurs de marque (reprises du site actuel) --- */
+  --zr-marine:        #1B2A41;  /* principale : texte, boutons, logo */
+  --zr-marine-900:    #111C2E;  /* survol des boutons, pied de page */
+  --zr-sable:         #E9E0B8;  /* pastilles, boutons sur fond marine */
+  --zr-creme:         #F6F1E4;  /* sections alternées, cartes */
+  --zr-ivoire:        #FBF8F1;  /* fond de page */
+  --zr-ardoise:       #7896A6;  /* accent secondaire, kicker */
+  --zr-ardoise-700:   #4F6D7D;  /* ardoise lisible sur fond clair (AA) */
+  --zr-or:            #C4A15A;  /* couronne, filets, étoiles (décor uniquement) */
+  --zr-or-700:        #7E5F24;  /* or lisible sur fond clair (AA) */
+  --zr-terracotta:    #A0442E;  /* Bons plans, prix barrés, alertes */
+  --zr-succes:        #2F6B4F;
+
+  /* --- Neutres --- */
+  --zr-blanc:         #FFFFFF;
+  --zr-encre:         #1B2A41;
+  --zr-encre-2:       #4E596B;  /* texte secondaire : 6,7:1 sur ivoire */
+  --zr-ligne:         #E6DECB;
+  --zr-ligne-2:       #D6CBAE;
+
+  /* --- Fonds des illustrations produit --- */
+  --zr-tile-1: #EEF3F4;
+  --zr-tile-2: #F4EFE2;
+  --zr-tile-3: #EAF0F2;
+  --zr-tile-4: #F7F2E6;
+
+  /* --- Typographies (2 familles + 1 police de gravure) --- */
+  --zr-font-titre: 'Cormorant Garamond', 'Times New Roman', serif;
+  --zr-font-texte: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --zr-font-gravure: 'Great Vibes', cursive;   /* aperçu de gravure uniquement */
+
+  /* Échelle mobile (16 px minimum pour le texte courant) */
+  --zr-fs-xs: 12px;
+  --zr-fs-sm: 14px;
+  --zr-fs-md: 16px;
+  --zr-fs-lg: 18px;
+  --zr-fs-h3: 24px;
+  --zr-fs-h2: 30px;
+  --zr-fs-h1: 34px;
+
+  /* --- Espacements, rayons, ombres --- */
+  --zr-gutter: 16px;
+  --zr-radius: 4px;
+  --zr-radius-arche: 999px 999px 6px 6px; /* signature « arche » */
+  --zr-shadow: 0 12px 32px -18px rgba(17, 28, 46, .35);
+  --zr-touch: 44px;                       /* zone tactile minimale */
+
+  /* --- Mouvement (200–600 ms) --- */
+  --zr-ease: cubic-bezier(.2, .7, .2, 1);
+  --zr-t-fast: 200ms;
+  --zr-t: 350ms;
+  --zr-t-slow: 600ms;
+
+  /* --- Hauteurs fixes --- */
+  --zr-tabbar-h: 64px;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --zr-gutter: 40px;
+    --zr-fs-h3: 28px;
+    --zr-fs-h2: 38px;
+    --zr-fs-h1: 56px;
+    --zr-tabbar-h: 0px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --zr-t-fast: 1ms; --zr-t: 1ms; --zr-t-slow: 1ms; }
+}
