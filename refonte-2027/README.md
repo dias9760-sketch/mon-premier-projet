@@ -1,6 +1,6 @@
 # Zarahissi — Refonte 2027
 
-Plateforme : **Wix Studio**, dans un **nouveau site séparé** (le site actuel n'est pas modifié). Mobile en priorité.
+Plateforme : **nouveau design branché sur la boutique Wix actuelle** (Wix Headless). Le site actuel reste en ligne, sans modification, jusqu’au lancement 2027. Mobile en priorité.
 
 Suivi du brief `PROMPT_REFONTE_ZARAHISSI_2027`.
 
@@ -12,7 +12,8 @@ Suivi du brief `PROMPT_REFONTE_ZARAHISSI_2027`.
 | 3 | [Prototype cliquable](prototype/zarahissi-prototype.html) · [mode d'emploi et passage sur Wix Studio](docs/03-prototype-et-wix-studio.md) | ✅ |
 | 4–5 | [Design system et animations](docs/04-design-system.md) | ✅ |
 | 6 | [Transition, annonce et recommandations](docs/06-transition-et-recommandations.md) | ✅ |
-| 7 | [Stratégie technique : prototype + boutique Wix](docs/07-strategie-technique.md) | ✅ À valider |
+| 7 | [Stratégie technique : prototype + boutique Wix](docs/07-strategie-technique.md) | ✅ Validée |
+| 8 | [Étape 1 : préparer la boutique Wix](docs/08-etape-1-preparer-la-boutique.md) · code du futur site dans `site/` | ⏳ En cours |
 
 ## Voir les maquettes
 
