@@ -23,15 +23,14 @@
 <nav class="iles" id="iles" aria-label="Sélection par îles"></nav>
 <script>
 (function(){
-  /* Liens vers les pages de vos collections Wix Stores */
-  var SITE="https://www.zarahissi.com/category/";
+  /* Liens vers les pages produits de chaque île */
   var ILES=[
-    ["myt","Mayotte","produits-mayotte"],
-    ["com","Comores","comores"],
-    ["glp","Guadeloupe","guadeloupe"],
-    ["mtq","Martinique","martinique"],
-    ["mdg","Madagascar","madagascar"],
-    ["reu","La Réunion","produits-la-réunion"]
+    ["myt","Mayotte","https://www.zarahissi.com/mayotte"],
+    ["com","Comores","https://www.zarahissi.com/comores"],
+    ["glp","Guadeloupe","https://www.zarahissi.com/guadeloupe"],
+    ["mtq","Martinique","https://www.zarahissi.com/martinique"],
+    ["mdg","Madagascar","https://www.zarahissi.com/madagascar"],
+    ["reu","La Réunion","https://www.zarahissi.com/lareunion"]
   ];
   function star(cx,cy,r){var p=[];for(var i=0;i<10;i++){var a=-Math.PI/2+i*Math.PI/5,q=i%2?r*.42:r;p.push((cx+q*Math.cos(a)).toFixed(1)+","+(cy+q*Math.sin(a)).toFixed(1))}return '<polygon points="'+p.join(" ")+'"/>'}
   function fleur(x,y){return '<g transform="translate('+x+','+y+') scale(1.7)" fill="#F2E33A"><path d="M0,-34C11,-22 11,-6 0,8C-11,-6 -11,-22 0,-34Z"/><path d="M-4,4C-20,-12 -36,-2 -28,13C-24,4 -14,4 -6,12Z"/><path d="M4,4C20,-12 36,-2 28,13C24,4 14,4 6,12Z"/><rect x="-15" y="8" width="30" height="6" rx="2"/><path d="M-4,14L4,14L7,28L-7,28Z"/></g>'}
@@ -52,7 +51,7 @@
    '<g id="f-reu"><rect width="900" height="600" fill="#3E5FF0"/><polygon points="450,330 0,600 900,600" fill="#E5321E"/><g fill="#F4EC3A"><polygon points="450,330 425,0 475,0"/><polygon points="450,330 0,0 0,55"/><polygon points="450,330 900,0 900,55"/><polygon points="450,330 0,305 0,355"/><polygon points="450,330 900,305 900,355"/></g></g>';
   var h="";
   ILES.forEach(function(i){
-    h+='<a class="carte" target="_top" href="'+SITE+encodeURIComponent(i[2])+'" aria-label="Produits '+i[1]+'">'+
+    h+='<a class="carte" target="_top" href="'+i[2]+'" aria-label="Produits '+i[1]+'">'+
        '<svg viewBox="0 0 900 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><use href="#f-'+i[0]+'"/></svg><span>'+i[1]+'</span></a>';
   });
   document.getElementById("iles").innerHTML=h;
