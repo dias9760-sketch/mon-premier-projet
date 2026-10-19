@@ -13,7 +13,8 @@ Suivi du brief `PROMPT_REFONTE_ZARAHISSI_2027`.
 | 4–5 | [Design system et animations](docs/04-design-system.md) | ✅ |
 | 6 | [Transition, annonce et recommandations](docs/06-transition-et-recommandations.md) | ✅ |
 | 7 | [Stratégie technique : prototype + boutique Wix](docs/07-strategie-technique.md) | ✅ Validée |
-| 8 | [Étape 1 : préparer la boutique Wix](docs/08-etape-1-preparer-la-boutique.md) · code du futur site dans `site/` | ⏳ En cours |
+| 8 | [Étape 1 : préparer la boutique Wix](docs/08-etape-1-preparer-la-boutique.md) | ✅ Client créé, boutique connectée |
+| 9 | [Bilan de la boutique](docs/09-audit-boutique.md) · [site branché sur la vraie boutique](site/) | ⏳ Version de test |
 
 ## Voir les maquettes
 
