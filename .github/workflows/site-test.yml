@@ -1,0 +1,34 @@
+# Met en ligne la version de test du site Zarahissi 2027 sur GitHub Pages
+# (https://dias9760-sketch.github.io/mon-premier-projet/) à chaque mise à jour.
+# Le site actuel zarahissi.com n'est pas concerné.
+name: Site de test Zarahissi 2027
+
+on:
+  push:
+    branches: [claude/new-session-l5ym9e, main]
+    paths: ['refonte-2027/site/**', '.github/workflows/site-test.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: refonte-2027/site
+      - id: deployment
+        uses: actions/deploy-pages@v4
