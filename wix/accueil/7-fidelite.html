@@ -1,0 +1,50 @@
+<!-- Zarahissi 2027 · Zarahissi Fidelity -->
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=DM+Sans:wght@400;500;700&display=swap">
+<style>
+  :root{--marine:#1B2A41;--creme:#F6F1E4;--or:#C4A15A;--or-700:#7E5F24;--encre-2:#4E596B;--ligne:#E6DECB;--ardoise-700:#4F6D7D}
+  html,body{margin:0;padding:0;background:transparent}
+  .wrap{padding:0 16px}
+  .fid{background:var(--creme);border:1px solid var(--ligne);border-radius:4px;padding:26px 20px;display:grid;gap:18px;color:var(--marine);font-family:"DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+  .kicker{font-size:12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--ardoise-700)}
+  .big{font-family:"Cormorant Garamond","Times New Roman",serif;font-weight:600;font-size:44px;line-height:1;margin:6px 0 0}
+  .big em{font-style:normal;color:var(--or-700)}
+  .sub{color:var(--encre-2);font-size:15px;margin:8px 0 0}
+  ol{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+  li{display:grid;grid-template-columns:36px minmax(0,1fr);gap:12px;align-items:center;font-size:14px;color:var(--encre-2);line-height:1.35}
+  li i{font-style:normal;width:36px;height:36px;border-radius:999px 999px 4px 4px;background:var(--marine);color:#E9E0B8;display:grid;place-items:center;font-weight:700}
+  li b{display:block;color:var(--marine);font-size:15px}
+  .btn{display:flex;align-items:center;justify-content:center;min-height:48px;padding:0 24px;border-radius:2px;background:var(--marine);color:#fff;font-weight:700;font-size:15px;text-decoration:none}
+  .btn:hover{background:#111C2E}
+  @media (min-width:900px){.wrap{padding:0 40px}.fid{grid-template-columns:minmax(0,1fr) minmax(0,1.3fr) auto;align-items:center;gap:40px;padding:40px}.big{font-size:56px}ol{grid-template-columns:repeat(3,minmax(0,1fr))}li{grid-template-columns:1fr;gap:8px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="fid">
+    <div>
+      <span class="kicker">Zarahissi Fidelity</span>
+      <p class="big">1 € dépensé = <em>1 point</em></p>
+      <p class="sub">Tes achats se transforment en réductions.</p>
+    </div>
+    <ol>
+      <li><i>1</i><span><b>Crée ton compte</b>en quelques secondes</span></li>
+      <li><i>2</i><span><b>Achète</b>chaque euro te rapporte 1 point</span></li>
+      <li><i>3</i><span><b>Profite</b>échange tes points contre des remises</span></li>
+    </ol>
+    <a class="btn" id="go" target="_top">Découvrir le programme</a>
+  </div>
+</div>
+<script>
+  /* Lien à compléter : page du programme de fidélité. Laissez "" pour masquer le bouton. */
+  var LIEN_FIDELITE = "";
+
+  var go = document.getElementById("go");
+  if (LIEN_FIDELITE) { go.href = LIEN_FIDELITE; } else { go.remove(); }
+</script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!-- Zarahissi 2027 · Atelier personnalisation (aperçu du prénom en direct) -->
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=DM+Sans:wght@400;500;700&family=Great+Vibes&display=swap">
+<style>
+  :root{--marine:#1B2A41;--marine-900:#111C2E;--sable:#E9E0B8;--creme:#F6F1E4;--or:#C4A15A;--blanc:#FFFFFF}
+  html,body{margin:0;padding:0;background:transparent}
+  .wrap{padding:0 16px}
+  .atelier{background:var(--marine);color:var(--creme);border-radius:4px;overflow:hidden;display:grid;font-family:"DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+  .demo{min-height:200px;display:flex;align-items:center;justify-content:center;background:radial-gradient(70% 70% at 50% 50%,rgba(255,255,255,.1),transparent)}
+  .demo svg{width:min(300px,90%);height:auto}
+  .txt{padding:22px 20px 24px;display:grid;gap:12px}
+  .kicker{font-size:12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--or)}
+  h2{margin:0;font-family:"Cormorant Garamond","Times New Roman",serif;font-weight:600;font-size:30px;line-height:1.12}
+  p{margin:0;color:#C9D1DC;font-size:15px;line-height:1.5}
+  input{font:inherit;background:rgba(255,255,255,.08);border:1px solid rgba(233,224,184,.4);color:var(--blanc);min-height:48px;padding:0 14px;border-radius:2px;font-size:16px;width:100%;box-sizing:border-box}
+  input::placeholder{color:#AEB7C5}
+  input:focus-visible{outline:2px solid var(--sable);outline-offset:2px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 20px;border-radius:2px;background:var(--sable);color:var(--marine);font-weight:700;font-size:15px;text-decoration:none;border:1.5px solid var(--sable)}
+  .btn:hover{background:var(--blanc)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chips a{display:inline-flex;align-items:center;min-height:38px;padding:0 14px;border:1px solid rgba(233,224,184,.45);border-radius:2px;color:var(--creme);text-decoration:none;font-size:14px;font-weight:500}
+  .chips a:hover{background:var(--sable);color:var(--marine)}
+  @media (min-width:900px){.wrap{padding:0 40px}.atelier{grid-template-columns:1fr 1fr}.txt{padding:44px;order:-1}h2{font-size:38px}.demo{min-height:340px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="atelier">
+    <div class="demo" aria-hidden="true">
+      <svg viewBox="0 0 300 200">
+        <defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#F3DFA2"/><stop offset=".5" stop-color="#C4A15A"/><stop offset="1" stop-color="#8E6B2C"/></linearGradient></defs>
+        <path d="M20 40 Q150 150 280 40" fill="none" stroke="url(#g)" stroke-width="1.6" stroke-dasharray="3 3"/>
+        <text id="nom" x="150" y="128" text-anchor="middle" font-family="Great Vibes, cursive" font-size="64" fill="url(#g)">Inaya</text>
+      </svg>
+    </div>
+    <div class="txt">
+      <span class="kicker">Atelier personnalisation</span>
+      <h2>Écris ton prénom, regarde-le briller</h2>
+      <p>Colliers, bracelets et bagues gravés au prénom de ton choix, préparés avec soin à Mayotte.</p>
+      <label for="in" style="position:absolute;left:-9999px">Essaie avec un prénom</label>
+      <input id="in" maxlength="12" placeholder="Essaie avec un prénom…" value="Inaya" autocomplete="off">
+      <a class="btn" id="go" target="_top">Créer mon bijou personnalisé</a>
+      <div class="chips" id="chips"></div>
+    </div>
+  </div>
+</div>
+<script>
+  /* Liens à compléter : laissez "" tant que vous n'avez pas l'adresse, le bouton correspondant sera masqué */
+  var LIEN_PERSONNALISES = "";
+  var CATEGORIES = [
+    ["Pour elle", ""],
+    ["Pour lui", ""],
+    ["En couple", ""],
+    ["Enfant", "https://www.zarahissi.com/produits-enfant-personnalis-s"]
+  ];
+
+  var nom = document.getElementById("nom"), inp = document.getElementById("in"), go = document.getElementById("go");
+  inp.addEventListener("input", function () { nom.textContent = inp.value.trim() || "Inaya"; });
+  if (LIEN_PERSONNALISES) { go.href = LIEN_PERSONNALISES; } else { go.remove(); }
+  var c = CATEGORIES.filter(function (x) { return x[1]; });
+  document.getElementById("chips").innerHTML = c.map(function (x) { return '<a href="' + x[1] + '" target="_top">' + x[0] + '</a>'; }).join("");
+</script>
+</body>
+</html>

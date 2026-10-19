@@ -1,0 +1,66 @@
+<!-- Zarahissi 2027 · Sélection par îles -->
+<!-- À coller dans Wix : Ajouter > Intégrer du code > Intégrer HTML > Code -->
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=DM+Sans:wght@700&display=swap">
+<style>
+  :root{--marine:#1B2A41;--sable:#E9E0B8;--or:#C4A15A;--ardoise-700:#4F6D7D}
+  html,body{margin:0;padding:0;background:transparent}
+  .sec{padding:8px 16px 12px;color:var(--marine);font-family:"DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+  .kicker{display:block;font-size:12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--ardoise-700);margin-bottom:6px}
+  h2{margin:0 0 18px;font-family:"Cormorant Garamond","Times New Roman",serif;font-weight:600;font-size:30px;line-height:1.12}
+  h2::after{content:"";display:block;width:36px;height:1.5px;background:var(--or);margin-top:10px}
+  .iles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .carte{position:relative;display:block;aspect-ratio:3/2;border-radius:4px;overflow:hidden;background:#fff;box-shadow:0 12px 32px -18px rgba(17,28,46,.35);transition:transform .35s cubic-bezier(.2,.7,.2,1);text-decoration:none}
+  .carte svg{display:block;width:100%;height:100%}
+  .carte span{position:absolute;left:0;right:0;bottom:0;background:rgba(27,42,65,.92);color:var(--sable);font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;text-align:center;padding:5px 4px}
+  .carte:hover{transform:translateY(-3px)}
+  .carte:focus-visible{outline:2px solid var(--ardoise-700);outline-offset:3px}
+  @media (min-width:900px){.sec{padding:8px 40px 12px}h2{font-size:38px}.iles{grid-template-columns:repeat(6,minmax(0,1fr));gap:16px}.carte span{font-size:12.5px;padding:7px 4px}}
+  @media (prefers-reduced-motion:reduce){.carte{transition:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs id="d"></defs></svg>
+<section class="sec"><span class="kicker">Fiers de nos origines</span><h2>Sélection par îles</h2><nav class="iles" id="iles" aria-label="Sélection par îles"></nav></section>
+<script>
+(function(){
+  /* Liens vers les pages produits de chaque île */
+  var ILES=[
+    ["myt","Mayotte","https://www.zarahissi.com/mayotte"],
+    ["com","Comores","https://www.zarahissi.com/comores"],
+    ["glp","Guadeloupe","https://www.zarahissi.com/guadeloupe"],
+    ["mtq","Martinique","https://www.zarahissi.com/martinique"],
+    ["mdg","Madagascar","https://www.zarahissi.com/madagascar"],
+    ["reu","La Réunion","https://www.zarahissi.com/lareunion"]
+  ];
+  function star(cx,cy,r){var p=[];for(var i=0;i<10;i++){var a=-Math.PI/2+i*Math.PI/5,q=i%2?r*.42:r;p.push((cx+q*Math.cos(a)).toFixed(1)+","+(cy+q*Math.sin(a)).toFixed(1))}return '<polygon points="'+p.join(" ")+'"/>'}
+  function fleur(x,y){return '<g transform="translate('+x+','+y+') scale(1.7)" fill="#F2E33A"><path d="M0,-34C11,-22 11,-6 0,8C-11,-6 -11,-22 0,-34Z"/><path d="M-4,4C-20,-12 -36,-2 -28,13C-24,4 -14,4 -6,12Z"/><path d="M4,4C20,-12 36,-2 28,13C24,4 14,4 6,12Z"/><rect x="-15" y="8" width="30" height="6" rx="2"/><path d="M-4,14L4,14L7,28L-7,28Z"/></g>'}
+  var rays="";for(var i=0;i<28;i++){var a=i*2*Math.PI/28,b=a+Math.PI/28,c=a-Math.PI/28;
+    rays+='<polygon points="'+(360+80*Math.cos(c)).toFixed(1)+','+(440+80*Math.sin(c)).toFixed(1)+' '+(360+128*Math.cos(a)).toFixed(1)+','+(440+128*Math.sin(a)).toFixed(1)+' '+(360+80*Math.cos(b)).toFixed(1)+','+(440+80*Math.sin(b)).toFixed(1)+'"/>'}
+  document.getElementById("d").innerHTML=
+   '<g id="f-myt"><rect width="900" height="600" fill="#fff"/><text x="450" y="110" text-anchor="middle" font-family="Arial Narrow,Arial,sans-serif" font-weight="700" font-size="74" letter-spacing="22" fill="#8E1E24">MAYOTTE</text>'+
+   '<path d="M370,170h160v190c0,40 -40,58 -80,72c-40,-14 -80,-32 -80,-72Z" fill="#A3262A" stroke="#555" stroke-width="4"/><path d="M370,170h160v100h-160Z" fill="#2E3192" stroke="#555" stroke-width="4"/>'+
+   '<circle cx="450" cy="222" r="34" fill="#fff"/><circle cx="450" cy="204" r="34" fill="#2E3192"/><g fill="#E8E04A">'+star(418,325,24)+star(482,325,24)+'</g>'+
+   '<g fill="none" stroke="#9A9A9A" stroke-width="10" stroke-linecap="round"><path d="M340,180c-60,-20 -90,40 -60,90c25,40 -10,90 -40,110c-25,18 -10,55 25,45"/><path d="M560,180c60,-20 90,40 60,90c-25,40 10,90 40,110c25,18 10,55 -25,45"/></g>'+
+   '<rect x="320" y="455" width="260" height="40" rx="20" fill="#fff" stroke="#777" stroke-width="4"/><text x="450" y="483" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="22" letter-spacing="4" fill="#333">RAHACHIRI</text></g>'+
+   '<g id="f-com"><rect width="900" height="150" fill="#FFC61E"/><rect y="150" width="900" height="150" fill="#fff"/><rect y="300" width="900" height="150" fill="#CE1126"/><rect y="450" width="900" height="150" fill="#3A75C4"/>'+
+   '<polygon points="0,0 450,300 0,600" fill="#3D8E33"/><circle cx="165" cy="300" r="105" fill="#fff"/><circle cx="205" cy="300" r="100" fill="#3D8E33"/><g fill="#fff">'+star(250,225,17)+star(250,275,17)+star(250,325,17)+star(250,375,17)+'</g></g>'+
+   '<g id="f-glp"><rect width="900" height="600" fill="#B0272B"/><rect width="900" height="200" fill="#232E7A"/>'+fleur(160,100)+fleur(450,100)+fleur(740,100)+
+   '<g stroke="#3C8A3A" stroke-width="7" stroke-linecap="round"><path d="M300,390L120,300M320,410L140,340M300,430L150,380M420,470L600,560M410,490L590,580M430,450L620,540"/></g><g fill="#F3E43C">'+rays+'<circle cx="360" cy="440" r="86"/></g></g>'+
+   '<g id="f-mtq"><rect width="900" height="300" fill="#3FA34D"/><rect y="300" width="900" height="300" fill="#231F20"/><polygon points="0,0 470,300 0,600" fill="#D9312D"/></g>'+
+   '<g id="f-mdg"><rect width="900" height="600" fill="#F2F2F0"/><rect x="300" width="600" height="300" fill="#D12B1E"/><rect x="300" y="300" width="600" height="300" fill="#2E7D3B"/></g>'+
+   '<g id="f-reu"><rect width="900" height="600" fill="#3E5FF0"/><polygon points="450,330 0,600 900,600" fill="#E5321E"/><g fill="#F4EC3A"><polygon points="450,330 425,0 475,0"/><polygon points="450,330 0,0 0,55"/><polygon points="450,330 900,0 900,55"/><polygon points="450,330 0,305 0,355"/><polygon points="450,330 900,305 900,355"/></g></g>';
+  var h="";
+  ILES.forEach(function(i){
+    h+='<a class="carte" target="_top" href="'+i[2]+'" aria-label="Produits '+i[1]+'">'+
+       '<svg viewBox="0 0 900 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><use href="#f-'+i[0]+'"/></svg><span>'+i[1]+'</span></a>';
+  });
+  document.getElementById("iles").innerHTML=h;
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<!-- Zarahissi 2027 · Titre de section (à placer au-dessus d'un module Wix, ex. Nouveautés) -->
+<!-- Changez seulement TITRE, LIEN et TEXTE_LIEN ci-dessous. Laissez LIEN vide ("") pour ne pas afficher de lien. -->
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=DM+Sans:wght@700&display=swap">
+<style>
+  :root{--marine:#1B2A41;--or:#C4A15A}
+  html,body{margin:0;padding:0;background:transparent}
+  .head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:8px 16px 0;color:var(--marine)}
+  h2{margin:0;font-family:"Cormorant Garamond","Times New Roman",serif;font-weight:600;font-size:30px;line-height:1.12;letter-spacing:.2px}
+  h2::after{content:"";display:block;width:36px;height:1.5px;background:var(--or);margin-top:10px}
+  a{font-family:"DM Sans",system-ui,sans-serif;font-weight:700;font-size:14px;color:var(--marine);text-decoration:underline;text-underline-offset:4px;text-decoration-color:var(--or);white-space:nowrap}
+  @media (min-width:900px){h2{font-size:38px}.head{padding:8px 40px 0}}
+</style>
+</head>
+<body>
+<div class="head"><h2 id="t"></h2><a id="l" target="_top"></a></div>
+<script>
+  var TITRE = "Nouveautés";
+  var LIEN = "";
+  var TEXTE_LIEN = "Tout voir";
+
+  document.getElementById("t").textContent = TITRE;
+  var l = document.getElementById("l");
+  if (LIEN) { l.href = LIEN; l.textContent = TEXTE_LIEN; } else { l.remove(); }
+</script>
+</body>
+</html>

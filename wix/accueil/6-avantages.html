@@ -1,0 +1,54 @@
+<!-- Zarahissi 2027 · Codes promo + Bons plans -->
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=DM+Sans:wght@400;500;700&display=swap">
+<style>
+  :root{--marine:#1B2A41;--sable:#E9E0B8;--creme:#F6F1E4;--or:#C4A15A;--blanc:#FFFFFF}
+  html,body{margin:0;padding:0;background:var(--marine)}
+  .sec{padding:30px 16px;color:var(--creme);font-family:"DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+  .head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-bottom:8px}
+  h2{margin:0;font-family:"Cormorant Garamond","Times New Roman",serif;font-weight:600;font-size:30px;line-height:1.12}
+  h2::after{content:"";display:block;width:36px;height:1.5px;background:var(--or);margin-top:10px}
+  .link{font-weight:700;font-size:14px;color:var(--sable);text-decoration:underline;text-underline-offset:4px;text-decoration-color:var(--or);white-space:nowrap}
+  .intro{color:#C9D1DC;margin:4px 0 18px;font-size:15px}
+  .codes{display:grid;gap:10px}
+  .code{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;border:1px solid rgba(233,224,184,.3);border-radius:4px;padding:14px 16px;background:rgba(255,255,255,.04)}
+  .code b{display:block;font-family:"Cormorant Garamond","Times New Roman",serif;font-size:24px;line-height:1.1;color:var(--blanc)}
+  .code small{display:block;font-size:13px;color:#C9D1DC;margin-top:2px}
+  .code button{font:inherit;cursor:pointer;min-height:44px;padding:0 14px;border:1.5px dashed var(--sable);border-radius:2px;background:transparent;color:var(--sable);font-weight:700;font-size:14px;letter-spacing:1.5px}
+  .code button:hover,.code button.ok{background:var(--sable);color:var(--marine)}
+  .code button:focus-visible{outline:2px solid var(--sable);outline-offset:2px}
+  .btn{display:flex;align-items:center;justify-content:center;min-height:48px;margin-top:16px;border-radius:2px;background:var(--sable);color:var(--marine);font-weight:700;font-size:15px;text-decoration:none}
+  .btn:hover{background:var(--blanc)}
+  @media (min-width:900px){.sec{padding:48px 40px}h2{font-size:38px}.codes{grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.btn{display:inline-flex;padding:0 28px}}
+</style>
+</head>
+<body>
+<section class="sec">
+  <div class="head"><h2>Vos avantages</h2><a class="link" id="tout" target="_top">Bons plans</a></div>
+  <p class="intro">Touchez un code pour le copier, puis collez-le au moment de payer.</p>
+  <div class="codes">
+    <div class="code"><div><b>Livraison offerte</b><small>Dès 40 € d'achat</small></div><button type="button" data-c="LIVGRA">LIVGRA</button></div>
+    <div class="code"><div><b>−5 €</b><small>Dès 70 € d'achat</small></div><button type="button" data-c="MOINS5">MOINS5</button></div>
+    <div class="code"><div><b>−10 €</b><small>Dès 100 € d'achat</small></div><button type="button" data-c="MOINS1">MOINS1</button></div>
+  </div>
+  <a class="btn" id="bp" target="_top">Voir les bons plans à petit prix</a>
+</section>
+<script>
+  /* Lien à compléter : page des bons plans. Laissez "" pour masquer les boutons. */
+  var LIEN_BONS_PLANS = "";
+
+  ["tout", "bp"].forEach(function (id) { var a = document.getElementById(id); if (LIEN_BONS_PLANS) { a.href = LIEN_BONS_PLANS; } else { a.remove(); } });
+  document.querySelectorAll("button[data-c]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var code = b.dataset.c;
+      function done() { b.textContent = "Copié ✓"; b.classList.add("ok"); setTimeout(function () { b.textContent = code; b.classList.remove("ok"); }, 1800); }
+      try { navigator.clipboard.writeText(code).then(done, done); } catch (e) { done(); }
+    });
+  });
+</script>
+</body>
+</html>

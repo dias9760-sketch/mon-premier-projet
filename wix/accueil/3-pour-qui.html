@@ -1,0 +1,44 @@
+<!-- Zarahissi 2027 · Pour qui ? (femme, homme, couple, enfant) -->
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=DM+Sans:wght@500;700&display=swap">
+<style>
+  :root{--marine:#1B2A41;--or:#C4A15A;--ardoise-700:#4F6D7D;--tile:#F4EFE2}
+  html,body{margin:0;padding:0;background:transparent}
+  .sec{padding:8px 16px 12px;color:var(--marine);font-family:"DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+  .kicker{display:block;font-size:12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--ardoise-700);margin-bottom:6px}
+  h2{margin:0 0 18px;font-family:"Cormorant Garamond","Times New Roman",serif;font-weight:600;font-size:30px;line-height:1.12}
+  h2::after{content:"";display:block;width:36px;height:1.5px;background:var(--or);margin-top:10px}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 12px}
+  a{color:inherit;text-decoration:none;display:grid;gap:8px;justify-items:center}
+  .arch{width:100%;aspect-ratio:.82;border-radius:999px 999px 6px 6px;overflow:hidden;background:var(--tile)}
+  .arch img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .6s cubic-bezier(.2,.7,.2,1)}
+  a:hover .arch img{transform:scale(1.05)}
+  a b{font-family:"Cormorant Garamond","Times New Roman",serif;font-weight:600;font-size:22px;line-height:1}
+  a span{font-size:13px;font-weight:700;text-decoration:underline;text-underline-offset:4px;text-decoration-color:var(--or)}
+  a:focus-visible{outline:2px solid var(--ardoise-700);outline-offset:3px}
+  @media (min-width:900px){.sec{padding:8px 40px 12px}h2{font-size:38px}.grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:24px}a b{font-size:26px}}
+</style>
+</head>
+<body>
+<section class="sec">
+  <span class="kicker">Un bijou pour chacun</span>
+  <h2>Pour qui ?</h2>
+  <div class="grid" id="g"></div>
+</section>
+<script>
+  var PROFILS = [
+    ["Pour elle", "https://www.zarahissi.com/pourfemme", "https://static.wixstatic.com/media/321566_ebed563e73824c45be89a7f0add40e2a~mv2.jpg"],
+    ["Pour lui", "https://www.zarahissi.com/pourhomme", "https://static.wixstatic.com/media/321566_e246489231eb4e638d0732bd631c6db3~mv2.jpg"],
+    ["En couple", "https://www.zarahissi.com/pourcouple", "https://static.wixstatic.com/media/321566_39de265a27664d4ea9811b025aabea95~mv2.jpg"],
+    ["Enfant", "https://www.zarahissi.com/produits-enfant-personnalis-s", "https://static.wixstatic.com/media/321566_a222a718a6294b01a1cf145b7f1a6026~mv2.jpg"]
+  ];
+  document.getElementById("g").innerHTML = PROFILS.map(function (p) {
+    return '<a href="' + p[1] + '" target="_top"><div class="arch"><img src="' + p[2] + '" alt="" loading="lazy"></div><b>' + p[0] + '</b><span>Découvrir</span></a>';
+  }).join("");
+</script>
+</body>
+</html>
