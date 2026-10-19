@@ -12,6 +12,7 @@ Suivi du brief `PROMPT_REFONTE_ZARAHISSI_2027`.
 | 3 | [Prototype cliquable](prototype/zarahissi-prototype.html) · [mode d'emploi et passage sur Wix Studio](docs/03-prototype-et-wix-studio.md) | ✅ |
 | 4–5 | [Design system et animations](docs/04-design-system.md) | ✅ |
 | 6 | [Transition, annonce et recommandations](docs/06-transition-et-recommandations.md) | ✅ |
+| 7 | [Stratégie technique : prototype + boutique Wix](docs/07-strategie-technique.md) | ✅ À valider |
 
 ## Voir les maquettes
 
