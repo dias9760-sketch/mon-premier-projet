@@ -27,7 +27,7 @@ export const ZONES = [
 export const PAGES = {
   'nouveautes':          { titre: 'Nouveautés', cols: ['nouveauté'], tri: 'nouveautes' },
   'meilleures-ventes':   { titre: 'Meilleures ventes', cols: ['top-meilleurs-ventes'] },
-  'personnalises':       { titre: 'Produits personnalisés', intro: 'Ton prénom, ta date, ton message : gravés et préparés à Mayotte.', cols: ['produits-personnalisés'] },
+  'personnalises':       { titre: 'Produits personnalisés', intro: 'Ton prénom, ta date, ton message, gravés sur ton bijou.', cols: ['produits-personnalisés'] },
   'colliers-personnalises':  { titre: 'Colliers personnalisés', parent: 'personnalises', cols: ['colliers-personnalisés'] },
   'bracelets-personnalises': { titre: 'Bracelets personnalisés', parent: 'personnalises', cols: ['bracelets-personnalisés'] },
   'bagues-personnalisees':   { titre: 'Bagues personnalisées', parent: 'personnalises', cols: ['bagues-personnalisés'] },
@@ -39,7 +39,11 @@ export const PAGES = {
   'perso-homme':  { titre: 'Personnalisés · Homme', parent: 'personnalises', cols: ['produits-personnalisés'], et: ['produits-homme'] },
   'perso-couple': { titre: 'Personnalisés · Couple', parent: 'personnalises', cols: ['couples-personnalisés'] },
   'perso-enfant': { titre: 'Personnalisés · Enfant', parent: 'personnalises', cols: ['produits-enfant-personnalisés'] },
-  'gravure-express': { titre: 'Gravure express', parent: 'personnalises', intro: 'Gravé et prêt rapidement en boutique, à Mamoudzou.', cols: ['gravure-express'] },
+  'gravure-express': { titre: 'Gravure express', parent: 'personnalises', intro: 'Des bijoux personnalisés prêts rapidement.', cols: ['gravure-express'] },
+  'pour-femme':  { titre: 'Pour elle', cols: ['produits-femme'] },
+  'pour-homme':  { titre: 'Pour lui', cols: ['produits-homme'] },
+  'pour-couple': { titre: 'Pour les couples', cols: ['produits-couple'] },
+  'pour-enfant': { titre: 'Pour les enfants', cols: ['produits-enfants'] },
   'bijoux':            { titre: 'Bijoux', cols: ['colliers', 'bracelets', 'bagues', 'boucles-doreilles', 'colliers-bracelets-amitiés', 'colliers-bracelets-couples'] },
   'colliers':          { titre: 'Colliers', parent: 'bijoux', cols: ['colliers'] },
   'bracelets':         { titre: 'Bracelets', parent: 'bijoux', cols: ['bracelets'] },
@@ -112,3 +116,15 @@ export const SYNONYMES = {
   boucle: 'boucle', montre: 'montre', grave: 'gravé', gravure: 'personnalisé', perso: 'personnalisé',
   coeur: 'cœur', comore: 'comores', madagaskar: 'madagascar',
 };
+
+/* Photos d'ambiance de la section « À chacun son bijou ».
+   Laisser null : la photo du dernier produit de la collection est utilisée.
+   Pour une photo d'ambiance, téléverse-la dans le Gestionnaire de médias Wix
+   et colle son adresse (https://static.wixstatic.com/media/...) ici. */
+export const PHOTOS = { femme: null, homme: null, couple: null, enfant: null };
+
+/* Programme de fidélité (texte affiché sur l'accueil et la page Fidelity) */
+export const FIDELITE = { titre: 'Zarahissi Fidelity', accroche: '1 € = 1 point' };
+
+/* Produit mis en avant dans la carte « Musique » de l'accueil */
+export const MUSIQUE = { slug: 'musique-personnalisée', titre: 'Créer ta musique avec Zarahissi', texte: 'Une chanson unique, écrite pour la personne que vous aimez.' };

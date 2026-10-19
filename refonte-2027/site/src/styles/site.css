@@ -49,3 +49,54 @@
 .line__opts span { display: block; }
 .line.indispo { opacity: .6; }
 .cart-note { font-size: 13px; color: var(--zr-encre-2); }
+
+/* À chacun son bijou */
+.pourqui { display: grid; grid-template-columns: 1.15fr 1fr; grid-template-rows: repeat(2, minmax(150px, auto)) auto; gap: 12px; }
+.pq { position: relative; display: block; overflow: hidden; border-radius: 10px; background: var(--zr-tile-2); text-decoration: none; color: var(--zr-blanc); min-height: 150px; }
+.pq--femme { grid-row: span 2; min-height: 312px; }
+.pq--enfant { grid-column: 1 / -1; min-height: 120px; background: var(--zr-creme); color: var(--zr-marine); border: 1px solid var(--zr-ligne-2); }
+.pq__img { position: absolute; inset: 0; }
+.pq__img img { width: 100%; height: 100%; object-fit: cover; transition: transform var(--zr-t-slow) var(--zr-ease); }
+.pq--enfant .pq__img { left: 45%; -webkit-mask-image: linear-gradient(90deg, transparent, #000 35%); mask-image: linear-gradient(90deg, transparent, #000 35%); }
+.pq:not(.pq--enfant)::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(17, 28, 46, .72), rgba(17, 28, 46, 0) 55%); }
+.pq__txt { position: absolute; left: 16px; bottom: 14px; z-index: 1; display: flex; align-items: center; gap: 8px; font-family: var(--zr-font-titre); font-size: 24px; font-weight: 600; }
+.pq--enfant .pq__txt { top: 50%; bottom: auto; transform: translateY(-50%); left: 22px; font-size: 26px; }
+.pq__txt .ico { width: 20px; height: 20px; }
+@media (hover: hover) { .pq:hover .pq__img img { transform: scale(1.05); } }
+@media (min-width: 1024px) {
+  .pourqui { grid-template-columns: 1.3fr 1fr 1fr; grid-template-rows: 220px 220px; }
+  .pq--femme { grid-row: span 2; }
+  .pq--enfant { grid-column: 2 / -1; }
+}
+
+/* Îles */
+.iles-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.ile { display: grid; gap: 10px; justify-items: stretch; min-width: 0; padding: 10px 8px 12px; background: var(--zr-blanc); border: 1px solid var(--zr-ligne-2); border-radius: 10px; text-decoration: none; transition: transform var(--zr-t) var(--zr-ease), box-shadow var(--zr-t); }
+.ile__drapeau { width: 100%; aspect-ratio: 3 / 2; display: block; border-radius: 3px; overflow: hidden; outline: 1px solid var(--zr-ligne); }
+.ile__drapeau svg { width: 100%; height: 100%; display: block; }
+.ile__drapeau svg[aria-label="Mayotte"] { background: var(--zr-blanc); }
+.ile__nom { font-family: var(--zr-font-titre); font-weight: 700; font-size: clamp(10.5px, 3.1vw, 13px); letter-spacing: 0; white-space: nowrap; text-transform: uppercase; text-align: center; }
+.ile:hover { transform: translateY(-3px); box-shadow: var(--zr-shadow); }
+@media (min-width: 1024px) { .iles-grid { grid-template-columns: repeat(6, 1fr); gap: 16px; } .ile__nom { font-size: 17px; } }
+
+/* Carte Musique */
+.musique { display: grid; grid-template-columns: 120px 1fr; gap: 18px; align-items: center; background: var(--zr-marine); color: var(--zr-creme); border-radius: 20px; padding: 18px; text-decoration: none; }
+.musique__img { width: 120px; height: 120px; border-radius: 14px; overflow: hidden; background: var(--zr-creme); display: flex; align-items: center; justify-content: center; }
+.musique__img img { width: 100%; height: 100%; object-fit: cover; }
+.musique__txt { display: grid; gap: 8px; }
+.musique .kicker { color: var(--zr-or); }
+.musique__accroche { font-size: 16px; line-height: 1.45; }
+.musique__prix { display: inline-flex; align-items: center; gap: 6px; color: var(--zr-sable); font-weight: 700; font-size: 17px; }
+.musique__prix .ico { width: 18px; height: 18px; }
+@media (min-width: 768px) { .musique { grid-template-columns: 200px 1fr; padding: 24px; gap: 32px; } .musique__img { width: 200px; height: 200px; } .musique__accroche { font-size: 20px; } }
+
+/* Bannière Fidelity */
+.fidelity { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 14px 16px; background: var(--zr-marine); color: var(--zr-creme); border-radius: 16px; padding: 18px; text-decoration: none; }
+.fidelity__ico { width: 44px; height: 44px; color: var(--zr-or); stroke-width: 1.3; }
+.fidelity__txt { display: grid; gap: 2px; padding-left: 16px; border-left: 1px solid rgba(196, 161, 90, .5); }
+.fidelity__txt span { font-family: var(--zr-font-titre); font-size: 19px; }
+.fidelity__txt, .musique__prix { font-variant-numeric: lining-nums; }
+.fidelity__txt b { font-family: var(--zr-font-texte); font-weight: 700; letter-spacing: -.5px; font-size: 30px; line-height: 1.05; color: var(--zr-sable); }
+.fidelity__btn { grid-column: 1 / -1; color: var(--zr-creme); border-color: rgba(233, 224, 184, .7); border-radius: 999px; }
+.fidelity__btn .ico { width: 18px; height: 18px; }
+@media (min-width: 768px) { .fidelity { grid-template-columns: auto 1fr auto; padding: 22px 28px; } .fidelity__btn { grid-column: auto; } }

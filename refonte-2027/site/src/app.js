@@ -5,7 +5,8 @@
    données, la page affiche un état vide ou une erreur avec « Réessayer ».
    Routes : #/ · #/c/:page · #/p/:slug · #/recherche?q= · #/favoris · #/infos/:page
    ========================================================================= */
-import { BOUTIQUE, ZONES, PAGES, MENU, SAISON, SYNONYMES } from './config.js';
+import { BOUTIQUE, ZONES, PAGES, MENU, SAISON, SYNONYMES, PHOTOS, FIDELITE, MUSIQUE } from './config.js';
+import { DRAPEAUX } from './drapeaux.js';
 import { listerProduits, produitParSlug, getCollections, SORTS, imagePrincipale, galerie, image, prix } from './rest/wix-store-v1.js';
 import { addToCart, getCurrentCart, estimateCurrentCart, updateCartItemQuantity, removeFromCart, checkout } from './rest/wix-store-cart.js';
 
@@ -145,11 +146,11 @@ function renderFooter() {
   const col = (titre, liens) => `<details><summary>${titre}${ico('down')}</summary><ul>${liens.map(([h, t]) => `<li><a href="${h}">${t}</a></li>`).join('')}</ul></details>`;
   $('#foot').innerHTML = `<div class="wrap">
     <a class="logo" href="#/"><span class="logo__crown" style="justify-content:flex-start"><svg width="20" height="13" viewBox="0 0 22 14"><path d="M1 13 L3 3 L8 8 L11 1 L14 8 L19 3 L21 13 Z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></span><b>ZA RAHISSI</b><em>Bons plans à petit prix</em></a>
-    <p style="margin-top:12px;max-width:420px">Bijoux personnalisés et accessoires à petit prix, préparés avec amour à Mayotte et livrés partout en Outre-mer et en France.</p>
+    <p style="margin-top:12px;max-width:420px">Bijoux personnalisés, bijoux des îles et accessoires à petit prix, livrés partout en Outre-mer et en France.</p>
     <div class="foot__cols">
       ${col('Boutique', MENU.map(m => [pageLink(m.page), m.titre]))}
       ${col('Aide', [['#/infos/livraison', 'Livraison & délais'], ['#/infos/paiement', 'Modes de paiement'], ['#/infos/guide-tailles', 'Guide des tailles de bagues'], ['#/infos/faq', 'FAQ'], ['#/infos/contact', 'Contact']])}
-      ${col('Zarahissi & Vous', [['#/infos/histoire', 'Notre histoire'], ['#/favoris', 'Mes favoris']])}
+      ${col('Zarahissi & Vous', [['#/infos/fidelite', FIDELITE.titre], ['#/infos/histoire', 'Notre histoire'], ['#/favoris', 'Mes favoris']])}
       <details><summary>Nous trouver${ico('down')}</summary><ul>
         <li><a href="#/infos/contact">${BOUTIQUE.adresse}</a></li><li><a href="#/infos/contact">Du lundi au samedi · ${BOUTIQUE.horaires}</a></li>
         <li><a href="#/infos/contact">${BOUTIQUE.tel}</a></li><li><a href="${BOUTIQUE.whatsapp}" target="_blank" rel="noopener">WhatsApp</a></li>
@@ -290,7 +291,7 @@ V.home = () => `
   <section class="hero">
     <div class="hero__visual" aria-hidden="true"><div class="lagoon"></div><div class="hero__jewel">${art('nom', { s: 220, text: 'Zara' })}</div><div class="shine"></div></div>
     <div class="hero__copy">
-      <span class="kicker">Fait avec amour depuis Mayotte</span>
+      <span class="kicker">Bijoux personnalisés à petit prix</span>
       <h1>Des bijoux qui ont <i>l’éclat</i> du lagon</h1>
       <p>Bijoux gravés à ton prénom, bijoux des îles et accessoires à petit prix. Livrés à Mayotte, à La Réunion, aux Antilles et en France.</p>
       <div class="hero__btns"><a class="btn" href="${pageLink('personnalises')}">Personnaliser mon bijou</a><a class="btn btn--ghost" href="${pageLink('nouveautes')}">Nouveautés</a></div>
@@ -316,19 +317,28 @@ V.home = () => `
         <label class="sr-only" for="atelierIn">Essaie avec un prénom</label><input id="atelierIn" maxlength="12" placeholder="Essaie avec un prénom…" value="Inaya">
         <a class="btn btn--sable" href="${pageLink('colliers-personnalises')}">Voir les colliers personnalisés</a></div>
     </div></div></section>
+  <section class="sec" style="padding-top:0"><div class="wrap">${secHead('À chacun son bijou')}
+    <div class="pourqui">
+      ${[['femme', 'pour-femme', 'Femme'], ['homme', 'pour-homme', 'Homme'], ['couple', 'pour-couple', 'Couple'], ['enfant', 'pour-enfant', 'Pour les enfants']]
+        .map(([k, pg, t]) => `<a class="pq pq--${k} reveal" href="${pageLink(pg)}" data-pq="${k}" data-pq-page="${pg}"><span class="pq__img">${PHOTOS[k] ? `<img src="${image(PHOTOS[k], 800)}" alt="" loading="lazy">` : ''}</span><span class="pq__txt">${t} ${ico('right')}</span></a>`).join('')}
+    </div></div></section>
   <section class="sec" style="padding-top:0"><div class="wrap">${secHead('Meilleures ventes', pageLink('meilleures-ventes'))}<div class="grid" id="hBest"></div></div></section>
-  <section class="sec sec--creme"><div class="wrap">${secHead('Bijoux des îles', pageLink('bijoux-des-iles'))}
-    <p class="sec__intro">Ton île, près du cœur, où que tu sois.</p>
-    <div class="hscroll hscroll--grid" style="--cols:4" id="hIles"></div>
-    <div class="iles">${['mayotte', 'la-reunion', 'comores', 'madagascar', 'martinique', 'guadeloupe'].map(k => `<a href="${pageLink(k)}">♥ ${PAGES[k].titre}</a>`).join('')}</div>
+  <section class="sec sec--creme"><div class="wrap">
+    <div class="sec__head"><h2>Des bijoux inspirés de nos îles</h2><a class="link" href="${pageLink('bijoux-des-iles')}">Tout voir</a></div>
+    <div class="iles-grid">${['mayotte', 'comores', 'guadeloupe', 'martinique', 'madagascar', 'la-reunion'].map(k => `<a class="ile reveal" href="${pageLink(k)}"><span class="ile__drapeau">${DRAPEAUX[k]}</span><span class="ile__nom">${PAGES[k].titre}</span></a>`).join('')}</div>
+    <div class="hscroll hscroll--grid" style="--cols:4;margin-top:24px" id="hIles"></div>
+  </div></section>
+  <section class="sec"><div class="wrap">
+    <a class="musique reveal" href="#/p/${encodeURIComponent(MUSIQUE.slug)}" id="hMusique">
+      <span class="musique__img" id="hMusiqueImg">${art('musique', { s: 150, text: ' ' })}</span>
+      <span class="musique__txt"><span class="kicker">${MUSIQUE.titre}</span><span class="musique__accroche">${MUSIQUE.texte}</span><span class="musique__prix" id="hMusiquePrix">Découvrir ${ico('right')}</span></span>
+    </a>
   </div></section>
   <section class="sec sec--marine"><div class="wrap">
     <div class="sec__head"><h2>Bons plans à saisir</h2><a class="link" href="${pageLink('bons-plans')}" style="color:var(--zr-sable)">Tout voir</a></div>
     <div class="grid" id="hPromo"></div></div></section>
-  <section class="sec"><div class="wrap histoire">
-    <div class="histoire__img reveal"><div class="lagoon"></div><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">${art('fleur', { s: 200 })}</div></div>
-    <div class="reveal" style="display:grid;gap:14px"><span class="kicker">Notre histoire</span><h2 style="font-size:var(--zr-fs-h2)">Fabriqué avec amour depuis Mayotte</h2>
-      <p>Chaque commande est préparée, gravée et emballée à la main dans notre boutique de Kavani, à Mamoudzou.</p><a class="link" href="#/infos/histoire">Découvrir notre histoire</a></div>
+  <section class="sec"><div class="wrap">
+    <a class="fidelity reveal" href="#/infos/fidelite">${ico('gift', 'ico fidelity__ico')}<span class="fidelity__txt"><span>${FIDELITE.titre}</span><b>${FIDELITE.accroche}</b></span><span class="btn btn--ghost fidelity__btn">Les avantages ${ico('right')}</span></a>
   </div></section>`;
 V.home.after = () => {
   remplir($('#hNews'), { cols: PAGES.nouveautes.cols, tri: 'nouveautes', limit: 8 });
@@ -344,6 +354,24 @@ V.home.after = () => {
       if (u) $('.ph', a).innerHTML = `<img src="${u}" alt="" loading="lazy">`;
     } catch { /* la vignette reste neutre */ }
   });
+  // « À chacun son bijou » : photo d'ambiance si fournie, sinon le dernier produit de la collection
+  $$('[data-pq]').forEach(async (a) => {
+    if (PHOTOS[a.dataset.pq]) return;
+    try {
+      const { produits } = await listerProduits({ cols: PAGES[a.dataset.pqPage].cols, tri: 'nouveautes', limit: 1 });
+      const u = imagePrincipale(produits[0], 800);
+      if (u) $('.pq__img', a).innerHTML = `<img src="${u}" alt="" loading="lazy">`;
+    } catch { /* fond uni */ }
+  });
+  // Carte Musique : vraie photo et vrai prix de départ du produit
+  produitParSlug(MUSIQUE.slug).then((p) => {
+    if (!p || !$('#hMusique')) { $('#hMusique')?.closest('.sec')?.remove(); return; }
+    const u = imagePrincipale(p, 400);
+    if (u) $('#hMusiqueImg').innerHTML = `<img src="${u}" alt="${esc(p.name)}" loading="lazy">`;
+    const prixs = (p.variants ?? []).filter(v => v.variant?.visible !== false).map(v => v.variant?.priceData?.discountedPrice ?? v.variant?.priceData?.price).filter(Number.isFinite);
+    const min = prixs.length ? Math.min(...prixs) : prix(p).valeur;
+    if (Number.isFinite(min)) $('#hMusiquePrix').innerHTML = `Dès ${min.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} ${ico('right')}`;
+  }).catch(() => {});
   const inp = $('#atelierIn');
   inp.addEventListener('input', () => { $('#atelierDemo').innerHTML = art('nom', { s: 230, text: inp.value.trim() || 'Inaya' }); });
 };
@@ -487,7 +515,7 @@ V.product.after = async (slug) => {
     $('#ctaPrice').innerHTML = esc(txt);
     const enStock = v ? v.stock?.inStock !== false : p.stock?.inStock !== false;
     $('#pdpStock').className = 'pdp__stock ' + (enStock ? 'ok' : 'ko');
-    $('#pdpStock').textContent = enStock ? 'En stock · préparé à Mayotte' : 'Épuisé pour cette sélection';
+    $('#pdpStock').textContent = enStock ? 'En stock' : 'Épuisé pour cette sélection';
     $('#addBtn').disabled = !enStock;
     $$('[data-msg]').forEach(el => el.hidden = !motVoulu());
     const pv = $('#preview');
@@ -618,7 +646,12 @@ const INFOS = {
       .map(([q, a]) => `<details class="acc"><summary>${q}${ico('down')}</summary><div><p>${a}</p></div></details>`).join('')}
     <p>Pas de réponse ? <a href="${BOUTIQUE.whatsapp}" target="_blank" rel="noopener">Écris-nous sur WhatsApp</a>.</p>`,
   histoire: () => `<h1>Notre histoire</h1><p><i>Texte à compléter par Zarahissi.</i></p>
-    <p>Chaque collier gravé, chaque bracelet, chaque bijou des îles est préparé à la main dans notre boutique de Kavani, puis envoyé à Mayotte, à La Réunion, aux Antilles et en France.</p>`,
+    <p>Zarahissi, ce sont des bijoux qui ont du sens : ton prénom, ton île, les personnes que tu aimes, à petit prix. Nous les envoyons à Mayotte, à La Réunion, aux Antilles et en France, et tu peux aussi les retirer dans notre boutique de Kavani, à Mamoudzou.</p>`,
+  fidelite: () => `<h1>${FIDELITE.titre}</h1>
+    <p class="note" style="font-size:18px"><b>${FIDELITE.accroche}</b> : chaque euro dépensé chez Zarahissi te rapporte un point.</p>
+    <p><i>Avantages détaillés à compléter par Zarahissi.</i></p>
+    <p>Pour connaître tes points ou une question sur le programme, écris-nous.</p>
+    <a class="btn btn--wa" href="${BOUTIQUE.whatsapp}" target="_blank" rel="noopener">${ico('chat')} Écrire sur WhatsApp</a>`,
   contact: () => `<h1>Contact</h1><p>Une question sur une commande, une gravure ou un cadeau ? On te répond vite.</p>
     <div class="contact-cards">
       <div class="ccard"><h3>WhatsApp</h3><p>Le plus rapide.</p><a class="btn btn--wa" href="${BOUTIQUE.whatsapp}" target="_blank" rel="noopener">${ico('chat')} Écrire</a></div>
