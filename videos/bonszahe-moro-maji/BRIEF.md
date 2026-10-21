@@ -20,7 +20,7 @@ malin, achetez mahorais », www.bonszahe.com. Prompt validé par l'utilisateur.
 ## Assets
 
 - assets/img/logo-bonszahe.svg — logo officiel fourni par l'utilisateur.
-- assets/audio/voiceover.wav — voix off PROVISOIRE (Kokoro via HyperFrames TTS) : ElevenLabs demandé, mais crédits insuffisants (54 / 445 nécessaires).
+- assets/audio/voiceover.wav — voix off ElevenLabs fournie par l'utilisateur, découpée en 7 répliques et recalée sur l'animation.
 - assets/audio/music.wav — musique afro-tropicale synthétisée localement.
 
 ## Notes
