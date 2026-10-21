@@ -39,10 +39,26 @@ Sources : aide officielle Wix, articles *Creating a Studio Version of a Wix Edit
 
 ## 5. Étape B · Les fondations (panneau « Site Styles »)
 
-- **Couleurs** : celles de `docs/04-design-system.md` (marine `#1B2A41`, ivoire `#FBF8F1`, crème `#F6F1E4`, sable `#E9E0B8`, or `#C4A15A`, ardoise `#7896A6`, terracotta `#A0442E`).
-- **Polices** : Cormorant Garamond pour les titres, DM Sans pour le texte. Si l'une manque dans Studio, choisir la plus proche et me prévenir.
-- **Boutons** : marine, coins presque droits, texte en gras.
-- **Mobile d'abord** : régler d'abord l'affichage mobile, puis ajuster ordinateur et tablette.
+Dans l'éditeur Studio, **Site Styles** est dans la barre de gauche. Il contient les onglets *Colors*, *Typography*, *Max width* et *Page transitions*. Changer une couleur ou une police modifie instantanément tous les éléments qui l'utilisent : on commence donc par là.
+
+**Couleurs** (onglet *Colors* › cliquer sur une couleur › saisir le code HEX › *Apply*). Les six premières couleurs ont un rôle fixe ; selon le modèle, leur nom peut différer (par exemple « Primary background »), suis l'ordre :
+
+| Couleur Wix | Rôle d'après l'aide Wix | Valeur Zarahissi |
+|---|---|---|
+| Color 1 | Fond principal des éléments et des applications (par exemple l'en-tête) | `#FBF8F1` ivoire |
+| Color 2 | Fond secondaire | `#F6F1E4` crème |
+| Color 3 | Éléments désactivés | `#D6CBAE` |
+| Color 4 | Texte secondaire | `#4E596B` gris encre |
+| Color 5 | Texte principal | `#1B2A41` marine |
+| Color 6 | Liens et boutons | `#1B2A41` marine |
+
+Couleurs à ajouter ensuite (25 au maximum) : sable `#E9E0B8`, or `#C4A15A`, ardoise `#7896A6`, ardoise foncée `#4F6D7D`, terracotta `#A0442E`, or foncé `#7E5F24`, marine foncé `#111C2E`.
+
+**Polices** (onglet *Typography* › section *Fonts* › cliquer sur une police › choisir dans la liste › *Update*). Remplacer la police des titres par **Cormorant Garamond** et celle du texte par **DM Sans**. Les styles de texte (Heading 1 à 6, Paragraph 1 à 3) suivent automatiquement. Si une police manque, choisir la plus proche.
+
+**Boutons** : marine, coins presque droits, texte en gras.
+
+**Mobile d'abord** : régler d'abord l'affichage mobile (icône téléphone en haut de l'éditeur), puis ajuster tablette et ordinateur.
 
 ## 6. Étape C · Les pages (par ordre de priorité)
 
