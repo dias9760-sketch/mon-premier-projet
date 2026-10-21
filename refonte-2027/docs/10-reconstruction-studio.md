@@ -20,7 +20,7 @@ Sources : aide officielle Wix, articles *Creating a Studio Version of a Wix Edit
 | Applications utilisées : Boutique, Programme de fidélité, Blog | ✅ aucune n'est dans la liste des applications non compatibles |
 | Groupes | ignoré (inutilisé) |
 | Compte sur la plateforme Wix Studio | ⏳ à vérifier : sans lui, « Créer une version sur Studio » n'apparaît pas. Sinon : wix.com/studio › *Start creating* › *Try Wix Studio*. D'après Wix, tes sites existants ne sont pas migrés. |
-| Autres applications installées | ⏳ à vérifier : bulle de chat bleue, guide des tailles, musique, flux de réseaux sociaux. Les applications *Live Chat*, *Size Guide Chart*, *Wix Music*, *Social Feed*, *Smart Social Icons*… ne sont pas compatibles. |
+| Autres applications installées | ✅ vérifié le 21 octobre 2026 dans ton compte (lecture seule) : Promote SEO, Blog, Bookings, **Wix Chat** (la bulle bleue), Forms, Forms & Payments, Gift Cards, Groups, Hotels, Invoices, Members Area, Pay Links, Stores. Aucune n'est dans la liste des applications non compatibles. Le programme de fidélité n'apparaît pas dans cette liste : à confirmer dans *My Business* de la version Studio. |
 
 ## 3. Étape A · Créer la version (sans la publier)
 
@@ -66,7 +66,7 @@ Couleurs à ajouter ensuite (25 au maximum) : sable `#E9E0B8`, or `#C4A15A`, ard
 |---|---|---|---|
 | 1 | **En-tête et menu** | Logo, recherche, panier, compte. Menu de 7 entrées plus l'entrée saisonnière, comme dans `docs/02-arborescence.md`. Sur mobile : menu burger. | Menus Wix |
 | 2 | **Accueil** | Dans l'ordre : bannière · réassurance (livraison, personnalisés, retrait gratuit, paiement sécurisé) · Nos univers · Nouveautés · **À chacun son bijou** (Femme, Homme, Couple, Enfants) · Meilleures ventes · **Bijoux inspirés de nos îles** (6 drapeaux) · **carte Musique** · Bons plans · **bannière Fidelity** · derniers articles du blog | Collections Wix |
-| 3 | **Pages catégories** | Une grille de produits par entrée du menu. Le lien entre menu et collections existantes est déjà fait dans `site/src/config.js`. | Collections Wix |
+| 3 | **Pages catégories** | Une grille de produits par entrée du menu. **« Carte cadeau »** : lien vers la page de l'application Wix Gift Cards (installée), pas vers une collection. Le lien entre menu et collections existantes est déjà fait dans `site/src/config.js`. | Collections Wix |
 | 4 | **Fiche produit** | Nouvelle fiche produit Studio (réservée à Studio). **Vérifier sur un produit gravé** que le champ de gravure, la couleur, l'emballage cadeau (+3 €) et le mot doux s'affichent et sont obligatoires comme sur le site actuel. | Produits Wix |
 | 5 | **Panier et paiement** | Natifs Wix : vérifier livraison à Mayotte (livreur, retrait), moyens de paiement et espèces au retrait. | Wix |
 | 6 | **Compte, suivi, Fidélité** | Espace membres, mes commandes, pages *Loyalty Program* et *My Rewards*. D'après l'aide Wix, ces pages se personnalisent dans Studio. | Wix |
