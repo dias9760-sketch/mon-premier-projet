@@ -1,3 +1,5 @@
+> ⚠️ **Remplacée le 21 octobre 2026** par [10-reconstruction-studio.md](10-reconstruction-studio.md) : la fonction Wix « Créer une version sur Studio » garde les mêmes données sans site sur mesure. Ce document reste comme référence.
+
 # Stratégie technique · Refaire le site à partir du prototype, avec Wix pour les commandes
 
 **Objectif** : lancement en 2027. Le site actuel reste en ligne, sans modification, pendant tout le travail. Commandes, paiements, clientes et stock restent gérés dans Wix.

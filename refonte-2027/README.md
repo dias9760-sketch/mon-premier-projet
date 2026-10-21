@@ -1,6 +1,6 @@
 # Zarahissi — Refonte 2027
 
-Plateforme : **nouveau design branché sur la boutique Wix actuelle** (Wix Headless). Le site actuel reste en ligne, sans modification, jusqu’au lancement 2027. Mobile en priorité.
+Méthode retenue : **version Wix Studio du site actuel** (même boutique, mêmes données, sans interruption). Le site actuel reste en ligne, sans modification, jusqu’au lancement 2027. Mobile en priorité. Plan : [docs/10-reconstruction-studio.md](docs/10-reconstruction-studio.md).
 
 Suivi du brief `PROMPT_REFONTE_ZARAHISSI_2027`.
 
@@ -12,9 +12,10 @@ Suivi du brief `PROMPT_REFONTE_ZARAHISSI_2027`.
 | 3 | [Prototype cliquable](prototype/zarahissi-prototype.html) · [mode d'emploi et passage sur Wix Studio](docs/03-prototype-et-wix-studio.md) | ✅ |
 | 4–5 | [Design system et animations](docs/04-design-system.md) | ✅ |
 | 6 | [Transition, annonce et recommandations](docs/06-transition-et-recommandations.md) | ✅ |
-| 7 | [Stratégie technique : prototype + boutique Wix](docs/07-strategie-technique.md) | ✅ Validée |
+| 7 | [Stratégie « site sur mesure »](docs/07-strategie-technique.md) | ⏸️ Remplacée par l'étape 10, gardée comme référence |
 | 8 | [Étape 1 : préparer la boutique Wix](docs/08-etape-1-preparer-la-boutique.md) | ✅ Client créé, boutique connectée |
-| 9 | [Bilan de la boutique](docs/09-audit-boutique.md) · [site branché sur la vraie boutique](site/) | ⏳ Version de test |
+| 9 | [Bilan de la boutique](docs/09-audit-boutique.md) · [site branché sur la vraie boutique](site/) | ✅ Bilan utile · site de test gardé comme référence |
+| 10 | [Reconstruire le site sur une version Wix Studio](docs/10-reconstruction-studio.md) | ⏳ En cours : création de la version Studio |
 
 ## Voir les maquettes
 
