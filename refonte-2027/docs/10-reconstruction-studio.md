@@ -4,6 +4,8 @@ Méthode retenue : **créer une version Studio du site actuel** (fonction Wix «
 
 Sources : aide officielle Wix, articles *Creating a Studio Version of a Wix Editor Site* et *About Studio Branches* (mis à jour le 15 octobre 2026).
 
+> **Cible visuelle : le prototype.** Voir [11-fidelite-au-prototype.md](11-fidelite-au-prototype.md) pour ce que Studio reproduit à l'identique, ce qu'il approche et ce qu'il ne peut pas reproduire.
+
 ## 1. Pourquoi cette méthode
 
 - Même tableau de bord, mêmes produits, commandes, clientes et points de fidélité : **rien à migrer**.

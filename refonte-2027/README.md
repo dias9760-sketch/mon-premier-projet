@@ -16,6 +16,7 @@ Suivi du brief `PROMPT_REFONTE_ZARAHISSI_2027`.
 | 8 | [Étape 1 : préparer la boutique Wix](docs/08-etape-1-preparer-la-boutique.md) | ✅ Client créé, boutique connectée |
 | 9 | [Bilan de la boutique](docs/09-audit-boutique.md) · [site branché sur la vraie boutique](site/) | ✅ Bilan utile · site de test gardé comme référence |
 | 10 | [Reconstruire le site sur une version Wix Studio](docs/10-reconstruction-studio.md) | ⏳ En cours : version Studio créée ✅, réglage des couleurs et polices |
+| 11 | [Ressembler au prototype dans Studio](docs/11-fidelite-au-prototype.md) · [drapeaux SVG](studio-assets/drapeaux/) | ✅ Tableau identique / approchant / différent |
 
 ## Voir les maquettes
 
