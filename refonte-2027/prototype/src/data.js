@@ -126,7 +126,7 @@ const PRODUITS = [
    filtre : quels produits la page affiche */
 const CATS = {
   'nouveautes':               { titre: 'Nouveautés', intro: 'Les dernières pièces arrivées à l\'atelier.', filtre: p => p.nouveau },
-  'personnalises':            { titre: 'Produits personnalisés', intro: 'Ton prénom, ta date, ton message : gravés et préparés à Mayotte.', filtre: p => !!p.perso },
+  'personnalises':            { titre: 'Produits personnalisés', intro: 'Ton prénom, ta date, ton message : gravés à ta demande.', filtre: p => !!p.perso },
   'colliers-personnalises':   { titre: 'Colliers personnalisés', parent: 'personnalises', filtre: p => p.cat === 'colliers-personnalises' },
   'bracelets-personnalises':  { titre: 'Bracelets personnalisés', parent: 'personnalises', filtre: p => p.cat === 'bracelets-personnalises' },
   'bagues-personnalisees':    { titre: 'Bagues personnalisées', parent: 'personnalises', filtre: p => p.cat === 'bagues-personnalisees' },

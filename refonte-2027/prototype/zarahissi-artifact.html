@@ -1,6 +1,6 @@
 <title>Zarahissi 2027</title>
 <meta name="robots" content="noindex">
-<meta name="description" content="Bijoux personnalisés, bijoux des îles, montres et accessoires à petit prix. Préparés à Mayotte, livrés à La Réunion, en Guadeloupe, en Martinique et en France. Retrait gratuit à Mamoudzou.">
+<meta name="description" content="Bijoux personnalisés, bijoux des îles, montres et accessoires à petit prix. Livrés à La Réunion, en Guadeloupe, en Martinique et en France. Retrait gratuit à Mamoudzou.">
 <meta name="theme-color" content="#1B2A41">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -829,7 +829,7 @@ const PRODUITS = [
    filtre : quels produits la page affiche */
 const CATS = {
   'nouveautes':               { titre: 'Nouveautés', intro: 'Les dernières pièces arrivées à l\'atelier.', filtre: p => p.nouveau },
-  'personnalises':            { titre: 'Produits personnalisés', intro: 'Ton prénom, ta date, ton message : gravés et préparés à Mayotte.', filtre: p => !!p.perso },
+  'personnalises':            { titre: 'Produits personnalisés', intro: 'Ton prénom, ta date, ton message : gravés à ta demande.', filtre: p => !!p.perso },
   'colliers-personnalises':   { titre: 'Colliers personnalisés', parent: 'personnalises', filtre: p => p.cat === 'colliers-personnalises' },
   'bracelets-personnalises':  { titre: 'Bracelets personnalisés', parent: 'personnalises', filtre: p => p.cat === 'bracelets-personnalises' },
   'bagues-personnalisees':    { titre: 'Bagues personnalisées', parent: 'personnalises', filtre: p => p.cat === 'bagues-personnalisees' },
@@ -1289,7 +1289,7 @@ function renderFooter() {
   const col = (titre, liens, open) => `<details ${open ? 'open' : ''}><summary>${titre}${ico('down')}</summary><ul>${liens.map(([h, t]) => `<li><a href="${h}">${t}</a></li>`).join('')}</ul></details>`;
   $('#foot').innerHTML = `<div class="wrap">
     <a class="logo" href="#/"><span class="logo__crown" style="justify-content:flex-start"><svg width="20" height="13" viewBox="0 0 22 14"><path d="M1 13 L3 3 L8 8 L11 1 L14 8 L19 3 L21 13 Z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></span><b>ZA RAHISSI</b><em>Bons plans à petit prix</em></a>
-    <p style="margin-top:12px;max-width:420px">Bijoux personnalisés et accessoires à petit prix, préparés avec amour à Mayotte et livrés partout en Outre-mer et en France.</p>
+    <p style="margin-top:12px;max-width:420px">Bijoux personnalisés et accessoires à petit prix, pensés avec amour et livrés partout en Outre-mer et en France.</p>
     <div class="foot__cols">
       ${col('Boutique', [...MENU.map(m => [catLink(m.slug), m.titre]), [catLink('carte-cadeau'), 'Carte cadeau']])}
       ${col('Zarahissi & Vous', [['#/infos/fidelite', 'Zarahissi Fidelity'], ['#/infos/fidelite', 'Parrainer un ami'], ['#/infos/ambassadeur', 'Devenir ambassadeur·rice'], ['#/infos/blog', 'Blog'], ['#/infos/histoire', 'Notre histoire']])}
@@ -1457,7 +1457,7 @@ V.home = () => {
   <section class="hero">
     <div class="hero__visual" aria-hidden="true"><div class="lagoon"></div><div class="hero__jewel">${art('nom', { s: 220, text: 'Zara' })}</div><div class="shine"></div></div>
     <div class="hero__copy">
-      <span class="kicker">Fait avec amour depuis Mayotte</span>
+      <span class="kicker">Des bijoux qui te ressemblent</span>
       <h1>Des bijoux qui ont <i>l’éclat</i> du lagon</h1>
       <p>Bijoux gravés à ton prénom, bijoux des îles et accessoires à petit prix. Livrés à Mayotte, à La Réunion, aux Antilles et en France.</p>
       <div class="hero__btns"><a class="btn" href="${catLink('personnalises')}">Personnaliser mon bijou</a><a class="btn btn--ghost" href="${catLink('nouveautes')}">Nouveautés</a></div>
@@ -1530,8 +1530,8 @@ V.home = () => {
     <div class="histoire__img reveal"><div class="lagoon"></div><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">${art('fleur', { s: 200 })}</div></div>
     <div class="reveal" style="display:grid;gap:14px">
       <span class="kicker">Notre histoire</span>
-      <h2 style="font-size:var(--zr-fs-h2)">Fabriqué avec amour depuis Mayotte</h2>
-      <p>Zarahissi est née à Mamoudzou avec une idée simple : offrir à tout le monde des bijoux qui ont du sens, gravés à son prénom, à petit prix. Chaque commande est préparée, gravée et emballée à la main dans notre boutique de Kavani.</p>
+      <h2 style="font-size:var(--zr-fs-h2)">Des bijoux faits pour toi</h2>
+      <p>Zarahissi est née à Mamoudzou avec une idée simple : offrir à tout le monde des bijoux qui ont du sens, gravés à son prénom, à petit prix. Notre boutique est à Kavani, Mamoudzou : tu peux y retirer ta commande gratuitement.</p>
       <a class="link" href="#/infos/histoire">Découvrir notre histoire</a>
     </div>
   </div></section>
@@ -1884,7 +1884,7 @@ const INFOS = {
   },
   histoire: () => `<h1>Notre histoire</h1><p><i>Texte d’exemple, à remplacer par ton histoire.</i></p>
     <p>Zarahissi est née à Mamoudzou d’une envie simple : rendre les bijoux personnalisés accessibles à tout le monde, à petit prix, sans rien sacrifier à l’émotion.</p>
-    <p>Chaque collier gravé, chaque bracelet, chaque bijou des îles est préparé à la main dans notre boutique de Kavani, puis envoyé à Mayotte, à La Réunion, aux Antilles et en France.</p>
+    <p>Chaque commande est envoyée à Mayotte, à La Réunion, aux Antilles et en France, ou à retirer gratuitement dans notre boutique de Kavani.</p>
     <h2>Nos engagements</h2><ul><li>Des petits prix toute l’année</li><li>De l’acier inoxydable qui ne noircit pas</li><li>Un service client réactif, sur WhatsApp</li><li>Un emballage soigné, prêt à offrir</li></ul>`,
   contact: () => `<h1>Contact</h1><p>Une question sur une commande, une gravure ou un cadeau ? On te répond vite.</p>
     <div class="contact-cards">
