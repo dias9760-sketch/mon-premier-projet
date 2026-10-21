@@ -486,7 +486,8 @@
         tl.to("#touch", { opacity: 1, x: x, y: y, duration: 0.45, ease: "power2.inOut" }, t - 0.5);
         tl.to("#touch", { scale: 0.78, duration: 0.09, ease: "power2.in" }, t - 0.05);
         tl.to("#touch", { scale: 1, duration: 0.2, ease: "back.out(3)" }, t + 0.04);
-        tl.fromTo("#ripple", { x: x, y: y, scale: 0.6, opacity: 1 }, { scale: 2.6, opacity: 0, duration: 0.55, ease: "power2.out", immediateRender: firstTap }, t);
+        tl.set("#ripple", { x: x, y: y, scale: 0.6, opacity: 1 }, t);
+        tl.to("#ripple", { scale: 2.6, opacity: 0, duration: 0.55, ease: "power2.out" }, t);
         firstTap = false;
         if (btn) {
           tl.to(btn, { scale: 0.93, duration: 0.09, ease: "power2.in" }, t - 0.04);
