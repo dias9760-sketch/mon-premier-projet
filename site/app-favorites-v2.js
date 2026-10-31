@@ -1856,6 +1856,17 @@ function evCalendar(list,mk,sel,com){
 const evTile=(e,big)=>`<button class="evtile${big?' big':''}" data-evt="${esc(e.id)}"><span class="when">${esc(evWhen(e))}${e.time&&e.time.length<14?' · '+esc(e.time):''}</span><strong>${esc(e.title)}</strong>${evWhere(e)?`<span class="where">📍 ${esc(evWhere(e))}</span>`:''}<span class="pills">${evPills(e)}</span></button>`;
 function eventDialog(id){ const e=EVENTS.find(x=>x.id===id); if(!e) return;
   openDialog(`<header><div><h2 id="dlgTitle">${esc(e.title)}</h2><p class="u14 note">${esc(evWhen(e))}${e.time?' · '+esc(e.time):''}</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>${eventCard(e)}<div class="bandbtns u10">${icsBtn(e)}</div>`); }
+/* ---------- Frise horizontale des prochains événements ---------- */
+const evShortDay=d=>d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'}).replace(/\./g,'');
+// Frise horizontale qui défile : cartes alternées au-dessus / au-dessous de la ligne.
+function evTimelineA(list){
+  const items=list.slice(0,14);
+  return `<section class="tla"><div class="head"><h2>La frise des prochaines semaines</h2><span class="muted">Faites glisser →</span></div>
+    <div class="tla-track"><div class="tla-line" style="--w:${items.length*214+110}px"></div>
+      <div class="tla-now"><span>Aujourd’hui</span></div>
+      ${items.map((e,i)=>`<button class="tla-item ${i%2?'down':'up'}" data-evt="${esc(e.id)}"><span class="tla-dot"></span><span class="tla-card"><span class="tla-date">${esc(evShortDay(e.date))}</span><strong>${esc(e.title)}</strong><small>📍 ${esc(e.commune?comBy(e.commune).name:e.communeName||'Mayotte')}</small></span></button>`).join('')}
+    </div></section>`;
+}
 function pageEvents(params){
   const com=params.get('c')||'';
   const all=upcomingEvents();
@@ -1872,7 +1883,7 @@ function pageEvents(params){
   return `<div class="wrap">
     ${all.length?'':backBtn('#/')}<div class="pagehead"><h1>Événements à Mayotte</h1><p class="muted">Marchés, fêtes, concerts, sorties nature et animations de l’île.</p></div>
     ${coms.length>1?`<div class="chips" role="group" aria-label="Filtrer par commune"><a class="chip" href="#/evenements?m=${mk}" aria-pressed="${!com}">Toutes les communes</a>${coms.map(c=>`<a class="chip" href="#/evenements?m=${mk}&c=${c.slug}" aria-pressed="${com===c.slug}">${esc(c.name)}</a>`).join('')}</div>`:''}
-    ${list.length?`<div class="evtop u13">${evHero(hero)}${evCalendar(list,mk,selD,com)}</div>
+    ${list.length?`<div class="evtop u13">${evHero(hero)}${evCalendar(list,mk,selD,com)}</div>${list.length>1?evTimelineA(list):''}
     <div class="head evlisthead"><h2>${esc(title.charAt(0).toUpperCase()+title.slice(1))}</h2>${selD?`<a class="link" href="#/evenements?m=${mk}${com?'&c='+com:''}">Voir tout le mois</a>`:`<span class="muted">${plural(shown.length,'événement','événements')}</span>`}</div>
     ${shown.length?`<div class="evbento">${shown.map((e,i)=>evTile(e,i===0&&shown.length>2)).join('')}</div>`:`<p class="muted">Aucun événement ${selD?'ce jour-là':'ce mois-ci'}${com?' dans cette commune':''}. Touchez un jour marqué d’un point dans le calendrier.</p>`}`:
       empty('Aucun événement à venir pour l’instant','Vous organisez un marché, une vente privée ou une animation ? Faites-le savoir à la communauté.',`<button class="btn btn-primary" data-claim="">Annoncer un événement</button>`)}
@@ -2596,7 +2607,7 @@ function route(){
   checkRewards();
   window.scrollTo(0,!quietRender&&navBack&&scrollMemo[curH()]||0);
   // Événements : après le choix d'un jour ou d'un mois, on reste sur le calendrier au lieu de remonter en haut.
-  if(p==='evenements'&&!quietRender&&!navBack&&(params.get('d')||params.get('m'))){ const el=document.querySelector(params.get('d')?'.evlisthead':'.evcal'); if(el) window.scrollTo(0,el.getBoundingClientRect().top+window.scrollY-(params.get('d')&&innerWidth>720?380:90)); }
+  if(p==='evenements'&&!quietRender&&!navBack&&(params.get('d')||params.get('m'))){ const el=document.querySelector(params.get('d')?'.evlisthead':'.evcal'); if(el) window.scrollTo(0,el.getBoundingClientRect().top+window.scrollY-90); }
   if(p==='recherche'&&!params.get('q')) document.getElementById('sq')?.focus();
 }
 // Référencement : titre, description, adresse canonique, aperçus de partage et données structurées de la page.
