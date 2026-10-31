@@ -118,6 +118,7 @@ function getAuthVisitorToken(){
   return authVisitorPromise;
 }
 let baseCodes=[];
+let OFFRES=[], OFFER_REPORTS=[]; // offres sans code public (CodesPromo typeOffre « offre ») et leurs signalements
 let bizId={};
 let EVENTS=[];
 let VOTES=[];
@@ -349,6 +350,7 @@ async function loadData(){
   VOTES=votes.filter(v=>v.code&&(v.sens==='up'||v.sens==='down')).map(v=>({id:v._id,code:v.code,dir:v.sens,owner:v._owner,at:dateFrom(v._updatedDate||v._createdDate)||TODAY}));
   COMMENTS=comms.filter(x=>x.code&&x.texte).map(x=>({id:x._id,code:x.code,text:String(x.texte).slice(0,500),parent:x.parent||'',name:x.pseudo||'',owner:x._owner,at:stamp(x._createdDate)}));
   LIKES=likes.filter(x=>x.commentaire).map(x=>({id:x._id,comment:x.commentaire,owner:x._owner,at:stamp(x._createdDate)}));
+  OFFER_REPORTS=reports.filter(x=>x.offre).map(x=>({id:x._id,offre:x.offre,owner:x._owner,motif:x.motif||'',at:stamp(x._createdDate)}));
   REPORTS=reports.filter(x=>x.commentaire).map(x=>({id:x._id,comment:x.commentaire,owner:x._owner,at:stamp(x._createdDate)}));
   MODERATION={}; moder.forEach(x=>{ if(x.commentaire) MODERATION[x.commentaire]=String(x.decision||'').toLowerCase().includes('masq')?'masque':'approuve'; });
   MOROS=moros.filter(v=>v.code&&(v.sens==='moro'||v.sens==='maji')).map(v=>({id:v._id,code:v.code,dir:v.sens,owner:v._owner,at:stamp(v._updatedDate||v._createdDate)}));
@@ -356,6 +358,8 @@ async function loadData(){
     const exp=dateFrom(c.dateExpiration);
     return {id:c._id,biz:idToSlug[refId(c.entreprise)],deal:c.avantage||'Bon plan',detail:c.detail||'',code:String(c.code||'').trim(),store:c.typeOffre==='magasin',cond:c.conditions||'',exp:exp||inDays(3650),noExp:!exp,verified:!!c.verifie,baseUp:+c.votesOui||0,baseDown:+c.votesNon||0,added:dateFrom(c._createdDate)||TODAY,addedAt:stamp(c._createdDate),updatedAt:stamp(c._updatedDate||c._createdDate),status:statutFrom(c.statut),link:c.lienOffre||'',by:c.contributeur||'',byName:c.contributeurNom||'',tf:String(c.tempsForts||'').split(/[\s,;]+/).filter(Boolean)};
   });
+  OFFRES=codes.filter(c=>c.typeOffre==='offre'&&!String(c.code||'').trim()&&c.avantage&&idToSlug[refId(c.entreprise)]).map(c=>({
+    id:c._id,biz:idToSlug[refId(c.entreprise)],deal:c.avantage,cond:c.conditions||'',exp:dateFrom(c.dateExpiration),link:/^https?:\/\//.test(c.lienOffre||'')?c.lienOffre:'',status:statutFrom(c.statut),byName:c.contributeurNom||'',added:stamp(c._createdDate)}));
   EVENTS=events.filter(e=>e.publie!==false&&e.titre&&dateFrom(e.date)).map(e=>({
     id:e._id,title:e.titre,date:dateFrom(e.date),end:dateFrom(e.dateFin),time:e.heure||'',commune:communeFrom(e.commune),communeName:e.commune||'',place:e.lieu||'',desc:e.description||'',img:imgUrl(e.image),link:e.lien||'',biz:idToSlug[refId(e.entreprise)]||''
   })).sort((a,b)=>a.date-b.date);
@@ -449,6 +453,33 @@ function allCodes(){
 const daysLeft = c => Math.round((c.exp - TODAY)/864e5);
 const activeCodes = () => allCodes().filter(c=>c.status==='valide' && daysLeft(c)>=0 && !flagged(c));
 const codesOf = slug => activeCodes().filter(c=>c.biz===slug);
+/* ---------- Offres sans code public ----------
+   Masquées automatiquement le lendemain de leur date de fin, ou dès 2 signalements de membres différents
+   (1 seul suffit s'il vient de l'entreprise qui gère la fiche ou du propriétaire du site). */
+const OFFER_MASK_AT=2;
+function offerReported(o){ const by=new Set(OFFER_REPORTS.filter(r=>r.offre===o.id).map(r=>r.owner)); const b=bizBy(o.biz);
+  return by.size>=OFFER_MASK_AT||by.has(ADMIN_ID)||(b&&b.owners.some(id=>by.has(id))); }
+const offerLive = o => o.status==='valide' && (!o.exp||o.exp>=TODAY) && !offerReported(o);
+const offersOf = slug => OFFRES.filter(o=>o.biz===slug&&offerLive(o)).sort((a,z)=>(a.exp||Infinity)-(z.exp||Infinity)||z.added-a.added);
+const myOfferReport = id => !!me()&&OFFER_REPORTS.some(r=>r.offre===id&&r.owner===me().id);
+function offerCard(o){
+  const mine=myOfferReport(o.id);
+  return `<article class="offer" id="offre-${esc(o.id)}">
+    <span class="pill">Sans code public</span>
+    <h3>${esc(o.deal)}</h3>
+    <p class="offexp">${o.exp?`Valable jusqu’au ${fmt(o.exp)} inclus`:'Pas de date de fin annoncée : signalez-la si elle n’est plus valable'}</p>
+    ${o.cond?`<details open><summary>Conditions de l’offre</summary><p>${esc(o.cond)}</p></details>`:''}
+    <div class="offacts">${o.link?`<a class="btn btn-primary btn-sm" href="${esc(o.link)}" target="_blank" rel="noopener" data-track="site" data-trackbiz="${o.biz}">Voir l’offre sur le site</a>`:''}<button class="btn btn-ghost btn-sm" data-reportoffer="${esc(o.id)}"${mine?' disabled':''}>${mine?'Signalée, merci':'Signaler cette offre'}</button></div>
+  </article>`;
+}
+function reportOfferDialog(id){
+  const o=OFFRES.find(x=>x.id===id); if(!o) return;
+  openDialog(`<header><div><h2 id="dlgTitle">Signaler cette offre</h2><p class="u14 note">${esc(o.deal)} · ${esc(bizBy(o.biz).name)}<br>Au bout de ${OFFER_MASK_AT} signalements, l’offre est masquée automatiquement.</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+  <form class="form" id="reportOfferForm" data-id="${esc(id)}">
+    ${['L’offre est terminée','L’offre n’existe pas ou est fausse','Les conditions sont différentes','Autre'].map((m,i)=>`<label class="radio"><input type="radio" name="motif" value="${m}"${i===0?' checked':''}> ${m}</label>`).join('')}
+    <button class="btn btn-primary" type="submit">Signaler</button>
+  </form>`);
+}
 const isNew = c => (TODAY - c.added)/864e5 <= 7;
 const fmt = d => d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
 const esc = s => String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -771,6 +802,7 @@ function pageBusiness(slug){
   if(!b) return notFound('Cette entreprise n’existe pas','Le lien est peut-être ancien. Retrouvez-la dans l’annuaire.','<a class="btn btn-primary" href="#/entreprises">Voir les entreprises</a>','#/entreprises');
   const codes=codesOf(slug).sort((a,b)=>b.verified-a.verified||b.up-a.up);
   const verified=codes.some(c=>c.verified);
+  const offers=offersOf(slug);
   const fav=S.favs.includes(slug);
   const bizEvents=upcomingEvents().filter(e=>e.biz===slug);
   const similar=B.filter(x=>x.cat===b.cat&&x.slug!==slug).sort((a,z)=>codesOf(z.slug).length-codesOf(a.slug).length).slice(0,3);
@@ -810,6 +842,7 @@ function pageBusiness(slug){
           ${codes.length?`<div class="coupons">${codes.map(c=>coupon(c,{showBiz:false})).join('')}</div>`:
             empty('Pas encore de code pour '+esc(b.name),'Si vous en connaissez un, proposez-le : il apparaîtra ici immédiatement.',`<button class="btn btn-sun" data-propose="${slug}">${ic('plus')}Proposer un code promo</button>`)}
         </div>
+        ${offers.length?`<div><div class="head"><div><h2>Offres sans code</h2><p class="muted">Les avantages à découvrir auprès de l’enseigne, sans code à saisir.</p></div></div><div class="offers">${offers.map(offerCard).join('')}</div></div>`:''}
         ${catalogsOf(slug).length?`<div><div class="head"><h2>Catalogues & arrivages ${esc(b.name)}</h2><a class="link" href="#/catalogues">Tous les catalogues</a></div><div class="catalogs">${catalogsOf(slug).map(c=>catalogueCard(c,false)).join('')}</div></div>`:''}
         ${bizEvents.length?`<div><div class="head"><h2>Événements ${esc(b.name)}</h2></div><div class="events">${bizEvents.map(eventCard).join('')}</div></div>`:''}
         <div class="card">
@@ -2620,7 +2653,7 @@ function proposeDialog(slug){
   <form class="form" id="proposeForm">
     ${b?`<div class="for">${logo(b)}<div><small class="muted">Pour l’entreprise</small><br><strong>${esc(b.name)}</strong></div><input type="hidden" name="biz" value="${b.slug}"></div>`:
       `<label>Entreprise<select name="biz" required><option value="">Choisir une entreprise</option>${[...B].sort((a,z)=>a.name.localeCompare(z.name,'fr')).map(x=>`<option value="${x.slug}">${esc(x.name)}</option>`).join('')}</select></label>`}
-    <div class="seg typeseg" role="radiogroup" aria-label="Type d’offre"><label><input type="radio" name="type" value="code" checked> Code promo</label><label><input type="radio" name="type" value="magasin"> Offre en magasin</label></div>
+    <div class="seg typeseg" role="radiogroup" aria-label="Type d’offre"><label><input type="radio" name="type" value="code" checked> Code promo</label><label><input type="radio" name="type" value="magasin"> Offre en magasin</label><label><input type="radio" name="type" value="offre"> Offre sans code</label></div>
     <div class="two">
       <label class="codefield">Code<input class="u22" name="code" required placeholder="Ex. MAYOTTE20" maxlength="30"></label>
       <label>Avantage<input name="deal" required placeholder="-15 %, livraison offerte…" maxlength="60"></label>
@@ -2629,7 +2662,7 @@ function proposeDialog(slug){
     <label>Conditions <span class="opt">(facultatif)</span><textarea name="cond" placeholder="Montant minimum, produits exclus…"></textarea></label>
     ${TEMPS.length?`<label>Temps fort <span class="opt">(facultatif)</span><select name="tf"><option value="">Aucun</option>${TEMPS.map(t=>`<option value="${t.slug}"${proposeTF===t.slug?' selected':''}>${esc(t.emoji)} ${esc(t.title)}</option>`).join('')}</select></label>`:''}
     <div class="two">
-      <label>Date d’expiration<input name="exp" type="date" required min="${min}"></label>
+      <label class="expfield">Date d’expiration<span class="opt" hidden> (facultatif si inconnue)</span><input name="exp" type="date" required min="${min}"></label>
       <label>Lien de l’offre <span class="opt">(facultatif)</span><input name="link" type="url" placeholder="https://"></label>
     </div>
     <button class="btn btn-primary" type="submit">Publier le code</button>
@@ -2750,6 +2783,10 @@ document.addEventListener('click',async e=>{
     try{ await call('DELETE',`/wix-data/v2/items/${encodeURIComponent(t.dataset.delcomment)}?dataCollectionId=Commentaires`); COMMENTS=COMMENTS.filter(x=>x.id!==t.dataset.delcomment); refresh(); toast('Commentaire supprimé'); }
     catch(err){ console.warn(err); toast('Suppression impossible. Réessayez.'); }
   }
+  else if(t.dataset.reportoffer){
+    if(!requireLogin('Connectez-vous pour signaler une offre.',()=>reportOfferDialog(t.dataset.reportoffer))) return;
+    reportOfferDialog(t.dataset.reportoffer);
+  }
   else if(t.dataset.report){
     if(!requireLogin('Connectez-vous pour signaler un commentaire.',()=>reportDialog(t.dataset.report))) return;
     reportDialog(t.dataset.report);
@@ -2830,7 +2867,9 @@ dlg.addEventListener('click',e=>{ if(e.target===dlg) dlg.close(); });
 dlg.addEventListener('close',()=>{ posMap=dropMap(posMap); if(!dlgByNav&&history.state&&history.state.bzDlg) history.back(); dlgByNav=false; });
 
 document.addEventListener('change',e=>{
-  if(e.target.name==='type'&&e.target.closest('#proposeForm')){ const cf=document.querySelector('#proposeForm .codefield'); const st=e.target.value==='magasin'; cf.hidden=st; cf.querySelector('input').required=!st; }
+  if(e.target.name==='type'&&e.target.closest('#proposeForm')){ const pf=document.getElementById('proposeForm'), cf=pf.querySelector('.codefield'), ef=pf.querySelector('.expfield'), st=e.target.value!=='code', off=e.target.value==='offre';
+    cf.hidden=st; cf.querySelector('input').required=!st; ef.querySelector('input').required=!off; ef.querySelector('.opt').hidden=!off;
+    pf.querySelector('button[type=submit]').textContent=off?'Publier l’offre':'Publier le code'; }
   const id=e.target.id;
   if(e.target.name==='type'&&e.target.closest('#demandeForm')){ const a=e.target.value==='achat', f=e.target.closest('form'); f.querySelector('.achatfields').hidden=!a; f.texte.placeholder=a?'Ex. Une machine à laver 7 kg, livrée à Sada':'Ex. Quelqu’un a un code pour une livraison gratuite chez… ?'; }
   if(e.target.name==='type'&&e.target.closest('#alertForm')){ document.querySelectorAll('#alertForm .af').forEach(l=>l.hidden=!l.classList.contains('af-'+e.target.value)); }
@@ -2904,12 +2943,13 @@ document.addEventListener('submit',async e=>{
   else if(f.id==='proposeForm'){
     e.preventDefault(); if(!me()) return;
     const d=Object.fromEntries(new FormData(f));
-    const store=d.type==='magasin';
-    const p={biz:d.biz,code:store?'':(d.code||'').trim().toUpperCase(),deal:d.deal.trim(),detail:(d.detail||'').trim(),cond:d.cond.trim(),exp:d.exp,link:d.link.trim()};
+    const store=d.type==='magasin', offre=d.type==='offre';
+    const p={biz:d.biz,code:store||offre?'':(d.code||'').trim().toUpperCase(),deal:d.deal.trim(),detail:(d.detail||'').trim(),cond:d.cond.trim(),exp:d.exp||'',link:d.link.trim()};
+    if(offre&&OFFRES.some(o=>o.biz===p.biz&&offerLive(o)&&textKey(o.deal)===textKey(p.deal))){ toast('Cette offre est déjà en ligne pour cette entreprise. Merci !'); return; }
     if(!store&&activeCodes().some(c=>c.biz===p.biz&&c.code.toUpperCase()===p.code)){ toast('Ce code est déjà en ligne pour cette entreprise. Merci !'); return; }
     const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Publication…';
-    sendToWix('PropositionsCodes',{code:p.code,typeOffre:store?'magasin':'code',entreprise:bizId[p.biz]||p.biz,avantage:p.deal,detail:p.detail,conditions:p.cond,dateExpiration:p.exp,lienOffre:p.link,tempsForts:d.tf||'',statut:'En attente',contributeurId:me().id,contributeurNom:me().name})
-      .then(()=>{ dlg.close(); toast('Merci ! Votre code est publié dans quelques secondes.'); setTimeout(reloadAll,5000); })
+    sendToWix('PropositionsCodes',{code:p.code,typeOffre:offre?'offre':store?'magasin':'code',entreprise:bizId[p.biz]||p.biz,avantage:p.deal,detail:p.detail,conditions:p.cond,dateExpiration:p.exp,lienOffre:p.link,tempsForts:d.tf||'',statut:'En attente',contributeurId:me().id,contributeurNom:me().name})
+      .then(()=>{ dlg.close(); toast(offre?'Merci ! Votre offre est publiée dans quelques secondes.':'Merci ! Votre code est publié dans quelques secondes.'); setTimeout(reloadAll,5000); })
       .catch(err=>{ console.warn(err); btn.disabled=false; btn.textContent='Publier le code'; toast(err.status===401||err.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'); });
   }
   else if(f.dataset.commentform){
@@ -2934,6 +2974,12 @@ document.addEventListener('submit',async e=>{
     const btn=f.querySelector('button[type=submit]'); btn.disabled=true;
     try{ await excludeMember(f.dataset.id,(new FormData(f).get('motif')||'').toString().trim().slice(0,200)); dlg.close(); refresh(); toast('Membre exclu du programme de points.'); }
     catch(err){ console.warn(err); btn.disabled=false; toast('Exclusion impossible. Réessayez.'); }
+  }
+  else if(f.id==='reportOfferForm'){
+    e.preventDefault(); const id=f.dataset.id; const motif=(new FormData(f).get('motif')||'Autre').toString();
+    const btn=f.querySelector('button[type=submit]'); btn.disabled=true;
+    try{ const r=await sendToWix('Signalements',{offre:id,motif}); OFFER_REPORTS.push({id:r.dataItem&&r.dataItem.id,offre:id,owner:me().id,motif,at:new Date()}); dlg.close(); refresh(); toast('Merci, l’offre est signalée.'); }
+    catch(err){ console.warn(err); btn.disabled=false; toast(err.status===401||err.status===403?'Session expirée : reconnectez-vous.':'Signalement impossible. Réessayez.'); }
   }
   else if(f.id==='reportForm'){
     e.preventDefault(); const cid=f.dataset.cid; const motif=(new FormData(f).get('motif')||'Autre').toString();

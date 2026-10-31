@@ -909,3 +909,14 @@ body:has(.fab) #app{padding-bottom:72px}
 .radarlist li:first-child{border-top:0}
 .radarlist b{color:var(--muted);font-weight:600;font-size:.9rem}
 .radar .tips{margin:0;padding:0;list-style:none;display:grid;gap:6px;line-height:1.45}
+
+/* Offres sans code public (fiche entreprise) */
+.offers{display:grid;gap:16px}
+.offer{position:relative;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--soleil);border-radius:20px;padding:20px 24px;box-shadow:var(--shadow);display:grid;gap:10px;justify-items:start}
+.offer h3{font-family:var(--display);font-size:1.25rem;line-height:1.25;margin:4px 0 0;color:var(--ink)}
+.offer .offexp{color:var(--muted);font-size:.92rem;margin:0}
+.offer details{width:100%}
+.offer summary{cursor:pointer;font-weight:600;color:var(--ink);padding:4px 0}
+.offer details p{margin:8px 0 0;line-height:1.55;color:var(--ink)}
+.offer .offacts{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
+@media (max-width:560px){ .offer{padding:16px} .offer h3{font-size:1.12rem} }
