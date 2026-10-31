@@ -1816,22 +1816,69 @@ function pricesAudit(){
     ${hidden.length?`<details class="card u10"><summary><strong>${hidden.length} relevé${hidden.length>1?'s':''} masqué${hidden.length>1?'s':''}</strong></summary><div class="list u10">${hidden.map(r=>`<div class="li"><div class="grow"><strong>${fmtPrice(r.prix)} · ${esc(r.magasin)}</strong><small>par ${esc(r.pseudo)} · ${fmt(r.day)}</small></div><button class="btn btn-ghost btn-sm" data-showprix="${esc(r.id)}">Réafficher</button></div>`).join('')}</div></details>`:''}`;
 }
 
+/* Page Événements : « À l'affiche » (prochain événement + compte à rebours), calendrier du mois, mosaïque. */
+const EV_TAGS=[[/concert|festival|jazz|danse|th[ée]âtre|spectacle|soir[ée]e|contes/i,'🎤 Sortie','sortie'],[/marche|course|\bkm\b|rando|trail|sport|fitness/i,'🏃 Sport','sport'],[/mangrove|plantation|visite|nature|propret[ée]|novembre vert|donnerie/i,'🌿 Nature','nature'],[/sant[ée]|diab/i,'❤️ Santé','sante'],[/shopping|march[ée]|momojou|braderie|vente/i,'🛍️ Shopping & fête','shop'],[/atelier|poterie|formation|caf[ée] of/i,'🎨 Atelier','atelier']];
+const evTag=e=>{ const t=EV_TAGS.find(([re])=>re.test(e.title)); return t?{label:t[1],k:t[2]}:null; };
+const evFree=e=>/gratuit/i.test(e.desc);
+const evPills=e=>{ const t=evTag(e); return (t?`<span class="pill evt-${t.k}">${t.label}</span>`:'')+(evFree(e)?'<span class="pill evfree">Gratuit</span>':''); };
+const evEnd=e=>e.end&&e.end>e.date?e.end:e.date;
+const evOn=(e,d)=>e.date<=d&&evEnd(e)>=d;
+const evWhere=e=>[e.place,e.commune?comBy(e.commune).name:e.communeName].filter(Boolean).join(', ');
+const evWhen=e=>e.end&&e.end>e.date?`Du ${e.date.getDate()}${e.date.getMonth()!==e.end.getMonth()?' '+MONTHS[e.date.getMonth()]:''} au ${e.end.getDate()} ${MONTHS[e.end.getMonth()]}`:e.date.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'}).replace(/\./g,'');
+// Fichier agenda (.ics) : journée entière, pour l'ajouter au calendrier du téléphone.
+function icsHref(e){
+  const d=x=>isoDay(x).replace(/-/g,''), end=new Date(evEnd(e)); end.setDate(end.getDate()+1);
+  const clean=t=>String(t||'').replace(/[\;,]/g,m=>'\\'+m).replace(/\n/g,' ');
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Bonszahe//FR','BEGIN:VEVENT',`UID:${e.id}@bonszahe.com`,`DTSTAMP:${d(TODAY)}T000000Z`,`DTSTART;VALUE=DATE:${d(e.date)}`,`DTEND;VALUE=DATE:${d(end)}`,`SUMMARY:${clean(e.title)}`,`LOCATION:${clean(evWhere(e))}`,`DESCRIPTION:${clean((e.time?e.time+' – ':'')+e.desc+(e.link?' '+e.link:''))}`,'END:VEVENT','END:VCALENDAR'].join('\r\n');
+  return 'data:text/calendar;charset=utf-8,'+encodeURIComponent(ics);
+}
+const icsBtn=(e,cls='btn btn-ghost btn-sm')=>`<a class="${cls}" href="${icsHref(e)}" download="${esc(slugify(e.title)||'evenement')}.ics">📅 Ajouter à mon agenda</a>`;
+function evHero(e){
+  const n=Math.round((e.date-TODAY)/DAY), live=evOn(e,TODAY);
+  const cd=live?'<b>En cours</b>':n===0?'<b>Aujourd’hui</b>':n===1?'<b>Demain</b>':`<b>J-${n}</b>`;
+  return `<div class="evhero"${e.img?` style="--evimg:url('${esc(e.img)}')"`:''}>
+    <span class="evkick">★ À l’affiche</span>
+    <div class="evcd">${cd}<small>${esc(evWhen(e))}</small></div>
+    <h2>${esc(e.title)}</h2>
+    <p>${[evWhere(e)&&'📍 '+esc(evWhere(e)),e.time&&'🕒 '+esc(e.time)].filter(Boolean).join(' · ')}</p>
+    <div class="evhbtns">${e.link?`<a class="btn btn-sun btn-sm" href="${esc(e.link)}" target="_blank" rel="noopener">En savoir plus</a>`:''}<button class="btn btn-sm evglass" data-evt="${esc(e.id)}">Détails</button>${icsBtn(e,'btn btn-sm evglass')}</div>
+  </div>`;
+}
+function evCalendar(list,mk,sel,com){
+  const [y,m]=mk.split('-').map(Number), first=new Date(y,m-1,1), days=new Date(y,m,0).getDate(), pad=(first.getDay()+6)%7;
+  const prev=monthKey(new Date(y,m-2,1)), next=monthKey(new Date(y,m,1));
+  const q=k=>`#/evenements?m=${k}${com?'&c='+com:''}`;
+  let cells=['L','M','M','J','V','S','D'].map(x=>`<span class="h">${x}</span>`).join('')+'<span></span>'.repeat(pad);
+  for(let i=1;i<=days;i++){ const d=new Date(y,m-1,i), n=list.filter(e=>evOn(e,d)).length, k=isoDay(d);
+    cells+=n?`<a class="c e${sel===k?' sel':''}${+d===+TODAY?' today':''}" href="${q(mk)}&d=${k}" aria-label="${i} ${MONTHS[m-1]} : ${n} événement${n>1?'s':''}">${i}<i>${'<b></b>'.repeat(Math.min(n,3))}</i></a>`:`<span class="c${+d===+TODAY?' today':''}${d<TODAY?' past':''}">${i}</span>`; }
+  return `<div class="evcal"><div class="ch"><a class="iconbtn" href="${q(prev)}" aria-label="Mois précédent">‹</a><h2>${MONTHS[m-1].charAt(0).toUpperCase()+MONTHS[m-1].slice(1)} ${y}</h2><a class="iconbtn" href="${q(next)}" aria-label="Mois suivant">›</a></div><div class="g">${cells}</div></div>`;
+}
+const evTile=(e,big)=>`<button class="evtile${big?' big':''}" data-evt="${esc(e.id)}"><span class="when">${esc(evWhen(e))}${e.time&&e.time.length<14?' · '+esc(e.time):''}</span><strong>${esc(e.title)}</strong>${evWhere(e)?`<span class="where">📍 ${esc(evWhere(e))}</span>`:''}<span class="pills">${evPills(e)}</span></button>`;
+function eventDialog(id){ const e=EVENTS.find(x=>x.id===id); if(!e) return;
+  openDialog(`<header><div><h2 id="dlgTitle">${esc(e.title)}</h2><p class="u14 note">${esc(evWhen(e))}${e.time?' · '+esc(e.time):''}</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>${eventCard(e)}<div class="bandbtns u10">${icsBtn(e)}</div>`); }
 function pageEvents(params){
-  const sel=params.get('c')||'';
+  const com=params.get('c')||'';
   const all=upcomingEvents();
-  const list=all.filter(e=>!sel||e.commune===sel);
+  const list=all.filter(e=>!com||e.commune===com);
   const coms=[...new Set(all.map(e=>e.commune).filter(Boolean))].map(comBy).sort((a,z)=>a.name.localeCompare(z.name,'fr'));
-  const groups={};
-  list.forEach(e=>{ const k=e.date.toLocaleDateString('fr-FR',{month:'long',year:'numeric'}); (groups[k]=groups[k]||[]).push(e); });
+  const hero=list[0];
+  const mk=/^\d{4}-\d{2}$/.test(params.get('m')||'')?params.get('m'):monthKey(hero&&hero.date>TODAY?hero.date:TODAY);
+  const selD=/^\d{4}-\d{2}-\d{2}$/.test(params.get('d')||'')?params.get('d'):'';
+  const [y,m]=mk.split('-').map(Number), mStart=new Date(y,m-1,1), mEnd=new Date(y,m,0);
+  const inMonth=list.filter(e=>e.date<=mEnd&&evEnd(e)>=mStart);
+  const dayList=selD?list.filter(e=>evOn(e,dateFrom(selD))):[];
+  const shown=selD?dayList:inMonth;
+  const title=selD?dateFrom(selD).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}):'Tous les événements de '+MONTHS[m-1];
   return `<div class="wrap">
-    ${all.length?'':backBtn('#/')}<div class="pagehead"><h1>Événements à Mayotte</h1><p class="muted">Marchés, ventes privées, fêtes, concerts et animations des entreprises de l’île.</p></div>
-    ${coms.length>1?`<div class="chips" role="group" aria-label="Filtrer par commune"><a class="chip" href="#/evenements" aria-pressed="${!sel}">Toutes les communes</a>${coms.map(c=>`<a class="chip" href="#/evenements?c=${c.slug}" aria-pressed="${sel===c.slug}">${esc(c.name)}</a>`).join('')}</div>`:''}
-    <div class="u13">${list.length?Object.keys(groups).map(k=>`<h2 class="evmonth">${esc(k.charAt(0).toUpperCase()+k.slice(1))}</h2><div class="events">${groups[k].map(eventCard).join('')}</div>`).join(''):
-      empty('Aucun événement à venir pour l’instant','Vous organisez un marché, une vente privée ou une animation ? Faites-le savoir à la communauté.',`<button class="btn btn-primary" data-claim="">Annoncer un événement</button>`)}</div>
+    ${all.length?'':backBtn('#/')}<div class="pagehead"><h1>Événements à Mayotte</h1><p class="muted">Marchés, fêtes, concerts, sorties nature et animations de l’île.</p></div>
+    ${coms.length>1?`<div class="chips" role="group" aria-label="Filtrer par commune"><a class="chip" href="#/evenements?m=${mk}" aria-pressed="${!com}">Toutes les communes</a>${coms.map(c=>`<a class="chip" href="#/evenements?m=${mk}&c=${c.slug}" aria-pressed="${com===c.slug}">${esc(c.name)}</a>`).join('')}</div>`:''}
+    ${list.length?`<div class="evtop u13">${evHero(hero)}${evCalendar(list,mk,selD,com)}</div>
+    <div class="head evlisthead"><h2>${esc(title.charAt(0).toUpperCase()+title.slice(1))}</h2>${selD?`<a class="link" href="#/evenements?m=${mk}${com?'&c='+com:''}">Voir tout le mois</a>`:`<span class="muted">${plural(shown.length,'événement','événements')}</span>`}</div>
+    ${shown.length?`<div class="evbento">${shown.map((e,i)=>evTile(e,i===0&&shown.length>2)).join('')}</div>`:`<p class="muted">Aucun événement ${selD?'ce jour-là':'ce mois-ci'}${com?' dans cette commune':''}. Touchez un jour marqué d’un point dans le calendrier.</p>`}`:
+      empty('Aucun événement à venir pour l’instant','Vous organisez un marché, une vente privée ou une animation ? Faites-le savoir à la communauté.',`<button class="btn btn-primary" data-claim="">Annoncer un événement</button>`)}
     <div class="u8"></div>
   </div>`;
 }
-
 
 /* ---------- Carte interactive ---------- */
 let mapSel='';
@@ -2548,6 +2595,8 @@ function route(){
   if(!quietRender){ pageIn(); reveal(app); }
   checkRewards();
   window.scrollTo(0,!quietRender&&navBack&&scrollMemo[curH()]||0);
+  // Événements : après le choix d'un jour ou d'un mois, on reste sur le calendrier au lieu de remonter en haut.
+  if(p==='evenements'&&!quietRender&&!navBack&&(params.get('d')||params.get('m'))){ const el=document.querySelector(params.get('d')?'.evlisthead':'.evcal'); if(el) window.scrollTo(0,el.getBoundingClientRect().top+window.scrollY-(params.get('d')&&innerWidth>720?380:90)); }
   if(p==='recherche'&&!params.get('q')) document.getElementById('sq')?.focus();
 }
 // Référencement : titre, description, adresse canonique, aperçus de partage et données structurées de la page.
@@ -2810,6 +2859,7 @@ document.addEventListener('click',async e=>{
     save(); refresh();
   }
   else if(t.dataset.commune){ selectCommune(t.dataset.commune); }
+  else if(t.dataset.evt){ eventDialog(t.dataset.evt); }
   else if(t.dataset.proposeoffer!==undefined){ proposeTF=''; proposeDialog(t.dataset.proposeoffer,'offre'); }
   else if(t.dataset.propose!==undefined){ proposeTF=t.dataset.tf||''; proposeDialog(t.dataset.propose); }
   else if(t.dataset.claim!==undefined){ claimDialog(t.dataset.claim); }

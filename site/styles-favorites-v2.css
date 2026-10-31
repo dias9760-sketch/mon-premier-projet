@@ -922,3 +922,49 @@ body:has(.fab) #app{padding-bottom:72px}
 @media (max-width:560px){ .offer{padding:16px} .offer h3{font-size:1.12rem} }
 .offmore{display:flex;justify-content:center;margin-top:16px}
 .proposebig .offside{width:100%;margin-top:10px}
+
+/* ---------- Événements : à l'affiche + calendrier + mosaïque ---------- */
+.evtop{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px;align-items:stretch}
+.evhero{position:relative;overflow:hidden;border-radius:26px;padding:24px;color:#fff;min-height:300px;display:flex;flex-direction:column;justify-content:flex-end;
+  background:linear-gradient(180deg,rgba(8,43,84,.15),rgba(8,43,84,.85)),var(--evimg,radial-gradient(circle at 85% 15%,rgba(255,178,63,.55),transparent 45%)),linear-gradient(140deg,#082B54,#0B3A6E 55%,#B0244F);background-size:cover;background-position:center}
+.evhero::after{content:"";position:absolute;right:-50px;bottom:-70px;width:230px;height:230px;border-radius:50%;border:30px solid rgba(255,255,255,.07);pointer-events:none}
+.evhero .evkick{position:absolute;top:20px;left:24px;font-weight:800;letter-spacing:.08em;font-size:.75rem;text-transform:uppercase;color:#FFD9A0}
+.evhero .evcd{position:absolute;top:16px;right:18px;background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.28);border-radius:16px;padding:8px 12px;text-align:center;max-width:46%}
+.evhero .evcd b{display:block;font-family:var(--display);font-size:1.7rem;line-height:1.05}
+.evhero .evcd small{font-size:.74rem;font-weight:700}
+.evhero h2{font-size:clamp(1.45rem,3vw,2rem);line-height:1.12;margin:56px 0 8px;color:#fff;position:relative;z-index:1}
+.evhero p{opacity:.92;margin:0 0 14px;position:relative;z-index:1}
+.evhbtns{display:flex;flex-wrap:wrap;gap:8px;position:relative;z-index:1}
+.evglass{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.25)}
+.evglass:hover{background:rgba(255,255,255,.26)}
+.evcal{background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:16px;box-shadow:var(--shadow)}
+.evcal .ch{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.evcal .ch h2{font-size:1.15rem;margin:0}
+.evcal .g{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.evcal .h{font-size:.72rem;font-weight:800;color:var(--muted);padding:4px 0}
+.evcal .c{aspect-ratio:1;min-height:38px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:600;font-size:.92rem;color:var(--ink);text-decoration:none}
+.evcal .c.past{color:var(--muted);opacity:.55}
+.evcal .c.e{background:var(--soft);font-weight:800}
+.evcal .c.e:hover{background:var(--soleil-50)}
+.evcal .c i{display:flex;gap:2px;height:5px;margin-top:2px}
+.evcal .c i b{width:5px;height:5px;border-radius:50%;background:var(--corail)}
+.evcal .c.sel{background:var(--corail);color:#fff}
+.evcal .c.sel i b{background:#fff}
+.evcal .c.today{outline:2px solid var(--turquoise);outline-offset:-2px}
+.evlisthead{margin:28px 0 14px}
+.evlisthead h2{margin:0;font-size:1.3rem}
+.evbento{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.evtile{all:unset;box-sizing:border-box;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 16px;box-shadow:var(--shadow);display:grid;gap:6px;align-content:start;transition:transform .15s,box-shadow .15s}
+.evtile:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(120,70,20,.08),0 14px 28px rgba(120,70,20,.12)}
+.evtile:focus-visible{outline:3px solid var(--soleil);outline-offset:2px}
+.evtile .when{font-weight:800;color:var(--corail);font-size:.78rem;text-transform:uppercase;letter-spacing:.04em}
+.evtile strong{font-family:var(--display);font-size:1.02rem;line-height:1.25;color:var(--ink)}
+.evtile .where{color:var(--muted);font-size:.84rem}
+.evtile .pills{display:flex;flex-wrap:wrap;gap:5px}
+.evtile.big{grid-column:span 2;background:linear-gradient(135deg,var(--soleil-50),var(--surface))}
+.evtile.big strong{font-size:1.2rem}
+.pill.evfree{background:var(--vert);color:#fff}
+.pill.evt-sortie{background:#FDE4EC;color:#B0244F}.pill.evt-sport{background:#E3F2DC;color:#2E6E22}.pill.evt-nature{background:#DDF3F6;color:#0D7180}.pill.evt-sante{background:#FFE5DE;color:#C23E20}.pill.evt-shop{background:var(--soleil-50);color:#9A5B00}.pill.evt-atelier{background:#E8E6FA;color:#4B3FA6}
+@media (max-width:900px){ .evbento{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:720px){ .evtop{grid-template-columns:1fr} .evhero{min-height:260px;padding:20px} .evhero h2{margin-top:64px} }
+@media (max-width:420px){ .evbento{grid-template-columns:1fr} .evtile.big{grid-column:auto} .evcal .c{min-height:34px;font-size:.85rem} }
