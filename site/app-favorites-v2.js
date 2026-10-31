@@ -842,7 +842,11 @@ function pageBusiness(slug){
           ${codes.length?`<div class="coupons">${codes.map(c=>coupon(c,{showBiz:false})).join('')}</div>`:
             empty('Pas encore de code pour '+esc(b.name),'Si vous en connaissez un, proposez-le : il apparaîtra ici immédiatement.',`<button class="btn btn-sun" data-propose="${slug}">${ic('plus')}Proposer un code promo</button>`)}
         </div>
-        ${offers.length?`<div><div class="head"><div><h2>Offres sans code</h2><p class="muted">Les avantages à découvrir auprès de l’enseigne, sans code à saisir.</p></div></div><div class="offers">${offers.map(offerCard).join('')}</div></div>`:''}
+        <div>
+          <div class="head"><div><h2>Offres sans code ${esc(b.name)}</h2><p class="muted">${offers.length?plural(offers.length,'avantage','avantages')+' sans code à saisir':'Aucune offre sans code pour le moment'}</p></div></div>
+          ${offers.length?`<div class="offers">${offers.map(offerCard).join('')}</div><div class="offmore"><button class="btn btn-sun" data-proposeoffer="${slug}">${ic('plus')}Proposer une offre</button></div>`:
+            empty('Pas encore d’offre sans code pour '+esc(b.name),'Une remise en magasin, une offre de bienvenue, des soldes sans code ? Partagez-la : elle apparaîtra ici.',`<button class="btn btn-sun" data-proposeoffer="${slug}">${ic('plus')}Proposer une offre</button>`)}
+        </div>
         ${catalogsOf(slug).length?`<div><div class="head"><h2>Catalogues & arrivages ${esc(b.name)}</h2><a class="link" href="#/catalogues">Tous les catalogues</a></div><div class="catalogs">${catalogsOf(slug).map(c=>catalogueCard(c,false)).join('')}</div></div>`:''}
         ${bizEvents.length?`<div><div class="head"><h2>Événements ${esc(b.name)}</h2></div><div class="events">${bizEvents.map(eventCard).join('')}</div></div>`:''}
         <div class="card">
@@ -856,6 +860,7 @@ function pageBusiness(slug){
           <h3>Vous connaissez un autre code ${esc(b.name)} ?</h3>
           <p>Partagez-le avec la communauté.</p>
           <button class="u24 btn btn-sun" data-propose="${slug}">${ic('plus')}Proposer un code promo</button>
+          <button class="btn btn-ghost offside" data-proposeoffer="${slug}">${ic('plus')}Proposer une offre sans code</button>
         </div>
         ${me()&&b.owners.includes(me().id)?`<div class="card">
           <h3>Vous gérez cette fiche</h3>
@@ -2645,8 +2650,8 @@ function openDialog(html){ dlgBody.innerHTML=html; if(!dlg.open){ dlg.showModal(
 window.addEventListener('popstate',()=>{ if(dlg.open&&!(history.state&&history.state.bzDlg)){ dlgByNav=true; dlg.close(); } });
 
 let proposeTF='';
-function proposeDialog(slug){
-  if(!requireLogin('Connectez-vous pour partager un code : il sera publié avec votre pseudo et vous rapportera des points.',()=>proposeDialog(slug))) return;
+function proposeDialog(slug,type){
+  if(!requireLogin(type==='offre'?'Connectez-vous pour partager une offre : elle sera publiée avec votre pseudo.':'Connectez-vous pour partager un code : il sera publié avec votre pseudo et vous rapportera des points.',()=>proposeDialog(slug,type))) return;
   const b=slug&&bizBy(slug);
   const t=new Date(); const min=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
   openDialog(`<header><div><h2 id="dlgTitle">Proposer un code promo</h2><p class="u14 note">Publié tout de suite sous le pseudo <strong>${esc(me().name)}</strong>. La communauté confirme ensuite s’il fonctionne.</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
@@ -2667,6 +2672,7 @@ function proposeDialog(slug){
     </div>
     <button class="btn btn-primary" type="submit">Publier le code</button>
   </form>`);
+  if(type==='offre'){ const r=document.querySelector('#proposeForm input[name=type][value=offre]'); if(r){ r.checked=true; r.dispatchEvent(new Event('change',{bubbles:true})); } document.getElementById('dlgTitle').textContent='Proposer une offre sans code'; }
 }
 /* ---------- Revendication d'une fiche entreprise ---------- */
 // Fournisseurs d'e-mail grand public : jamais considérés comme « domaine officiel ».
@@ -2802,6 +2808,7 @@ document.addEventListener('click',async e=>{
     save(); refresh();
   }
   else if(t.dataset.commune){ selectCommune(t.dataset.commune); }
+  else if(t.dataset.proposeoffer!==undefined){ proposeTF=''; proposeDialog(t.dataset.proposeoffer,'offre'); }
   else if(t.dataset.propose!==undefined){ proposeTF=t.dataset.tf||''; proposeDialog(t.dataset.propose); }
   else if(t.dataset.claim!==undefined){ claimDialog(t.dataset.claim); }
   else if(t.dataset.editbiz){ editBizDialog(t.dataset.editbiz); }

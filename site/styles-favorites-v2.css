@@ -920,3 +920,5 @@ body:has(.fab) #app{padding-bottom:72px}
 .offer details p{margin:8px 0 0;line-height:1.55;color:var(--ink)}
 .offer .offacts{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
 @media (max-width:560px){ .offer{padding:16px} .offer h3{font-size:1.12rem} }
+.offmore{display:flex;justify-content:center;margin-top:16px}
+.proposebig .offside{width:100%;margin-top:10px}
