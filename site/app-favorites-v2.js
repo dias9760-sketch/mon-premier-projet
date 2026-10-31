@@ -461,6 +461,8 @@ function offerReported(o){ const by=new Set(OFFER_REPORTS.filter(r=>r.offre===o.
   return by.size>=OFFER_MASK_AT||by.has(ADMIN_ID)||(b&&b.owners.some(id=>by.has(id))); }
 const offerLive = o => o.status==='valide' && (!o.exp||o.exp>=TODAY) && !offerReported(o);
 const offersOf = slug => OFFRES.filter(o=>o.biz===slug&&offerLive(o)).sort((a,z)=>(a.exp||Infinity)-(z.exp||Infinity)||z.added-a.added);
+// Nombre de bons plans d'une entreprise : codes promo + offres sans code.
+const dealsCount = slug => codesOf(slug).length + offersOf(slug).length;
 const myOfferReport = id => !!me()&&OFFER_REPORTS.some(r=>r.offre===id&&r.owner===me().id);
 function offerCard(o){
   const mine=myOfferReport(o.id);
@@ -586,7 +588,7 @@ function openPill(b){
   return `<span class="openpill ${s.open?(s.soon?'soon':'on'):'off'}">${s.open?'Ouvert':'Fermé'}${s.label?' · '+esc(s.label):''}</span>`;
 }
 function bizCard(b){
-  const n=codesOf(b.slug).length; const fav=S.favs.includes(b.slug);
+  const n=dealsCount(b.slug); const fav=S.favs.includes(b.slug);
   return `<article class="biz">
     
       <a class="cover cv cv-${b.cat}" href="#/entreprises/${b.slug}" aria-label="Voir ${esc(b.name)}"></a>
@@ -594,7 +596,7 @@ function bizCard(b){
         ${logo(b,'md')}
         <div class="biz-title"><h3><a href="#/entreprises/${b.slug}">${esc(b.name)}</a></h3><button type="button" class="fav" data-fav="${b.slug}" aria-pressed="${fav}" aria-label="${fav?'Retirer':'Ajouter'} ${esc(b.name)} ${fav?'des':'aux'} favoris"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3L3 9.6l6.2-.9Z"/></svg></button></div>
         <p class="u4 muted">${esc(catBy(b.cat).name)}</p>${openPill(b)}
-        <div class="row"><span class="count ${n?'':'none'}">${n?n+' bon'+(n>1?'s':'')+' plan'+(n>1?'s':'')+' disponible'+(n>1?'s':''):'Aucun code pour le moment'}</span></div>
+        <div class="row"><span class="count ${n?'':'none'}">${n?n+' bon'+(n>1?'s':'')+' plan'+(n>1?'s':'')+' disponible'+(n>1?'s':''):'Aucun bon plan pour le moment'}</span></div>
       </div>
 
     
@@ -787,8 +789,8 @@ function pageDirectory(params){
 }
 function drawDirectory(){
   const q=norm(dirState.q);
-  const list=B.filter(b=>(!dirState.cat||b.cat===dirState.cat)&&(!dirState.com||b.commune===dirState.com)&&(!dirState.deals||codesOf(b.slug).length)&&(!dirState.open||isOpenNow(b))&&(!q||norm(b.name+' '+b.desc+' '+catBy(b.cat).name).includes(q)));
-  if(dirState.sort==='codes') list.sort((a,z)=>codesOf(z.slug).length-codesOf(a.slug).length||a.name.localeCompare(z.name,'fr'));
+  const list=B.filter(b=>(!dirState.cat||b.cat===dirState.cat)&&(!dirState.com||b.commune===dirState.com)&&(!dirState.deals||dealsCount(b.slug))&&(!dirState.open||isOpenNow(b))&&(!q||norm(b.name+' '+b.desc+' '+catBy(b.cat).name).includes(q)));
+  if(dirState.sort==='codes') list.sort((a,z)=>dealsCount(z.slug)-dealsCount(a.slug)||a.name.localeCompare(z.name,'fr'));
   const active=dirState.cat||dirState.com||dirState.deals||dirState.open||q||dirState.sort!=='az';
   document.getElementById('dirReset').hidden=!active;
   document.getElementById('dirCount').textContent=`${list.length} entreprise${list.length>1?'s':''}${dirState.com?' à '+comBy(dirState.com).name:''}`;
@@ -805,7 +807,7 @@ function pageBusiness(slug){
   const offers=offersOf(slug);
   const fav=S.favs.includes(slug);
   const bizEvents=upcomingEvents().filter(e=>e.biz===slug);
-  const similar=B.filter(x=>x.cat===b.cat&&x.slug!==slug).sort((a,z)=>codesOf(z.slug).length-codesOf(a.slug).length).slice(0,3);
+  const similar=B.filter(x=>x.cat===b.cat&&x.slug!==slug).sort((a,z)=>dealsCount(z.slug)-dealsCount(a.slug)).slice(0,3);
   const cat=catBy(b.cat);
   return `<div class="wrap">
     ${backBtn('#/entreprises')}
@@ -1850,7 +1852,7 @@ function mapPanel(){
     return `<div><h3>Choisissez une commune</h3><p class="u14 muted">Touchez une commune sur la carte pour voir ses entreprises et leurs bons plans. Les pastilles jaunes indiquent le nombre d’entreprises référencées.</p></div>${chips}<p class="note">${online} entreprises vendent en ligne depuis l’extérieur de l’île et livrent à Mayotte.</p>`;
   }
   const c=comBy(mapSel), list=bizIn(mapSel), codes=activeCodes().filter(x=>bizBy(x.biz).commune===mapSel);
-  const items=list.sort((a,z)=>codesOf(z.slug).length-codesOf(a.slug).length).map(b=>{const n=codesOf(b.slug).length;return `<div class="li">${logo(b)}<a class="grow" href="#/entreprises/${b.slug}"><strong>${esc(b.name)}</strong><small>${esc(catBy(b.cat).name)}${n?', '+n+' bon'+(n>1?'s':'')+' plan'+(n>1?'s':''):''}</small></a><a class="btn btn-ghost btn-sm" href="#/entreprises/${b.slug}">Voir</a></div>`}).join('');
+  const items=list.sort((a,z)=>dealsCount(z.slug)-dealsCount(a.slug)).map(b=>{const n=dealsCount(b.slug);return `<div class="li">${logo(b)}<a class="grow" href="#/entreprises/${b.slug}"><strong>${esc(b.name)}</strong><small>${esc(catBy(b.cat).name)}${n?', '+n+' bon'+(n>1?'s':'')+' plan'+(n>1?'s':''):''}</small></a><a class="btn btn-ghost btn-sm" href="#/entreprises/${b.slug}">Voir</a></div>`}).join('');
   return `<div><h3>${esc(c.name)}</h3><p class="u14 muted">${list.length?`${list.length} entreprise${list.length>1?'s':''} et ${codes.length} code${codes.length>1?'s':''} actif${codes.length>1?'s':''}`:'Aucune entreprise référencée pour l’instant'}</p></div>
   ${list.length?`<div class="list">${items}</div>`:empty(`Pas encore d’entreprise à ${esc(c.name)}`,'Vous en connaissez une ? Aidez-nous à compléter la carte.','<button class="btn btn-primary" data-claim="">Ajouter une entreprise</button>')}
   ${codes.length?`<a class="btn btn-sun" href="#/codes">Voir tous les codes promo</a>`:''}
@@ -1914,7 +1916,7 @@ function drawMapList(){
   list.sort((x,z)=>x.d!=null?x.d-z.d:x.b.name.localeCompare(z.b.name,'fr'));
   const where=mapState.com?' à '+comBy(mapState.com).name:'';
   document.getElementById('mapCount').textContent=`${list.length} magasin${list.length>1?'s':''}${where}${mapState.me?', du plus proche au plus loin':''}`;
-  document.getElementById('mapList').innerHTML=list.length?list.map(({b,d})=>{ const n=storeOffers(b), all=codesOf(b.slug).length;
+  document.getElementById('mapList').innerHTML=list.length?list.map(({b,d})=>{ const n=storeOffers(b), all=dealsCount(b.slug);
     return `<div class="li shop">${logo(b)}<div class="grow"><button class="linkbtn" data-focus="${b.slug}"><strong>${esc(b.name)}</strong></button><small>${openPill(b)}${[d!=null?fmtKm(d):'',b.commune?comBy(b.commune).name:'',n?n+' offre'+(n>1?'s':'')+' en magasin':all?all+' bon'+(all>1?'s':'')+' plan'+(all>1?'s':''):''].filter(Boolean).join(' · ')}</small></div><div class="shopacts"><a class="btn btn-ghost btn-sm" href="#/entreprises/${b.slug}">Voir</a>${goLinks(b,false)}</div></div>`; }).join(''):
     empty(mapState.com?`Pas encore de magasin placé à ${esc(comBy(mapState.com).name)}`:'Aucun magasin sur la carte pour l’instant','Les entreprises placent leur magasin depuis leur espace pro.','');
   const missing=B.filter(b=>!b.pos&&b.sale!=='en-ligne'&&(!mapState.com||b.commune===mapState.com));
@@ -1923,7 +1925,7 @@ function drawMapList(){
     <p class="note">Vous gérez l’une de ces entreprises ? Placez votre magasin depuis <a class="link" href="#/profil">Mon espace</a>, bouton « Modifier ma fiche ».</p></details>`:'';
 }
 function popupHtml(b){
-  const n=storeOffers(b), all=codesOf(b.slug).length;
+  const n=storeOffers(b), all=dealsCount(b.slug);
   return `<div class="popup"><strong>${esc(b.name)}</strong><small>${esc(catBy(b.cat).name)}${b.addr?' · '+esc(b.addr):''}</small>${b.hours?`<small>${esc(b.hours)}</small>`:''}${openPill(b)}
     ${n||all?`<span class="pill ok">${n?n+' offre'+(n>1?'s':'')+' en magasin':all+' bon'+(all>1?'s':'')+' plan'+(all>1?'s':'')}</span>`:''}
     <div class="popacts"><a class="btn btn-ghost btn-sm" href="#/entreprises/${b.slug}">Voir la fiche</a>${goLinks(b)}</div></div>`;
