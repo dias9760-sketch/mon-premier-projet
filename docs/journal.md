@@ -1,5 +1,38 @@
 # Bonszahé : journal de passation
 
+## Session du 1ᵉʳ nov. 2026 (après-midi) : campagne SEO du blog
+
+> État au **1ᵉʳ novembre 2026, 16 h 50 (Mayotte)**. Aucun changement de code du site : tout est dans le CMS Wix et dans `docs/`. Branche de travail : `claude/relaxed-bohr-4i6f4v` (basée sur `claude/modest-clarke-d3ern5`, **non publiée** sur bonszahe.com).
+
+**Décisions du propriétaire**
+- Campagne uniquement sur le blog Bonszahé (collection `Articles`), **pas TRyholo** pour l'instant.
+- 2 à 3 articles par semaine ; les 12 sujets proposés sont validés et doivent paraître **à la date prévue**.
+
+**Publié dans le CMS (vérifié par relecture)**
+- `PrixReglementes` : prix de novembre 2026 ajoutés (sans plomb 2,17 €, gazole 1,93 €, gaz 12 kg 27 €). Pétrole lampant et mélange : non trouvés, non ajoutés.
+- Article « Vie chère » : paragraphe carburants passé aux prix de novembre, sources ajoutées.
+- 11 articles programmés (`publie` coché, `datePublication` future = parution automatique ce jour-là) :
+  2/11 carburants novembre · 4/11 Novembre Vert · 6/11 budget Noël · 9/11 billet avion Paris–Mayotte · 11/11 colis pour Noël · 13/11 bouclier qualité prix · 16/11 Black Friday vraie promo · 18/11 loi vie chère · 20/11 cadeaux made in Mayotte · 23/11 codes promo Black Friday · 25/11 marchés de Noël.
+- Textes sources : `docs/articles/<slug>.html` (identiques au CMS, sauf le saut de ligne final). Couvertures : `site/images/blog/` et médiathèque Wix (`imageLien` = static.wixstatic.com).
+
+**Tâches planifiées (dans cette conversation)**
+- `trig_01Tr5PYiYWqBfefeqn5jV5Jg` (22/11) : remettre à jour la liste des codes de l'article du 23/11.
+- `trig_018mEjAwN36SonXcE3BuVnib` (24/11) : compléter l'article marchés de Noël avec les dates confirmées.
+- `trig_01VwYkqwTKW1UWtMZP2oMN4u` (30/11) : écrire et publier l'article n° 12 « carburants de décembre » (couverture déjà en ligne) et mettre à jour `PrixReglementes` et « Vie chère ».
+
+**À faire / à décider**
+- [ ] Données structurées FAQ (FAQPage) dans `site/seo.js` : proposé, attend l'accord (changement de code).
+- [ ] Article BQP : à mettre à jour quand la liste 2026 de la préfecture sera trouvée (seuls les chiffres 2024 sont publiés).
+- [ ] Article « loi vie chère » : à mettre à jour à chaque étape du texte.
+- [ ] Prix pétrole lampant et mélange de novembre à compléter.
+- [ ] Planning de décembre à proposer (prime de Noël, idées repas de fête, ramadan 2027 en janvier…).
+
+**Pièges rencontrés**
+- Réseau de la session : la1ere.franceinfo.fr, linfokwezi.fr, rmv.yt et bonszahe.com sont bloqués ; on ne lit que les extraits de recherche.
+- Images : UploadImageToWixSite accepte des URL `raw.githubusercontent.com` d'une branche poussée (évite de pousser sur la branche en production).
+
+---
+
 ## Session du 1ᵉʳ nov. 2026 : le blog
 
 > État au **1ᵉʳ novembre 2026, 14 h 40 (Mayotte)**. Code en ligne : branche `claude/modest-clarke-d3ern5`, version des fichiers `?v=49`.
