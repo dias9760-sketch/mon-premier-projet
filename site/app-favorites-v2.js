@@ -715,13 +715,6 @@ function pageHome(){
     </div>
   </section>
 
-  ${ARTICLES.length?`<section class="block">
-    <div class="wrap">
-      <div class="head"><div><h2>📰 Le blog</h2><p class="muted">Guides et conseils pour acheter malin à Mayotte.</p></div><a class="link" href="#/blog">Tous les articles</a></div>
-      <div class="bloggrid homeblog">${ARTICLES.slice(0,3).map(a=>postCard(a)).join('')}</div>
-    </div>
-  </section>`:''}
-
   ${upcomingEvents().length?`<section class="block alt">
     <div class="wrap">
       <div class="head"><div><h2>Prochains événements à Mayotte</h2><p class="muted">Marchés, soldes, fêtes et animations près de chez vous.</p></div><a class="link" href="#/evenements">Tous les événements</a></div>
