@@ -8,7 +8,7 @@ const CANONICAL_HOST = 'bonszahe.com';
 const REDIRECT_HOSTS = ['www.bonszahe.com', 'bonszahe.pages.dev'];
 const WIX_CLIENT_ID = '5ead703b-03d1-45f5-8049-74802f2b86f2';
 const API = 'https://www.wixapis.com';
-const CACHE_KEY = 'https://bonszahe.com/__bz_seo_data_v3';
+const CACHE_KEY = 'https://bonszahe.com/__bz_seo_data_v4';
 const CACHE_SECONDS = 600;
 const FILE_RE = /\.[a-z0-9]{2,5}$/i;
 
@@ -39,7 +39,7 @@ async function queryAll(token, collection) {
 
 // Articles TRyholo : lus dans leur script d'intégration (liste HOLO_ARTICLES), gardés 10 minutes en cache.
 // Renvoie null si le script est injoignable ou si son format a changé (le site affiche alors le module TRyholo tel quel).
-const HOLO_CACHE_KEY = 'https://bonszahe.com/__bz_holo_v1';
+const HOLO_CACHE_KEY = 'https://bonszahe.com/__bz_holo_v2';
 async function holoArticles(ctx) {
   const cache = caches.default;
   const key = new Request(HOLO_CACHE_KEY);
