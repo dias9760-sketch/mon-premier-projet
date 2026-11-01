@@ -1,1 +1,70 @@
 # mon-premier-projet
+## Publication du site Bonszahé
+
+Le site (dossier `site/`) est publié à **deux endroits**, à garder toujours synchronisés à chaque modification :
+
+1. **www.bonszahe.com** (adresse principale) : Cloudflare Pages, projet `bonszahe`, relié à la branche `claude/modest-clarke-d3ern5`. Chaque `git push` sur cette branche est mis en ligne automatiquement.
+2. **Ancienne adresse Wix** (secours) : https://instant-avuufedtgexz-zamayotte-1409.wix-site-host.com — à republier à chaque modification via l'API Wix (site `32761e4f-414e-47d0-9089-2d5676be0455`), avec les mêmes fichiers que sur GitHub.
+
+Les données (entreprises, codes, membres, demandes) restent dans le CMS Wix et sont communes aux deux adresses.
+
+## Référencement (SEO)
+
+- Sur bonszahe.com, le site utilise de vraies adresses (`/entreprises/x`, `/bon-plan/id`…). La copie Wix garde les adresses `#/…` et n'est pas indexée (`noindex`).
+- `site/seo.js` : titres, descriptions, adresse canonique, données structurées schema.org et plan du site. Il est partagé par le site et par le pré-rendu.
+- `functions/_middleware.js` (Cloudflare Pages Functions) : pré-rendu de chaque page pour Google et les aperçus WhatsApp/Facebook, `/sitemap.xml`, redirections 301 de www.bonszahe.com et bonszahe.pages.dev vers bonszahe.com.
+- `site/robots.txt`, `site/og-bonszahe.jpg` (image de partage 1200×630), `site/_routes.json` (les fichiers statiques ne passent pas par les Functions).
+- Sur la copie Wix, publier aussi `seo.js` (les fichiers `functions/`, `robots.txt`, `_routes.json` et l'image servent uniquement à Cloudflare).
+
+## Programme de points : règles anti-triche
+
+Les points sont recalculés dans le navigateur à partir des données du CMS (`pointsEngine()` dans `site/app-favorites-v2.js`, seuils dans `RULES`) :
+comptes de confiance (7 jours d'activité), 5 pts max par donneur et par mois, 5 « j'aime » max par commentaire, 3 codes récompensés par jour,
+doublons à 0 pt, 10 pts à la confirmation ou après 48 h, −10 pts si un code est signalé ou retiré dans les 7 jours, commentaires de 20 caractères
+minimum sans copie, 5 avis récompensés par jour, parrainage strict (5 par mois), lots réservés aux comptes de 30 jours (7 jours pour octobre 2026, mois de lancement : `LAUNCH_MONTH`).
+
+La page `/controle` (visible seulement par le compte du propriétaire, `ADMIN_ID`) liste les activités suspectes, permet d'exclure ou de réintégrer
+un membre (collection `Exclusions`) et de valider les gagnants du mois (collection `ValidationsClassement`). Dans ces deux collections,
+seules les lignes créées par le propriétaire sont prises en compte.
+
+## Catalogues & arrivages
+
+Collection `Catalogues` (lecture publique, écriture réservée au propriétaire) : seules les lignes avec « Publié » coché s'affichent, et les
+catalogues dont la date de fin est passée disparaissent seuls. Les entreprises proposent un catalogue depuis leur fiche
+(collection `CataloguesProposes`) : une automatisation Wix l'ajoute dans `Catalogues` avec « Publié » décoché et envoie un e-mail au
+propriétaire. Bonszahé renvoie toujours vers le catalogue officiel, rien n'est recopié.
+
+## Ouvert maintenant & application installable
+
+- Les horaires des fiches (texte libre, ex. « Lun-Ven 8h-12h et 14h-17h · Sam 8h-12h ») sont lus par `parseHours()` à l'heure de Mayotte (UTC+3).
+  Un texte illisible n'affiche rien ; la page Contrôle liste ces fiches. Le filtre « Ouvert maintenant » apparaît dès 5 fiches lisibles.
+- `site/manifest.json`, `site/icons/` (icône BZ) et `site/sw.js` (cache des fichiers du site, page d'accueil de secours hors connexion).
+  Changer `CACHE` dans `sw.js` pour vider le cache des visiteurs si besoin.
+
+## Observatoire des prix
+
+Collections `ProduitsSuivis` et `MagasinsPrix` (gérées par le propriétaire), `RelevesPrix` et `ConfirmationsPrix` (membres),
+`MasquagesPrix` (lignes du propriétaire seulement, via la page Contrôle). Page `/prix` : dernier prix par magasin (60 jours max, grisé
+après 30 jours), « À vérifier » si l'écart à la médiane dépasse 60 % sans confirmation, 10 relevés par jour et par membre,
++2 pts par relevé confirmé par un autre membre de confiance (5 par jour).
+
+## Demandes d'achat (« Je cherche à acheter… »)
+
+La collection `Demandes` porte un `type` (`code` ou `achat`) et, pour un achat : `budget`, `commune`, `delai`, `livraison`.
+Les entreprises voient les demandes de leur catégorie dans l'espace pro (« Clients qui cherchent à acheter ») et répondent par une offre
+(commentaire avec badge de leur fiche). 3 demandes d'achat par semaine et par membre, fermeture automatique après 30 jours.
+Une automatisation Wix envoie un e-mail au propriétaire à chaque nouvelle demande.
+
+## Carburants et gaz (prix maximums de la préfecture)
+
+Collection `PrixReglementes` (mois `AAAA-MM`, produit `sp95` / `gazole` / `petrole` / `melange` / `gaz12`, prix, unité, source).
+Le site affiche le dernier mois publié qui n'est pas dans le futur, avec l'écart au mois précédent. Les produits suivis qui portent
+`reglemente` (essence, gazole, gaz 12 kg) signalent les relevés au-dessus du maximum. Une tâche planifiée met la collection à jour
+chaque 1er du mois à partir du communiqué de la préfecture.
+
+## Radar des besoins
+
+Collection `RecherchesVides` (écriture ouverte, lecture publique) : quand une recherche ne trouve aucun bon plan, on enregistre le mot,
+la catégorie probable et un identifiant aléatoire du navigateur (une fois par mot et par visite). L'espace pro affiche, pour la catégorie
+de l'entreprise, les mots recherchés par au moins 3 personnes différentes sur 30 jours, les demandes publiées et des conseils.
+La page Contrôle montre le même radar pour toute l'île.
