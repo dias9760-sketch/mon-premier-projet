@@ -1031,4 +1031,3 @@ body:has(.fab) #app{padding-bottom:72px}
 .postshare{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:28px;padding-top:18px;border-top:1px solid var(--line)}
 .postshare>.muted{font-weight:600;margin-right:4px}
 .blogsec{margin-top:44px}
-@media (max-width:699px){.homeblog{grid-auto-flow:column;grid-auto-columns:82%;grid-template-columns:none;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px}.homeblog .postcard{scroll-snap-align:start}}
