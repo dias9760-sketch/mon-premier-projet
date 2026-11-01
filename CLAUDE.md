@@ -18,6 +18,7 @@
 1. Tester en local ou en aperçu (captures sur ordinateur et sur téléphone), et augmenter `?v=NN` dans `site/index.html`.
 2. Publier sur **bonszahe.com** : `git push` sur la branche `claude/modest-clarke-d3ern5` (mise en ligne automatique par Cloudflare).
 3. Publier ensuite sur la **copie Wix** : télécharger le zip, appliquer le correctif en vérifiant les empreintes avant et après, envoyer en base64, puis publier avec « drop » (procédure détaillée dans `docs/memoire-projet.md` § 4).
+   - ⚠️ **« drop » remplace TOUT le site** : il faut renvoyer **tous** les fichiers du zip (modifiés ou non), jamais seulement les fichiers changés (incident du 1ᵉʳ nov. : copie vidée puis restaurée).
 4. Après publication, le site peut mettre quelques minutes à se mettre à jour : recharger la page avant de conclure à une erreur.
 - Ne jamais dire « c'est publié » sans l'avoir vérifié.
 - Ne pas pousser de code non validé : la branche part directement en ligne.

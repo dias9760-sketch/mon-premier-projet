@@ -53,7 +53,7 @@
 - `_routes.json` exclut tous les `.json` des Functions Cloudflare : une adresse servie par `functions/` ne doit pas finir par `.json`.
 
 **À faire**
-- [ ] Connecter TRyholo (voir ci-dessus), puis vérifier qu'un article TRyholo apparaît sur /blog (délai : 10 minutes de cache).
+- [ ] Connecter TRyholo : le site utilise la clé `2ff253da…` (fournie par le propriétaire le 1ᵉʳ nov.), puis vérifier qu'un article TRyholo apparaît sur /blog (délai : 10 minutes de cache).
 - [ ] Mettre à jour l'article « Vie chère » quand les prix des carburants de novembre seront dans le CMS (les chiffres cités sont ceux de septembre et octobre).
 
 ---

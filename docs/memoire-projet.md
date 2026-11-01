@@ -81,6 +81,8 @@
    - **envoyer le correctif encodé en base64** : le transport déforme sinon des séquences comme `̀` ou `\n` ;
    - publier : `POST https://www.wixapis.com/headless-business-setup/v1/headless-business/{siteId}/drop?campaign=mcp&agent=claude-code` (multipart, portée *account*) ;
    - retélécharger et revérifier les empreintes.
+   - ⚠️ **« drop » remplace tout le site** : dans ExecuteWixAPI, remplir `files` avec **toutes** les entrées du zip téléchargé (`files.length=0; files.push({path, content})`), en remplaçant seulement les fichiers modifiés, puis `wix.multipart()`. Envoyer seulement 2 fichiers a vidé la copie le 1ᵉʳ nov.
+   - Pour faire entrer un gros fichier sans le recopier dans l'appel : l'importer dans la médiathèque depuis `raw.githubusercontent.com` (`POST https://www.wixapis.com/site-media/v1/files/import`, `mimeType: text/plain`), puis le relire via `POST https://www.wixapis.com/site-media/v1/files/generate-file-download-url` (lien `download-files.wixmp.com`, lisible dans ExecuteWixAPI). Vérifier l'empreinte avant de publier.
 5. Si la copie Wix **ne correspond pas** à GitHub, une autre session l'a peut-être modifiée directement (c'est arrivé le 31 octobre). **Ne rien écraser sans prévenir le propriétaire.**
 
 Une modification qui ne touche que le CMS ou `docs/` ne demande pas de republier sur Wix.

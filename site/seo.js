@@ -151,7 +151,7 @@ function themeOf(cat,title,summary){
   return best;
 }
 // Articles TRyholo : la liste que leur script d'intégration contient (champs slug, title, excerpt, isoDate, imageUrl, content).
-const HOLO_KEY='5ad61ec2-4ec7-4c47-a703-6a2bb4b6d89f';
+const HOLO_KEY='2ff253da-2366-4c76-819b-c2c919371dcd';
 const HOLO_SRC='https://prod-api-holo-ai.fly.dev/public/seo/embed/'+HOLO_KEY+'.js';
 function holoParse(js){
   const m=String(js||'').match(/var HOLO_ARTICLES\s*=\s*(\[[\s\S]*?\]);\s*\n/);
@@ -175,6 +175,14 @@ const artDesc=a=>clip(a.summary||a.text||a.title,158);
 const readMin=a=>Math.max(1,Math.round(a.words/200));
 
 // Données structurées schema.org
+// FAQ d'un article : section « Questions fréquentes » (h2), puis des paires question (h3) / réponse (premier paragraphe qui suit).
+function faqOf(html){
+  const m=String(html||'').match(/<h2>\s*Questions fr[ée]quentes\s*<\/h2>([\s\S]*?)(?=<h2>|$)/i); if(!m) return [];
+  const out=[], re=/<h3>([\s\S]*?)<\/h3>\s*<p>([\s\S]*?)<\/p>/g; let x;
+  while((x=re.exec(m[1]))){ const q=plainText(x[1]), r=plainText(x[2]); if(q&&r) out.push([q,r]); }
+  return out;
+}
+const faqLd=items=>({'@context':'https://schema.org','@type':'FAQPage',mainEntity:items.map(([q,r])=>({'@type':'Question',name:q,acceptedAnswer:{'@type':'Answer',text:r}}))});
 const crumbs=items=>({'@context':'https://schema.org','@type':'BreadcrumbList',itemListElement:items.map(([name,path],i)=>({'@type':'ListItem',position:i+1,name,item:urlOf(path)}))});
 function bizLd(b,codes){
   const com=comBy(b.commune); const cp=(String(b.addr).match(/\b976\d{2}\b/)||[])[0];
@@ -285,6 +293,7 @@ function meta(path,params,data,opts){
         author:a.author?{'@type':'Person',name:a.author}:{'@type':'Organization',name:NAME,url:SITE+'/'},publisher:{'@type':'Organization',name:NAME,logo:{'@type':'ImageObject',url:LOGO}}},
         a.img?{image:[a.img]}:{}),
         crumbs([['Accueil','/'],['Blog','/blog'],[th.name,'/blog?theme='+th.slug],[a.title,canonical]]));
+      const faq=faqOf(a.html); if(faq.length) ld.push(faqLd(faq));
       body=block(a.title,a.summary?esc(a.summary):'',`<p>Publié le ${frDate(a.date)}${a.author?' par '+esc(a.author):''} · <a href="/blog?theme=${th.slug}">${esc(th.name)}</a></p>${a.img?`<p><img src="${esc(a.img)}" alt=""></p>`:''}${a.html}<p><a href="/blog">Tous les articles du blog</a></p>`); } }
   else if(p==='blog'){ const arts=data.arts||[], th=themeBy(params.get('theme')||''), list=th?arts.filter(a=>a.theme===th.slug):arts;
     if(th){ canonical='/blog?theme='+th.slug; title=`${th.name} : articles et conseils pour Mayotte | Bonszahé`; desc=clip(`Les articles du blog Bonszahé sur le thème « ${th.name} » : guides et conseils pour acheter malin à Mayotte.`,158);
@@ -340,5 +349,5 @@ function sitemap(data,today){
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${out.join('\n')}\n</urlset>\n`;
 }
 
-g.BZSEO={SITE,DEFAULT_IMAGE,CATS,COMMUNES,meta,sitemap,fromCMS,esc,articlesFrom,articleHtml,readMin,artDesc,BLOG_THEMES,themeBy,themeOf,holoParse,holoFrom,mergeArticles,HOLO_SRC};
+g.BZSEO={SITE,DEFAULT_IMAGE,CATS,COMMUNES,meta,sitemap,fromCMS,esc,articlesFrom,articleHtml,faqOf,readMin,artDesc,BLOG_THEMES,themeBy,themeOf,holoParse,holoFrom,mergeArticles,HOLO_SRC};
 })(typeof globalThis!=='undefined'?globalThis:window);
