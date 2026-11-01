@@ -151,7 +151,7 @@ function themeOf(cat,title,summary){
   return best;
 }
 // Articles TRyholo : la liste que leur script d'intégration contient (champs slug, title, excerpt, isoDate, imageUrl, content).
-const HOLO_KEY='5ad61ec2-4ec7-4c47-a703-6a2bb4b6d89f';
+const HOLO_KEY='2ff253da-2366-4c76-819b-c2c919371dcd';
 const HOLO_SRC='https://prod-api-holo-ai.fly.dev/public/seo/embed/'+HOLO_KEY+'.js';
 function holoParse(js){
   const m=String(js||'').match(/var HOLO_ARTICLES\s*=\s*(\[[\s\S]*?\]);\s*\n/);
