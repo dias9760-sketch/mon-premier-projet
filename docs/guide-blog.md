@@ -1,7 +1,17 @@
 # Le blog Bonszahé : publier un article
 
 Adresse : **bonszahe.com/blog**. Chaque article a sa propre page : **bonszahe.com/blog/titre-de-l-article**.
-Les articles sont rangés dans la collection Wix **« Articles »** (tableau de bord Wix → CMS). Le site les lit tout seul : rien à republier après avoir ajouté un article.
+
+Le blog réunit **deux sources**, mélangées et présentées de la même façon :
+
+1. **TRyholo (Holo AI)** : ses articles arrivent tout seuls (dans les 10 minutes). Dans TRyholo, l'adresse de la page blog (« Blog page URL ») est `https://bonszahe.com/blog`.
+   Le site lit la liste contenue dans leur script d'intégration (`/api/holo-articles`). Si TRyholo change ce format, le site affiche à la place leur module d'origine, en bas de la page Blog.
+   Les anciennes adresses TRyholo `bonszahe.com/blog?post=…` renvoient vers `bonszahe.com/blog/…`.
+2. **Wix** : la collection **« Articles »** (tableau de bord Wix → CMS), où vous écrivez vous-même, ou Claude pour vous. Si vous arrêtez TRyholo, le blog continue avec ces articles.
+
+**Thèmes** : Courses & prix, Fêtes & saisons, Bons plans, Commerces de l’île, Diaspora, Vie pratique. Dans Wix, écrivez le nom du thème dans « Catégorie ».
+Pour TRyholo, qui n’envoie pas de thème, le site le devine d’après les mots du titre et du résumé (liste `BLOG_THEMES` dans `site/seo.js`).
+Chaque thème a sa page (`/blog?theme=courses`…), et la recherche porte sur le titre, le résumé et le texte.
 
 ## Publier un article (depuis le tableau de bord Wix)
 
@@ -17,7 +27,7 @@ Les articles sont rangés dans la collection Wix **« Articles »** (tableau de 
 | Image | `image` | Image | Photo de couverture (format paysage conseillé, 1200 × 675 px) |
 | Lien de l'image | `imageLien` | URL | À la place de « Image », si la photo est déjà en ligne |
 | Date de publication | `datePublication` | Date | Date affichée. **Une date future programme l'article** : il apparaît seul ce jour-là |
-| Catégorie | `categorie` | Texte | Ex. : Guides, Bons plans, Portraits, Actualités. Crée les filtres de la page Blog |
+| Catégorie (thème) | `categorie` | Texte | Un des 6 thèmes ci-dessus, par exemple « Courses & prix ». Vide : le site le devine |
 | Auteur | `auteur` | Texte | Facultatif. Vide = « Bonszahé » |
 | Entreprises citées | `entreprises` | Texte | Noms des entreprises séparés par des virgules (ex. : `Sodifram, Carrefour / Douka Bé`). Leurs fiches s'affichent sous l'article |
 | À la une | `aLaUne` | Booléen | Met l'article en grand en haut de la page Blog |
@@ -38,5 +48,6 @@ Par sécurité, le site garde seulement la mise en forme utile (titres, gras, it
 
 - **Relire avant de publier** : comme pour tout le site, aucune information inventée (prix, horaires, offres). Vérifiez les chiffres donnés par l'IA.
 - Un lien vers une page du site s'écrit sans le domaine, par exemple `/prix`, `/entreprises/sodifram` ou `/codes`.
-- Les articles apparaissent aussi sur la page d'accueil (les 3 plus récents), dans le plan du site envoyé à Google, et avec les boutons de partage WhatsApp et Facebook.
+- Les articles apparaissent dans le plan du site envoyé à Google, avec les boutons de partage WhatsApp et Facebook. Ils ne sont pas sur la page d’accueil (choix du propriétaire).
+- Les images des articles écrits par Claude sont dans `site/images/blog/`, et le texte d’origine dans `docs/articles/`.
 - Pour retirer un article : décochez **Publié**.

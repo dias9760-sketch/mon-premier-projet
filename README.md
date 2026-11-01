@@ -71,9 +71,8 @@ La page Contrôle montre le même radar pour toute l'île.
 
 ## Blog
 
-Collection `Articles` (lecture publique, écriture réservée au propriétaire), gérée depuis le tableau de bord Wix. Pages `/blog` (liste, filtre
-par catégorie, article « À la une ») et `/blog/<slug>` (article, entreprises citées, « À lire aussi », partage WhatsApp/Facebook). Seuls les
-articles avec « Publié » coché et une date de publication arrivée s'affichent. Le contenu (texte enrichi Wix, Markdown, texte simple ou contenu
-Ricos) est converti et nettoyé par `articleHtml()` dans `site/seo.js`, partagé avec le pré-rendu (titre, description, données `BlogPosting`, plan du site).
-Mode d'emploi pour publier : `docs/guide-blog.md`.
-
+Page `/blog` en mosaïque et « rayons par thème », recherche instantanée, pages par thème (`/blog?theme=…`) et page article `/blog/<slug>`.
+Deux sources réunies par `mergeArticles()` (`site/seo.js`) : la collection Wix `Articles` (lecture publique, écriture réservée au propriétaire)
+et les articles TRyholo (Holo AI), lus dans leur script d'intégration par `functions/_middleware.js` (`/api/holo-articles`, cache 10 min ;
+la copie Wix lit le script directement). Si leur format change, la page affiche le module TRyholo d'origine (`mountHoloEmbed`).
+Le contenu est nettoyé par `articleHtml()`. Mode d'emploi : `docs/guide-blog.md`.
