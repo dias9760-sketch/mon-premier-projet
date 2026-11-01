@@ -8,7 +8,7 @@ const CANONICAL_HOST = 'bonszahe.com';
 const REDIRECT_HOSTS = ['www.bonszahe.com', 'bonszahe.pages.dev'];
 const WIX_CLIENT_ID = '5ead703b-03d1-45f5-8049-74802f2b86f2';
 const API = 'https://www.wixapis.com';
-const CACHE_KEY = 'https://bonszahe.com/__bz_seo_data_v2';
+const CACHE_KEY = 'https://bonszahe.com/__bz_seo_data_v3';
 const CACHE_SECONDS = 600;
 const FILE_RE = /\.[a-z0-9]{2,5}$/i;
 
@@ -37,6 +37,25 @@ async function queryAll(token, collection) {
   return out;
 }
 
+// Articles TRyholo : lus dans leur script d'intégration (liste HOLO_ARTICLES), gardés 10 minutes en cache.
+// Renvoie null si le script est injoignable ou si son format a changé (le site affiche alors le module TRyholo tel quel).
+const HOLO_CACHE_KEY = 'https://bonszahe.com/__bz_holo_v1';
+async function holoArticles(ctx) {
+  const cache = caches.default;
+  const key = new Request(HOLO_CACHE_KEY);
+  const hit = await cache.match(key);
+  if (hit) return (await hit.json()).articles;
+  let articles = null;
+  try {
+    const r = await fetch(SEO.HOLO_SRC, { cf: { cacheTtl: 300 } });
+    if (r.ok) articles = SEO.holoParse(await r.text());
+  } catch (e) {}
+  ctx.waitUntil(cache.put(key, new Response(JSON.stringify({ articles }), {
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=' + (articles ? CACHE_SECONDS : 120) }
+  })));
+  return articles;
+}
+
 // Données du CMS Wix, gardées 10 minutes en cache.
 async function cmsData(ctx) {
   const cache = caches.default;
@@ -56,7 +75,8 @@ async function cmsData(ctx) {
     queryAll(token, 'TempsForts').catch(() => []),
     queryAll(token, 'Articles').catch(() => [])
   ]);
-  const raw = { ents, codes, tfs, arts };
+  const holo = await holoArticles(ctx);
+  const raw = { ents, codes, tfs, arts, holo: holo || [] };
   ctx.waitUntil(cache.put(key, new Response(JSON.stringify(raw), {
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=' + CACHE_SECONDS }
   })));
@@ -99,11 +119,23 @@ export async function onRequest(ctx) {
   }
   if (request.method !== 'GET' && request.method !== 'HEAD') return next();
 
+  // Liste des articles TRyholo pour le site (ok: false si leur format n'est plus lisible).
+  if (url.pathname === '/api/holo-articles') {
+    const articles = await holoArticles(ctx);
+    return new Response(JSON.stringify({ ok: !!articles, articles: articles || [] }), {
+      headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=300' }
+    });
+  }
+  // Anciennes adresses TRyholo (/blog?post=x) : redirection vers la page de l'article.
+  if (url.pathname.replace(/\/+$/, '') === '/blog' && url.searchParams.get('post')) {
+    return Response.redirect(url.origin + '/blog/' + encodeURIComponent(url.searchParams.get('post')), 301);
+  }
+
   if (url.pathname === '/sitemap.xml') {
     try {
       const today = todayMayotte();
       const raw = await cmsData(ctx);
-      const data = SEO.fromCMS(raw.ents, raw.codes, raw.tfs, today, raw.arts);
+      const data = SEO.fromCMS(raw.ents, raw.codes, raw.tfs, today, raw.arts, raw.holo);
       return new Response(SEO.sitemap(data, today), { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' } });
     } catch (e) {
       return new Response(SEO.sitemap({ biz: [], codes: [], tf: [], arts: [] }, todayMayotte()), { headers: { 'Content-Type': 'application/xml; charset=utf-8' } });
@@ -120,7 +152,7 @@ export async function onRequest(ctx) {
   try {
     const today = todayMayotte();
     const raw = await cmsData(ctx);
-    const data = SEO.fromCMS(raw.ents, raw.codes, raw.tfs, today, raw.arts);
+    const data = SEO.fromCMS(raw.ents, raw.codes, raw.tfs, today, raw.arts, raw.holo);
     const m = SEO.meta(url.pathname, url.searchParams, data, { today });
     return new Response(render(html, m, indexable), { status: m.status, headers: htmlHeaders });
   } catch (e) {

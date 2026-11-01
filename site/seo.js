@@ -36,7 +36,7 @@ function communeFrom(v){ const k=key(v); if(!k) return ''; const hit=COMMUNES.fi
 function imgUrl(v){ if(!v) return ''; const s=typeof v==='object'?(v.url||v.src||''):String(v); const m=s.match(/^wix:image:\/\/v1\/([^/#]+)/); if(m) return 'https://static.wixstatic.com/media/'+m[1]; return /^https?:\/\//.test(s)?s:''; }
 function dateFrom(v){ if(!v) return null; const raw=typeof v==='object'?(v.$date||v.date||''):String(v); const m=raw.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return new Date(+m[1],+m[2]-1,+m[3]); const d=new Date(raw); return isNaN(d)?null:d; }
 function parsePos(v){ const m=String(v||'').trim().match(/^(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)$/); if(!m) return null; const p={lat:+m[1],lng:+m[2]}; return p.lat>-13.1&&p.lat<-12.5&&p.lng>44.9&&p.lng<45.4?p:null; }
-function fromCMS(ents,codes,tfs,today,arts){
+function fromCMS(ents,codes,tfs,today,arts,holo){
   const idToSlug={}, used=new Set();
   const biz=ents.filter(e=>e.publiee!==false&&e.nom).map(e=>{
     let slug=slugify(e.slug||e.nom)||String(e._id); while(used.has(slug)) slug+='-2'; used.add(slug); idToSlug[e._id]=slug;
@@ -49,7 +49,7 @@ function fromCMS(ents,codes,tfs,today,arts){
     return {id:c._id,biz:idToSlug[ref(c.entreprise)],deal:c.avantage||'Bon plan',detail:c.detail||'',code:String(c.code||'').trim(),store:c.typeOffre==='magasin',cond:c.conditions||'',exp,noExp:!exp,updated:dateFrom(c._updatedDate)}; })
     .filter(c=>c.noExp||c.exp>=today);
   const tf=(tfs||[]).filter(x=>x.slug&&x.titre).map(x=>({slug:x.slug,title:x.titre,desc:x.description||''}));
-  return {biz,codes:list,tf,arts:articlesFrom(arts,today)};
+  return {biz,codes:list,tf,arts:mergeArticles(articlesFrom(arts,today),holoFrom(holo,today))};
 }
 
 /* ---------- Blog (collection Wix « Articles ») ----------
@@ -126,9 +126,50 @@ function articlesFrom(rows,today){
     const html=articleHtml(a.contenu), text=plainText(html);
     return {id:a._id,slug,title:String(a.titre).trim(),summary:String(a.resume||'').trim(),html,text,words:text?text.split(' ').length:0,
       img:imgUrl(a.image)||imgUrl(a.imageLien),date:dateFrom(a.datePublication)||dateFrom(a._createdDate),updated:dateFrom(a._updatedDate),
-      cat:String(a.categorie||'').trim(),author:String(a.auteur||'').trim(),featured:a.aLaUne===true,
+      cat:String(a.categorie||'').trim(),author:String(a.auteur||'').trim(),featured:a.aLaUne===true,theme:themeOf(a.categorie,a.titre,a.resume),source:'wix',
       biz:String(a.entreprises||'').split(/[,;\n]+/).map(s=>s.trim()).filter(Boolean)};
   }).filter(a=>a.date&&a.date<=today).sort((a,b)=>b.date-a.date);
+}
+// Thèmes du blog. Un article Wix prend le thème choisi dans « categorie » ; un article TRyholo (sans thème) est classé
+// d'après les mots de son titre et de son résumé. Sans mot reconnu : « Vie pratique ».
+const BLOG_THEMES=[
+  ['courses','Courses & prix','🛒',['course','prix','vie chere','carburant','essence','gazole','gaz ','supermarche','panier','riz','huile','budget','econom','moins cher','pouvoir d achat']],
+  ['fetes','Fêtes & saisons','🎁',['noel','fete','ramadan','aid','mariage','manzaraka','nouvel an','rentree','saison','cadeau']],
+  ['bons-plans','Bons plans','🔥',['code promo','promo','bon plan','bons plans','solde','reduction','remise','offre','catalogue']],
+  ['commerces','Commerces de l’île','🏪',['commerce','commercant','boutique','magasin','artisan','portrait','entreprise','producteur','marche local']],
+  ['diaspora','Diaspora','✈️',['diaspora','colis','envoi','metropole','hexagone','retour','voyage','billet','avion','famille a mayotte']],
+  ['pratique','Vie pratique','💡',[]]
+].map(([slug,name,emoji,kw])=>({slug,name,emoji,kw}));
+const themeBy=s=>BLOG_THEMES.find(t=>t.slug===s);
+function themeOf(cat,title,summary){
+  const k=key(cat); if(k){ const t=BLOG_THEMES.find(x=>key(x.name)===k||key(x.slug)===k||key(x.name).startsWith(k)); if(t) return t.slug; }
+  const txt=' '+norm(title+' '+summary).replace(/[^a-z0-9]+/g,' ')+' ';
+  // Les mots du titre comptent double ; à égalité, le thème le plus précis l'emporte sur « Courses & prix ».
+  const ttl=' '+norm(title).replace(/[^a-z0-9]+/g,' ')+' ';
+  let best='pratique',score=0;
+  ['fetes','diaspora','commerces','bons-plans','courses'].map(themeBy).forEach(t=>{ const n=t.kw.reduce((s,w)=>s+(ttl.includes(w)?2:txt.includes(w)?1:0),0); if(n>score){ score=n; best=t.slug; } });
+  return best;
+}
+// Articles TRyholo : la liste que leur script d'intégration contient (champs slug, title, excerpt, isoDate, imageUrl, content).
+const HOLO_KEY='5ad61ec2-4ec7-4c47-a703-6a2bb4b6d89f';
+const HOLO_SRC='https://prod-api-holo-ai.fly.dev/public/seo/embed/'+HOLO_KEY+'.js';
+function holoParse(js){
+  const m=String(js||'').match(/var HOLO_ARTICLES\s*=\s*(\[[\s\S]*?\]);\s*\n/);
+  if(!m) return null;
+  try{ const list=JSON.parse(m[1]); return Array.isArray(list)?list:null; }catch(e){ return null; }
+}
+function holoFrom(rows,today){
+  return (rows||[]).filter(a=>a&&a.title&&a.slug).map(a=>{
+    const html=articleHtml(a.content), text=plainText(html), d=dateFrom(a.isoDate||a.date);
+    return {id:'holo-'+a.slug,slug:slugify(a.slug)||slugify(a.title),title:String(a.title).trim(),summary:String(a.excerpt||'').trim(),html,text,words:text?text.split(' ').length:0,
+      img:/^https?:\/\//.test(a.imageUrl||'')?a.imageUrl:'',date:d,updated:d,cat:'',author:'',featured:false,biz:[],theme:themeOf('',a.title,a.excerpt),source:'holo'};
+  }).filter(a=>a.date&&a.date<=today);
+}
+// Les deux sources réunies, du plus récent au plus ancien, avec des adresses toutes différentes.
+function mergeArticles(wix,holo){
+  const used=new Set(), out=[];
+  [...(wix||[]),...(holo||[])].sort((a,b)=>b.date-a.date).forEach(a=>{ let s=a.slug; while(used.has(s)) s+='-2'; used.add(s); out.push(s===a.slug?a:Object.assign({},a,{slug:s})); });
+  return out;
 }
 const artDesc=a=>clip(a.summary||a.text||a.title,158);
 const readMin=a=>Math.max(1,Math.round(a.words/200));
@@ -238,16 +279,22 @@ function meta(path,params,data,opts){
     desc='L’agenda des marchés, ventes privées, fêtes, concerts et animations des entreprises de Mayotte.'; body=block('Événements à Mayotte',esc(desc)); }
   else if(p==='blog'&&id){ const a=(data.arts||[]).find(x=>x.slug===id);
     if(!a){ status=404; robots='noindex,follow'; title='Article introuvable | Bonszahé'; desc='Cet article n’existe pas ou n’est plus en ligne.'; body=block('Article introuvable','',`<p><a href="/blog">Voir tous les articles du blog</a></p>`); }
-    else{ canonical='/blog/'+a.slug; title=`${a.title} | Bonszahé`; desc=artDesc(a); type='article'; if(a.img) image=a.img;
+    else{ const th=themeBy(a.theme); canonical='/blog/'+a.slug; title=`${a.title} | Bonszahé`; desc=artDesc(a); type='article'; if(a.img) image=a.img;
       ld.push(Object.assign({'@context':'https://schema.org','@type':'BlogPosting',headline:clip(a.title,110),description:desc,url:urlOf(canonical),mainEntityOfPage:urlOf(canonical),inLanguage:'fr-FR',
-        datePublished:iso(a.date),dateModified:iso(a.updated&&a.updated>a.date?a.updated:a.date),wordCount:a.words,
+        datePublished:iso(a.date),dateModified:iso(a.updated&&a.updated>a.date?a.updated:a.date),wordCount:a.words,articleSection:th.name,
         author:a.author?{'@type':'Person',name:a.author}:{'@type':'Organization',name:NAME,url:SITE+'/'},publisher:{'@type':'Organization',name:NAME,logo:{'@type':'ImageObject',url:LOGO}}},
-        a.img?{image:[a.img]}:{},a.cat?{articleSection:a.cat}:{}),
-        crumbs([['Accueil','/'],['Blog','/blog'],[a.title,canonical]]));
-      body=block(a.title,a.summary?esc(a.summary):'',`<p>Publié le ${frDate(a.date)}${a.author?' par '+esc(a.author):''}</p>${a.img?`<p><img src="${esc(a.img)}" alt=""></p>`:''}${a.html}<p><a href="/blog">Tous les articles du blog</a></p>`); } }
-  else if(p==='blog'){ canonical='/blog'; title='Le blog Bonszahé : guides et bons plans pour acheter malin à Mayotte';
-    desc='Guides, conseils, portraits d’entreprises et actualités pour acheter malin à Mayotte et faire vivre les commerces de l’île.';
-    body=block('Le blog Bonszahé',esc(desc),(data.arts||[]).length?`<ul>${data.arts.map(a=>`<li><a href="/blog/${esc(a.slug)}">${esc(a.title)}</a> — ${esc(artDesc(a))}</li>`).join('')}</ul>`:''); }
+        a.img?{image:[a.img]}:{}),
+        crumbs([['Accueil','/'],['Blog','/blog'],[th.name,'/blog?theme='+th.slug],[a.title,canonical]]));
+      body=block(a.title,a.summary?esc(a.summary):'',`<p>Publié le ${frDate(a.date)}${a.author?' par '+esc(a.author):''} · <a href="/blog?theme=${th.slug}">${esc(th.name)}</a></p>${a.img?`<p><img src="${esc(a.img)}" alt=""></p>`:''}${a.html}<p><a href="/blog">Tous les articles du blog</a></p>`); } }
+  else if(p==='blog'){ const arts=data.arts||[], th=themeBy(params.get('theme')||''), list=th?arts.filter(a=>a.theme===th.slug):arts;
+    if(th){ canonical='/blog?theme='+th.slug; title=`${th.name} : articles et conseils pour Mayotte | Bonszahé`; desc=clip(`Les articles du blog Bonszahé sur le thème « ${th.name} » : guides et conseils pour acheter malin à Mayotte.`,158);
+      ld.push(crumbs([['Accueil','/'],['Blog','/blog'],[th.name,canonical]])); }
+    else{ canonical='/blog'; title='Le blog Bonszahé : guides et conseils pour acheter malin à Mayotte';
+      desc='Guides, conseils, portraits d’entreprises et actualités pour acheter malin à Mayotte et faire vivre les commerces de l’île.'; }
+    if(params.get('q')) robots='noindex,follow';
+    body=block(th?th.name:'Le blog Bonszahé',esc(desc),(list.length?`<ul>${list.map(a=>`<li><a href="/blog/${esc(a.slug)}">${esc(a.title)}</a> — ${esc(artDesc(a))}</li>`).join('')}</ul>`:'')
+      +(th?'':`<h2>Thèmes</h2><ul>${BLOG_THEMES.filter(t=>arts.some(a=>a.theme===t.slug)).map(t=>`<li><a href="/blog?theme=${t.slug}">${esc(t.name)}</a></li>`).join('')}</ul>`)
+      +`<template id="holo-embed"><div id="holo-blog"></div><script src="${HOLO_SRC}" defer></script></template>`); }
   else if(p==='prix'){ canonical='/prix'; title='Prix à Mayotte : comparez les prix des produits du quotidien | Bonszahé';
     desc='Riz, huile, sucre, lait, mabawa, gaz… Les prix relevés par les habitants dans les magasins de Mayotte, pour faire ses courses au meilleur prix.'; body=block('Prix à Mayotte',esc(desc)); }
   else if(p==='semaine'){ canonical='/semaine'; title='Les bons plans de la semaine à Mayotte | Bonszahé';
@@ -288,9 +335,10 @@ function sitemap(data,today){
   (data.tf||[]).forEach(t=>out.push(u('/temps-forts/'+t.slug,null,'0.6','monthly')));
   const arts=data.arts||[];
   out.push(u('/blog',arts.length?arts[0].date:null,'0.7','weekly'));
+  BLOG_THEMES.filter(t=>arts.some(a=>a.theme===t.slug)).forEach(t=>out.push(u('/blog?theme='+t.slug,null,'0.5','weekly')));
   arts.forEach(a=>out.push(u('/blog/'+a.slug,a.updated&&a.updated>a.date?a.updated:a.date,'0.7','monthly')));
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${out.join('\n')}\n</urlset>\n`;
 }
 
-g.BZSEO={SITE,DEFAULT_IMAGE,CATS,COMMUNES,meta,sitemap,fromCMS,esc,articlesFrom,articleHtml,readMin,artDesc};
+g.BZSEO={SITE,DEFAULT_IMAGE,CATS,COMMUNES,meta,sitemap,fromCMS,esc,articlesFrom,articleHtml,readMin,artDesc,BLOG_THEMES,themeBy,themeOf,holoParse,holoFrom,mergeArticles,HOLO_SRC};
 })(typeof globalThis!=='undefined'?globalThis:window);
