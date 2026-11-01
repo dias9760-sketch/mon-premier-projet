@@ -1,11 +1,38 @@
-# Bonszahé : fiche de passation (session du 19 oct. au 1ᵉʳ nov. 2026)
+# Bonszahé : journal de passation
+
+## Session du 1ᵉʳ nov. 2026 : le blog
+
+> État au **1ᵉʳ novembre 2026, 14 h 40 (Mayotte)**. Code en ligne : branche `claude/modest-clarke-d3ern5`, version des fichiers `?v=49`.
+> Travail fait aussi sur `claude/trusting-ramanujan-hqrt0j` (même code + fichiers Zarahissi, à ne pas publier sur bonszahe.com).
+
+**Publié et vérifié sur le vrai site** (bonszahe.com et copie Wix identique, empreintes vérifiées après publication) :
+- Page **/blog** au modèle « Mosaïque + rayons par thème » choisi par le propriétaire (maquettes : https://claude.ai/artifact/LtaPhTsU45ToiyPcKgXkzv).
+  Recherche instantanée, 6 thèmes (`BLOG_THEMES` dans `site/seo.js`), pages `/blog?theme=…`, page article `/blog/<slug>`. Lien « Blog » dans le menu et le pied de page. **Pas d'articles sur l'accueil** (demande du propriétaire).
+- **Deux sources** : collection Wix **`Articles`** (créée ce jour, lecture publique, écriture administrateur) et **TRyholo (Holo AI)**, lu par `/api/holo-articles`.
+  Le propriétaire doit encore indiquer `https://bonszahe.com/blog` comme « Blog page URL » dans TRyholo et cliquer « Connect ». Le script TRyholo est présent dans la page /blog pré-rendue (balise `<template id="holo-embed">`).
+- **Premier article** (écrit par Claude) : « Vie chère à Mayotte : 10 réflexes pour payer moins cher au quotidien », thème Courses & prix, à la une.
+  Chiffres : Insee Analyses Mayotte n° 34 (juillet 2023) et prix maximums des carburants du CMS. Texte d'origine : `docs/articles/`, visuels : `site/images/blog/` (logo officiel).
+- Mode d'emploi : `docs/guide-blog.md`.
+
+**Pièges rencontrés**
+- Pour comparer la copie Wix et GitHub, compter les caractères **comme JavaScript** (un emoji = 2) : sinon `index.html` et `app-favorites-v2.js` semblent différents alors qu'ils sont identiques.
+- Dans ExecuteWixAPI : `wix.unzip(reponse.data)`, puis `await entree.text()` ; `raw.githubusercontent.com` est refusé, on envoie donc le correctif `git diff -U0` compressé (gzip + base64, `DecompressionStream`).
+- `_routes.json` exclut tous les `.json` des Functions Cloudflare : une adresse servie par `functions/` ne doit pas finir par `.json`.
+
+**À faire**
+- [ ] Connecter TRyholo (voir ci-dessus), puis vérifier qu'un article TRyholo apparaît sur /blog (délai : 10 minutes de cache).
+- [ ] Mettre à jour l'article « Vie chère » quand les prix des carburants de novembre seront dans le CMS (les chiffres cités sont ceux de septembre et octobre).
+
+---
+
+## Session du 19 oct. au 1ᵉʳ nov. 2026
 
 > À lire avant de reprendre le travail sur bonszahe.com. Complète `docs/contexte-projet-ia.md` (présentation générale du projet) et `README.md` (fonctionnement technique).
 > État au **1ᵉʳ novembre 2026**. Code : branche `claude/modest-clarke-d3ern5`, dernier commit « Page Événements : frise horizontale des prochaines semaines », version des fichiers `?v=48`.
 
 ---
 
-## 1. Où on en est, en bref
+### 1. Où on en est, en bref
 
 | Sujet | État |
 |---|---|
@@ -21,7 +48,7 @@
 
 ---
 
-## 2. Décisions prises
+### 2. Décisions prises
 
 ### Offres sans code
 - Les **offres sans code public** (remise en magasin, offre de bienvenue, soldes sans code…) ont **leur propre bloc**, « Offres sans code [entreprise] », **juste sous les codes promo**, sur **toutes** les fiches. Elles ne vont **jamais dans la description** de l'entreprise.
@@ -44,7 +71,7 @@
 
 ---
 
-## 3. Ce qui est publié
+### 3. Ce qui est publié
 
 **Code (bonszahe.com + copie Wix)**
 1. Bloc « Offres sans code » sur toutes les fiches, signalement, formulaire « Proposer » avec un type « Offre sans code » (date facultative).
@@ -62,7 +89,7 @@
 
 ---
 
-## 4. Ce qui n'est pas publié ou reste à faire
+### 4. Ce qui n'est pas publié ou reste à faire
 
 **À faire / à décider par le propriétaire**
 - [ ] **Mentions légales** : ajouter l'**adresse postale** et le **statut juridique** de l'éditeur (`EDITEUR` dans `site/app-favorites-v2.js`).
@@ -83,7 +110,7 @@
 
 ---
 
-## 5. Pièges à connaître
+### 5. Pièges à connaître
 
 ### 1. Publier = deux endroits, dans cet ordre
 1. **bonszahe.com** : `git push` sur la branche `claude/modest-clarke-d3ern5`. Cloudflare Pages met en ligne automatiquement.
@@ -120,7 +147,7 @@ Le 31 octobre, une autre session avait publié sa propre version (bloc « Offres
 
 ---
 
-## 6. Fichiers utiles
+### 6. Fichiers utiles
 
 | Fichier | Rôle |
 |---|---|
