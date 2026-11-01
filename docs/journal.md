@@ -25,8 +25,14 @@
 - **Incident copie Wix** : le « drop » avec seulement `seo.js` et `index.html` a **remplacé tout le site**. Copie restaurée (8 fichiers, empreintes identiques à GitHub) en important les fichiers dans la médiathèque depuis GitHub puis en les relisant par lien de téléchargement. Perdus : `carte.webp`, `icon.png`, `logo.webp` (absents de GitHub, non utilisés par le code). Règle ajoutée dans `CLAUDE.md` et `docs/memoire-projet.md` § 4. Fichiers temporaires `restauration-*` et `restauration-copie.svg` dans la médiathèque Wix : peuvent être supprimés.
 - Tâche `trig_01VY55Y8PhnPChowGvhi3FT5` (2/11, 7 h 23 Mayotte) : vérifier la parution de l'article du jour sur bonszahe.com. **bonszahe.com est bloqué par le réseau de la session** : le propriétaire doit l'autoriser dans les réglages de l'environnement.
 
+**Planning de décembre (validé, Miss France ajouté)**
+- 9 articles enregistrés et programmés dans `Articles` (textes vérifiés par empreinte) : 7/12 repas de fête · 9/12 sorties vacances · 10/12 Miss France · 11/12 cadeaux dernière minute · 16/12 téléphone/tablette · 18/12 se déplacer · 21/12 nouvel an · 23/12 retours après Noël · 30/12 budget 2027.
+- Écrits plus tard par tâche planifiée : Momojou (`trig_01PAoCBd8t4vv7qBDvBKqzmr`, 29/11 → parution 2/12), prime de Noël (`trig_012cM2mj8vFPmZxbeFqwm6Zs`, 3/12 → 4/12), soldes 2027 (`trig_01D9KSnmgQwLYubPNCezPXX7`, 26/12 → 28/12). Mises à jour Miss France (horaire TF1) et cadeaux dernière minute : `trig_01CXZ9TUqu3x6sUaX7eojDmD` (8/12). Carburants de décembre : `trig_01VwYkqwTKW1UWtMZP2oMN4u` (30/11).
+- Pas d'article le 14/12 (anniversaire de Chido).
+- Réseau : bonszahe.com et la1ere.franceinfo.fr sont maintenant autorisés (linfokwezi.fr toujours bloqué). Vérifié le 1/11 : seul « Vie chère » visible sur /blog, FAQPage présente, article du 2/11 en 404 (normal avant sa date).
+- Méthode pour envoyer un texte au CMS sans le recopier : pousser le fichier, l'importer dans la médiathèque depuis raw.githubusercontent.com (`text/plain`), le relire via `generate-file-download-url`, vérifier l'empreinte.
+
 **À faire / à décider**
-- [ ] Planning de décembre : proposé au propriétaire le 1ᵉʳ nov., en attente de validation.
 - [ ] Article BQP : à mettre à jour quand la liste 2026 de la préfecture sera trouvée (seuls les chiffres 2024 sont publiés).
 - [ ] Article « loi vie chère » : à mettre à jour à chaque étape du texte.
 - [ ] Prix pétrole lampant et mélange de novembre à compléter.
