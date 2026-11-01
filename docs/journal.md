@@ -1,11 +1,13 @@
-# Bonszahé : fiche de passation (session du 19 oct. au 1ᵉʳ nov. 2026)
+# Bonszahé : journal de passation
+
+## Session du 19 oct. au 1ᵉʳ nov. 2026
 
 > À lire avant de reprendre le travail sur bonszahe.com. Complète `docs/contexte-projet-ia.md` (présentation générale du projet) et `README.md` (fonctionnement technique).
 > État au **1ᵉʳ novembre 2026**. Code : branche `claude/modest-clarke-d3ern5`, dernier commit « Page Événements : frise horizontale des prochaines semaines », version des fichiers `?v=48`.
 
 ---
 
-## 1. Où on en est, en bref
+### 1. Où on en est, en bref
 
 | Sujet | État |
 |---|---|
@@ -21,7 +23,7 @@
 
 ---
 
-## 2. Décisions prises
+### 2. Décisions prises
 
 ### Offres sans code
 - Les **offres sans code public** (remise en magasin, offre de bienvenue, soldes sans code…) ont **leur propre bloc**, « Offres sans code [entreprise] », **juste sous les codes promo**, sur **toutes** les fiches. Elles ne vont **jamais dans la description** de l'entreprise.
@@ -44,7 +46,7 @@
 
 ---
 
-## 3. Ce qui est publié
+### 3. Ce qui est publié
 
 **Code (bonszahe.com + copie Wix)**
 1. Bloc « Offres sans code » sur toutes les fiches, signalement, formulaire « Proposer » avec un type « Offre sans code » (date facultative).
@@ -62,7 +64,7 @@
 
 ---
 
-## 4. Ce qui n'est pas publié ou reste à faire
+### 4. Ce qui n'est pas publié ou reste à faire
 
 **À faire / à décider par le propriétaire**
 - [ ] **Mentions légales** : ajouter l'**adresse postale** et le **statut juridique** de l'éditeur (`EDITEUR` dans `site/app-favorites-v2.js`).
@@ -83,7 +85,7 @@
 
 ---
 
-## 5. Pièges à connaître
+### 5. Pièges à connaître
 
 ### 1. Publier = deux endroits, dans cet ordre
 1. **bonszahe.com** : `git push` sur la branche `claude/modest-clarke-d3ern5`. Cloudflare Pages met en ligne automatiquement.
@@ -120,7 +122,7 @@ Le 31 octobre, une autre session avait publié sa propre version (bloc « Offres
 
 ---
 
-## 6. Fichiers utiles
+### 6. Fichiers utiles
 
 | Fichier | Rôle |
 |---|---|
