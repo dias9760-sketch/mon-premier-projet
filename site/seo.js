@@ -36,7 +36,7 @@ function communeFrom(v){ const k=key(v); if(!k) return ''; const hit=COMMUNES.fi
 function imgUrl(v){ if(!v) return ''; const s=typeof v==='object'?(v.url||v.src||''):String(v); const m=s.match(/^wix:image:\/\/v1\/([^/#]+)/); if(m) return 'https://static.wixstatic.com/media/'+m[1]; return /^https?:\/\//.test(s)?s:''; }
 function dateFrom(v){ if(!v) return null; const raw=typeof v==='object'?(v.$date||v.date||''):String(v); const m=raw.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return new Date(+m[1],+m[2]-1,+m[3]); const d=new Date(raw); return isNaN(d)?null:d; }
 function parsePos(v){ const m=String(v||'').trim().match(/^(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)$/); if(!m) return null; const p={lat:+m[1],lng:+m[2]}; return p.lat>-13.1&&p.lat<-12.5&&p.lng>44.9&&p.lng<45.4?p:null; }
-function fromCMS(ents,codes,tfs,today){
+function fromCMS(ents,codes,tfs,today,arts){
   const idToSlug={}, used=new Set();
   const biz=ents.filter(e=>e.publiee!==false&&e.nom).map(e=>{
     let slug=slugify(e.slug||e.nom)||String(e._id); while(used.has(slug)) slug+='-2'; used.add(slug); idToSlug[e._id]=slug;
@@ -49,8 +49,89 @@ function fromCMS(ents,codes,tfs,today){
     return {id:c._id,biz:idToSlug[ref(c.entreprise)],deal:c.avantage||'Bon plan',detail:c.detail||'',code:String(c.code||'').trim(),store:c.typeOffre==='magasin',cond:c.conditions||'',exp,noExp:!exp,updated:dateFrom(c._updatedDate)}; })
     .filter(c=>c.noExp||c.exp>=today);
   const tf=(tfs||[]).filter(x=>x.slug&&x.titre).map(x=>({slug:x.slug,title:x.titre,desc:x.description||''}));
-  return {biz,codes:list,tf};
+  return {biz,codes:list,tf,arts:articlesFrom(arts,today)};
 }
+
+/* ---------- Blog (collection Wix « Articles ») ----------
+   Champs : titre, slug (facultatif), resume, contenu (texte enrichi, ou texte simple / Markdown), image (ou imageLien),
+   datePublication, categorie, auteur, entreprises (noms ou slugs séparés par des virgules), aLaUne, publie.
+   Un article s'affiche seulement si « publie » est coché et si sa date de publication est arrivée. */
+const ART_TAGS=new Set(['p','br','h2','h3','h4','strong','b','em','i','u','s','a','ul','ol','li','blockquote','img','figure','figcaption','hr','table','thead','tbody','tr','th','td']);
+const ART_VOID=new Set(['br','img','hr']);
+const attrOf=(attrs,name)=>{ const m=String(attrs||'').match(new RegExp('\\b'+name+'\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\'|([^\\s>]+))','i')); return m?(m[1]??m[2]??m[3]??'').replace(/&amp;/g,'&').trim():''; };
+const linkAttrs=h=>/^(https?:|mailto:|tel:|\/|#)/i.test(h)?` href="${esc(h)}"`+(/^https?:/i.test(h)&&!/^https?:\/\/(www\.)?bonszahe\.com/i.test(h)?' target="_blank" rel="noopener"':''):'';
+// Garde seulement la mise en forme utile (titres, gras, listes, liens, images) : aucun script, style ni cadre.
+function cleanHtml(html){
+  return String(html||'').replace(/<(script|style|iframe|object|embed|noscript|template|svg|form)\b[\s\S]*?<\/\1\s*>/gi,'').replace(/<!--[\s\S]*?-->/g,'')
+    .replace(/<(\/?)([a-zA-Z][a-zA-Z0-9]*)([^>]*)>/g,(m,close,tag,attrs)=>{
+      tag=tag.toLowerCase(); if(tag==='h1') tag='h2'; if(tag==='h5'||tag==='h6') tag='h4';
+      if(!ART_TAGS.has(tag)) return '';
+      if(close) return ART_VOID.has(tag)?'':`</${tag}>`;
+      if(tag==='a') return `<a${linkAttrs(attrOf(attrs,'href'))}>`;
+      if(tag==='img'){ const src=imgUrl(attrOf(attrs,'src')); return src?`<img src="${esc(src)}" alt="${esc(attrOf(attrs,'alt'))}" loading="lazy">`:''; }
+      return `<${tag}>`;
+    });
+}
+// Texte simple ou Markdown (titres #, listes -, citations >, **gras**, *italique*, [lien](https://…), ![image](https://…)).
+function mdInline(s){
+  return esc(s).replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g,(m,a,u)=>`<img src="${u}" alt="${a}" loading="lazy">`)
+    .replace(/\[([^\]]+)\]\(((?:https?:\/\/|\/|mailto:|tel:)[^\s)]+)\)/g,(m,t,u)=>`<a${linkAttrs(u.replace(/&amp;/g,'&'))}>${t}</a>`)
+    .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/__([^_]+)__/g,'<strong>$1</strong>')
+    .replace(/(^|[^*\w])\*([^*\n]+)\*(?!\w)/g,'$1<em>$2</em>');
+}
+function mdToHtml(src){
+  const out=[]; let para=[], list=null, quote=[];
+  const flush=()=>{ if(para.length){ out.push(`<p>${para.map(mdInline).join('<br>')}</p>`); para=[]; } if(list){ out.push(`<${list.t}>${list.items.map(x=>`<li>${mdInline(x)}</li>`).join('')}</${list.t}>`); list=null; } if(quote.length){ out.push(`<blockquote><p>${quote.map(mdInline).join('<br>')}</p></blockquote>`); quote=[]; } };
+  String(src||'').replace(/\r/g,'').split('\n').forEach(raw=>{
+    const l=raw.trim(); let m;
+    if(!l){ flush(); return; }
+    if((m=l.match(/^(#{1,6})\s+(.*)$/))){ flush(); const h=m[1].length<=2?'h2':m[1].length===3?'h3':'h4'; out.push(`<${h}>${mdInline(m[2].replace(/\s#+$/,''))}</${h}>`); return; }
+    if(/^(-{3,}|\*{3,}|_{3,})$/.test(l)){ flush(); out.push('<hr>'); return; }
+    if((m=l.match(/^[-*•]\s+(.*)$/))||(m=l.match(/^\d+[.)]\s+(.*)$/))){ const t=/^\d/.test(l)?'ol':'ul'; if(para.length||quote.length||(list&&list.t!==t)) flush(); if(!list) list={t,items:[]}; list.items.push(m[1]); return; }
+    if((m=l.match(/^>\s?(.*)$/))){ if(para.length||list) flush(); quote.push(m[1]); return; }
+    if(list||quote.length) flush();
+    para.push(l);
+  });
+  flush();
+  return out.join('\n');
+}
+// Champ « Contenu enrichi » (format Ricos de Wix) : conversion simple en HTML.
+function ricosToHtml(doc){
+  const run=n=>{ const kids=(n.nodes||[]).map(run).join('');
+    switch(n.type){
+      case 'TEXT':{ let t=esc(n.textData&&n.textData.text||''); (n.textData&&n.textData.decorations||[]).forEach(d=>{ if(d.type==='BOLD') t=`<strong>${t}</strong>`; else if(d.type==='ITALIC') t=`<em>${t}</em>`; else if(d.type==='UNDERLINE') t=`<u>${t}</u>`; else if(d.type==='LINK'&&d.linkData&&d.linkData.link) t=`<a href="${esc(d.linkData.link.url||'')}">${t}</a>`; }); return t; }
+      case 'PARAGRAPH': return `<p>${kids}</p>`;
+      case 'HEADING':{ const lv=Math.min(4,Math.max(2,+(n.headingData&&n.headingData.level)||2)); return `<h${lv}>${kids}</h${lv}>`; }
+      case 'BULLETED_LIST': return `<ul>${kids}</ul>`;
+      case 'ORDERED_LIST': return `<ol>${kids}</ol>`;
+      case 'LIST_ITEM': return `<li>${kids.replace(/^<p>([\s\S]*)<\/p>$/,'$1')}</li>`;
+      case 'BLOCKQUOTE': return `<blockquote>${kids}</blockquote>`;
+      case 'DIVIDER': return '<hr>';
+      case 'IMAGE':{ const s=n.imageData&&n.imageData.image&&n.imageData.image.src||{}; const u=s.url||(s.id?'https://static.wixstatic.com/media/'+s.id:''); return u?`<img src="${esc(u)}" alt="${esc(n.imageData.altText||'')}">`:''; }
+      default: return kids;
+    } };
+  return run(doc||{});
+}
+function articleHtml(v){
+  if(!v) return '';
+  if(typeof v==='object') return cleanHtml(ricosToHtml(v));
+  const s=String(v);
+  return cleanHtml(/<\/?(p|h[1-6]|ul|ol|li|br|strong|em|b|i|a|div|span|blockquote|img)\b/i.test(s)?s:mdToHtml(s));
+}
+const plainText=html=>String(html||'').replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/\s+/g,' ').trim();
+function articlesFrom(rows,today){
+  const used=new Set();
+  return (rows||[]).filter(a=>a.publie===true&&a.titre).map(a=>{
+    let slug=slugify(a.slug||a.titre)||String(a._id); while(used.has(slug)) slug+='-2'; used.add(slug);
+    const html=articleHtml(a.contenu), text=plainText(html);
+    return {id:a._id,slug,title:String(a.titre).trim(),summary:String(a.resume||'').trim(),html,text,words:text?text.split(' ').length:0,
+      img:imgUrl(a.image)||imgUrl(a.imageLien),date:dateFrom(a.datePublication)||dateFrom(a._createdDate),updated:dateFrom(a._updatedDate),
+      cat:String(a.categorie||'').trim(),author:String(a.auteur||'').trim(),featured:a.aLaUne===true,
+      biz:String(a.entreprises||'').split(/[,;\n]+/).map(s=>s.trim()).filter(Boolean)};
+  }).filter(a=>a.date&&a.date<=today).sort((a,b)=>b.date-a.date);
+}
+const artDesc=a=>clip(a.summary||a.text||a.title,158);
+const readMin=a=>Math.max(1,Math.round(a.words/200));
 
 // Données structurées schema.org
 const crumbs=items=>({'@context':'https://schema.org','@type':'BreadcrumbList',itemListElement:items.map(([name,path],i)=>({'@type':'ListItem',position:i+1,name,item:urlOf(path)}))});
@@ -155,6 +236,18 @@ function meta(path,params,data,opts){
     body=block('Carte des magasins','Les boutiques de l’île, leurs offres en magasin et l’itinéraire pour y aller.',comLinks(data)); }
   else if(p==='evenements'){ canonical='/evenements'; title='Événements, marchés et ventes privées à Mayotte | Bonszahé';
     desc='L’agenda des marchés, ventes privées, fêtes, concerts et animations des entreprises de Mayotte.'; body=block('Événements à Mayotte',esc(desc)); }
+  else if(p==='blog'&&id){ const a=(data.arts||[]).find(x=>x.slug===id);
+    if(!a){ status=404; robots='noindex,follow'; title='Article introuvable | Bonszahé'; desc='Cet article n’existe pas ou n’est plus en ligne.'; body=block('Article introuvable','',`<p><a href="/blog">Voir tous les articles du blog</a></p>`); }
+    else{ canonical='/blog/'+a.slug; title=`${a.title} | Bonszahé`; desc=artDesc(a); type='article'; if(a.img) image=a.img;
+      ld.push(Object.assign({'@context':'https://schema.org','@type':'BlogPosting',headline:clip(a.title,110),description:desc,url:urlOf(canonical),mainEntityOfPage:urlOf(canonical),inLanguage:'fr-FR',
+        datePublished:iso(a.date),dateModified:iso(a.updated&&a.updated>a.date?a.updated:a.date),wordCount:a.words,
+        author:a.author?{'@type':'Person',name:a.author}:{'@type':'Organization',name:NAME,url:SITE+'/'},publisher:{'@type':'Organization',name:NAME,logo:{'@type':'ImageObject',url:LOGO}}},
+        a.img?{image:[a.img]}:{},a.cat?{articleSection:a.cat}:{}),
+        crumbs([['Accueil','/'],['Blog','/blog'],[a.title,canonical]]));
+      body=block(a.title,a.summary?esc(a.summary):'',`<p>Publié le ${frDate(a.date)}${a.author?' par '+esc(a.author):''}</p>${a.img?`<p><img src="${esc(a.img)}" alt=""></p>`:''}${a.html}<p><a href="/blog">Tous les articles du blog</a></p>`); } }
+  else if(p==='blog'){ canonical='/blog'; title='Le blog Bonszahé : guides et bons plans pour acheter malin à Mayotte';
+    desc='Guides, conseils, portraits d’entreprises et actualités pour acheter malin à Mayotte et faire vivre les commerces de l’île.';
+    body=block('Le blog Bonszahé',esc(desc),(data.arts||[]).length?`<ul>${data.arts.map(a=>`<li><a href="/blog/${esc(a.slug)}">${esc(a.title)}</a> — ${esc(artDesc(a))}</li>`).join('')}</ul>`:''); }
   else if(p==='prix'){ canonical='/prix'; title='Prix à Mayotte : comparez les prix des produits du quotidien | Bonszahé';
     desc='Riz, huile, sucre, lait, mabawa, gaz… Les prix relevés par les habitants dans les magasins de Mayotte, pour faire ses courses au meilleur prix.'; body=block('Prix à Mayotte',esc(desc)); }
   else if(p==='semaine'){ canonical='/semaine'; title='Les bons plans de la semaine à Mayotte | Bonszahé';
@@ -193,8 +286,11 @@ function sitemap(data,today){
   data.biz.forEach(b=>out.push(u('/entreprises/'+b.slug,b.updated,'0.8','weekly')));
   data.codes.forEach(c=>out.push(u('/bon-plan/'+encodeURIComponent(c.id),c.updated,'0.6','weekly')));
   (data.tf||[]).forEach(t=>out.push(u('/temps-forts/'+t.slug,null,'0.6','monthly')));
+  const arts=data.arts||[];
+  out.push(u('/blog',arts.length?arts[0].date:null,'0.7','weekly'));
+  arts.forEach(a=>out.push(u('/blog/'+a.slug,a.updated&&a.updated>a.date?a.updated:a.date,'0.7','monthly')));
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${out.join('\n')}\n</urlset>\n`;
 }
 
-g.BZSEO={SITE,DEFAULT_IMAGE,CATS,COMMUNES,meta,sitemap,fromCMS,esc};
+g.BZSEO={SITE,DEFAULT_IMAGE,CATS,COMMUNES,meta,sitemap,fromCMS,esc,articlesFrom,articleHtml,readMin,artDesc};
 })(typeof globalThis!=='undefined'?globalThis:window);
