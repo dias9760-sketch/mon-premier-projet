@@ -20,12 +20,16 @@
 - `trig_018mEjAwN36SonXcE3BuVnib` (24/11) : compléter l'article marchés de Noël avec les dates confirmées.
 - `trig_01VwYkqwTKW1UWtMZP2oMN4u` (30/11) : écrire et publier l'article n° 12 « carburants de décembre » (couverture déjà en ligne) et mettre à jour `PrixReglementes` et « Vie chère ».
 
+**Ajouté en fin de journée**
+- **Données structurées FAQ** (accord du propriétaire) : `faqOf()` / `faqLd()` dans `site/seo.js` déclarent la section « Questions fréquentes » de chaque article en `FAQPage`. Version `?v=51`, poussé sur `claude/modest-clarke-d3ern5` (commit 48c77e4). Testé avec node sur les 12 articles (2 à 4 questions chacun).
+- **Incident copie Wix** : le « drop » avec seulement `seo.js` et `index.html` a **remplacé tout le site**. Copie restaurée (8 fichiers, empreintes identiques à GitHub) en important les fichiers dans la médiathèque depuis GitHub puis en les relisant par lien de téléchargement. Perdus : `carte.webp`, `icon.png`, `logo.webp` (absents de GitHub, non utilisés par le code). Règle ajoutée dans `CLAUDE.md` et `docs/memoire-projet.md` § 4. Fichiers temporaires `restauration-*` et `restauration-copie.svg` dans la médiathèque Wix : peuvent être supprimés.
+- Tâche `trig_01VY55Y8PhnPChowGvhi3FT5` (2/11, 7 h 23 Mayotte) : vérifier la parution de l'article du jour sur bonszahe.com. **bonszahe.com est bloqué par le réseau de la session** : le propriétaire doit l'autoriser dans les réglages de l'environnement.
+
 **À faire / à décider**
-- [ ] Données structurées FAQ (FAQPage) dans `site/seo.js` : proposé, attend l'accord (changement de code).
+- [ ] Planning de décembre : proposé au propriétaire le 1ᵉʳ nov., en attente de validation.
 - [ ] Article BQP : à mettre à jour quand la liste 2026 de la préfecture sera trouvée (seuls les chiffres 2024 sont publiés).
 - [ ] Article « loi vie chère » : à mettre à jour à chaque étape du texte.
 - [ ] Prix pétrole lampant et mélange de novembre à compléter.
-- [ ] Planning de décembre à proposer (prime de Noël, idées repas de fête, ramadan 2027 en janvier…).
 
 **Pièges rencontrés**
 - Réseau de la session : la1ere.franceinfo.fr, linfokwezi.fr, rmv.yt et bonszahe.com sont bloqués ; on ne lit que les extraits de recherche.
