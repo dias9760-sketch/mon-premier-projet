@@ -121,6 +121,7 @@ let baseCodes=[];
 let OFFRES=[], OFFER_REPORTS=[]; // offres sans code public (CodesPromo typeOffre « offre ») et leurs signalements
 let bizId={};
 let EVENTS=[];
+let ARTICLES=[]; // Blog : collection Wix « Articles » (voir seo.js, articlesFrom)
 let VOTES=[];
 let MOROS=[];
 let COMMENTS=[], LIKES=[], REPORTS=[], MODERATION={};
@@ -330,13 +331,13 @@ const SALES={boutique:'Boutique physique','en-ligne':'Vente en ligne / livraison
 // Date et heure complètes d'un champ système Wix ({$date:…}), pour le classement Tendance.
 const stamp=v=>{ const d=new Date(typeof v==='object'&&v?v.$date:v); return isNaN(d)?new Date(TODAY):d; };
 async function loadData(){
-  const [ents,codes,votes,events,moros,comms,likes,reports,moder,dms,parr,recs,tfs,excl,vals,catas,prods,mags,rels,confs,hids,regs,srch]=await Promise.all([
+  const [ents,codes,votes,events,moros,comms,likes,reports,moder,dms,parr,recs,tfs,excl,vals,catas,prods,mags,rels,confs,hids,regs,srch,arts]=await Promise.all([
     queryAll('Entreprises'),queryAll('CodesPromo'),
     queryAll('Votes').catch(()=>[]),queryAll('Evenements').catch(()=>[]),queryAll('Moro').catch(()=>[]),
     queryAll('Commentaires').catch(()=>[]),queryAll('JaimeCommentaires').catch(()=>[]),queryAll('Signalements').catch(()=>[]),queryAll('Moderation').catch(()=>[]),
     queryAll('Demandes').catch(()=>[]),queryAll('Parrainages').catch(()=>[]),queryAll('Recompenses').catch(()=>[]),queryAll('TempsForts').catch(()=>[]),
     queryAll('Exclusions').catch(()=>[]),queryAll('ValidationsClassement').catch(()=>[]),queryAll('Catalogues').catch(()=>[]),
-    queryAll('ProduitsSuivis').catch(()=>[]),queryAll('MagasinsPrix').catch(()=>[]),queryAll('RelevesPrix').catch(()=>[]),queryAll('ConfirmationsPrix').catch(()=>[]),queryAll('MasquagesPrix').catch(()=>[]),queryAll('PrixReglementes').catch(()=>[]),queryAll('RecherchesVides').catch(()=>[])
+    queryAll('ProduitsSuivis').catch(()=>[]),queryAll('MagasinsPrix').catch(()=>[]),queryAll('RelevesPrix').catch(()=>[]),queryAll('ConfirmationsPrix').catch(()=>[]),queryAll('MasquagesPrix').catch(()=>[]),queryAll('PrixReglementes').catch(()=>[]),queryAll('RecherchesVides').catch(()=>[]),queryAll('Articles').catch(()=>[])
   ]);
   const idToSlug={}; const used=new Set();
   const list=ents.filter(e=>e.publiee!==false&&e.nom).map(e=>{
@@ -380,6 +381,7 @@ async function loadData(){
   CONFIRMS=confs.filter(x=>x.releve).map(x=>({id:x._id,releve:x.releve,owner:x._owner,at:stamp(x._createdDate)}));
   REGLEMENTES=regs.filter(x=>/^\d{4}-\d{2}$/.test(String(x.mois||''))&&x.produit&&+x.prix>0).map(x=>({mois:x.mois,produit:x.produit,libelle:x.libelle||x.produit,prix:+x.prix,unite:x.unite||'',source:x.source||''}));
   SEARCHES=srch.filter(x=>x.terme).map(x=>({terme:norm(x.terme).slice(0,40),categorie:x.categorie||'',visiteur:x.visiteur||'',at:stamp(x._createdDate)}));
+  ARTICLES=window.BZSEO?BZSEO.articlesFrom(arts,TODAY):[];
   PRICE_HIDDEN={}; hids.filter(x=>x._owner===ADMIN_ID&&x.releve).forEach(x=>PRICE_HIDDEN[x.releve]=x._id);
   dataSource='wix';
 }
@@ -712,6 +714,13 @@ function pageHome(){
       <div class="rail">${news.map(c=>coupon(c)).join('')}</div>
     </div>
   </section>
+
+  ${ARTICLES.length?`<section class="block">
+    <div class="wrap">
+      <div class="head"><div><h2>📰 Le blog</h2><p class="muted">Guides et conseils pour acheter malin à Mayotte.</p></div><a class="link" href="#/blog">Tous les articles</a></div>
+      <div class="bloggrid homeblog">${ARTICLES.slice(0,3).map(a=>postCard(a)).join('')}</div>
+    </div>
+  </section>`:''}
 
   ${upcomingEvents().length?`<section class="block alt">
     <div class="wrap">
@@ -1867,6 +1876,69 @@ function evTimelineA(list){
       ${items.map((e,i)=>`<button class="tla-item ${i%2?'down':'up'}" data-evt="${esc(e.id)}"><span class="tla-dot"></span><span class="tla-card"><span class="tla-date">${esc(evShortDay(e.date))}</span><strong>${esc(e.title)}</strong><small>📍 ${esc(e.commune?comBy(e.commune).name:e.communeName||'Mayotte')}</small></span></button>`).join('')}
     </div></section>`;
 }
+/* ---------- Blog (articles gérés dans la collection Wix « Articles ») ---------- */
+const artBy=slug=>ARTICLES.find(a=>a.slug===slug);
+const artUrl=a=>pageUrl('#/blog/'+a.slug);
+const artDate=d=>d.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+const artMeta=a=>`${artDate(a.date)} · ${BZSEO.readMin(a)} min de lecture`;
+// Couleur de la couverture par défaut, toujours la même pour une catégorie donnée.
+const artCv=a=>{ const k=key(a.cat||'blog'); let h=0; for(const ch of k) h=(h*31+ch.charCodeAt(0))>>>0; return 'cv-'+CATS[h%CATS.length].slug; };
+// Sans image (ou si elle ne charge pas), on garde la couverture colorée.
+const artCover=(a,big)=>`<span class="postph cv ${artCv(a)}"><b>📰</b></span>${a.img?`<img src="${esc(a.img)}" alt="" loading="${big?'eager':'lazy'}" onerror="this.remove()">`:''}`;
+const artBiz=a=>a.biz.map(x=>B.find(b=>b.slug===slugify(x)||key(b.name)===key(x))).filter((b,i,l)=>b&&l.indexOf(b)===i);
+function postCard(a,big=false){
+  return `<article class="postcard${big?' feat':''}">
+    <a class="postcover" href="#/blog/${esc(a.slug)}" tabindex="-1" aria-hidden="true">${artCover(a,big)}</a>
+    <div class="postbody">
+      ${a.cat?`<span class="pill">${esc(a.cat)}</span>`:''}
+      ${big?`<h2><a href="#/blog/${esc(a.slug)}">${esc(a.title)}</a></h2>`:`<h3><a href="#/blog/${esc(a.slug)}">${esc(a.title)}</a></h3>`}
+      <p class="postsum">${esc(BZSEO.artDesc(a))}</p>
+      <p class="evmeta">${ic('clock')}${artMeta(a)}</p>
+    </div>
+  </article>`;
+}
+function pageBlog(params){
+  const cats=[...new Set(ARTICLES.map(a=>a.cat).filter(Boolean))].sort((x,y)=>x.localeCompare(y,'fr'));
+  const cat=cats.includes(params.get('cat'))?params.get('cat'):'';
+  const list=ARTICLES.filter(a=>!cat||a.cat===cat);
+  const feat=cat?null:(list.find(a=>a.featured)||list[0]);
+  const rest=list.filter(a=>a!==feat);
+  const q=c=>'#/blog'+(c?'?cat='+encodeURIComponent(c):'');
+  return `<div class="wrap">
+    ${backBtn('#/')}<div class="pagehead"><h1>📰 Le blog Bonszahé</h1><p class="muted">Guides, conseils, portraits d’entreprises et actualités pour acheter malin à Mayotte.</p></div>
+    ${cats.length>1?`<div class="chips u10" role="group" aria-label="Catégories d’articles">${[['','Tous les articles'],...cats.map(c=>[c,c])].map(([k,l])=>`<a class="chip" href="${q(k)}" aria-pressed="${cat===k}">${esc(l)}</a>`).join('')}</div>`:''}
+    <div class="u13">${list.length?`${feat?postCard(feat,true):''}${rest.length?`<div class="bloggrid${feat?' u13':''}">${rest.map(a=>postCard(a)).join('')}</div>`:''}`:
+      empty('Les premiers articles arrivent bientôt','Guides pratiques, bons plans de saison et portraits des commerces de l’île : revenez très vite !','<a class="btn btn-primary" href="#/codes">Voir les bons plans du moment</a>')}</div>
+    <div class="u8"></div>
+  </div>`;
+}
+function pageArticle(a){
+  if(!a) return notFound('Article introuvable','Cet article n’existe pas ou n’est plus en ligne.','<a class="btn btn-primary" href="#/blog">Voir tous les articles</a>','#/blog');
+  const url=artUrl(a), biz=artBiz(a);
+  const more=[...ARTICLES.filter(x=>x!==a&&a.cat&&x.cat===a.cat),...ARTICLES.filter(x=>x!==a&&!(a.cat&&x.cat===a.cat))].slice(0,3);
+  const share=`<div class="postshare"><span class="muted">Partager</span>
+      <a class="btn btn-wa btn-sm" href="${waHref(`${a.title} 👉 ${url}`)}" target="_blank" rel="noopener">WhatsApp</a>
+      <a class="btn btn-ghost btn-sm" href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}" target="_blank" rel="noopener">Facebook</a>
+      <button class="btn btn-ghost btn-sm" data-copylink="${esc(url)}">${ic('copy')}Copier le lien</button></div>`;
+  return `<div class="wrap">
+    ${backBtn('#/blog','Le blog')}
+    <article class="post">
+      <header class="posthead">
+        ${a.cat?`<a class="pill" href="#/blog?cat=${encodeURIComponent(a.cat)}">${esc(a.cat)}</a>`:''}
+        <h1>${esc(a.title)}</h1>
+        ${a.summary?`<p class="postlead">${esc(a.summary)}</p>`:''}
+        <p class="evmeta">${ic('clock')}${a.author?`Par ${esc(a.author)} · `:''}${artMeta(a)}</p>
+      </header>
+      ${a.img?`<figure class="postimg"><img src="${esc(a.img)}" alt="" onerror="this.parentNode.remove()"></figure>`:''}
+      <div class="prose">${a.html||'<p class="muted">Le texte de cet article arrive bientôt.</p>'}</div>
+      ${share}
+    </article>
+    ${biz.length?`<section class="blogsec"><div class="head"><div><h2>Les entreprises de l’article</h2><p class="muted">Leurs codes promo et bons plans du moment.</p></div></div><div class="bizgrid">${biz.map(bizCard).join('')}</div></section>`:''}
+    ${more.length?`<section class="blogsec"><div class="head"><div><h2>À lire aussi</h2></div><a class="link" href="#/blog">Tous les articles</a></div><div class="bloggrid">${more.map(x=>postCard(x)).join('')}</div></section>`:''}
+    <div class="u8"></div>
+  </div>`;
+}
+
 function pageEvents(params){
   const com=params.get('c')||'';
   const all=upcomingEvents();
@@ -2581,6 +2653,8 @@ function route(){
   else if(p==='confidentialite'){ html=pagePrivacy(); title='Politique de confidentialité | Bonszahé'; }
   else if(p==='tendances'){ html=pageTrends(params); title='Tendances : les bons plans qui chauffent | Bonszahé'; }
   else if(p==='evenements'){ html=pageEvents(params); title='Événements à Mayotte | Bonszahé'; }
+  else if(p==='blog'&&parts[1]){ const a=artBy(decodeURIComponent(parts[1])); html=pageArticle(a); nav='blog'; title=a?`${a.title} | Bonszahé`:'Article introuvable | Bonszahé'; }
+  else if(p==='blog'){ html=pageBlog(params); title='Le blog Bonszahé | Bonszahé'; }
   else if(p==='classement'){ html=pageRanking(); nav='profil'; title='Classement de la communauté | Bonszahé'; }
   else if(p==='entreprises') html=pageDirectory(params);
   else if(p==='codes') html=pageCodes(params);
@@ -2614,7 +2688,7 @@ function route(){
 const INDEXABLE_HOST=location.hostname==='bonszahe.com';
 function applySeo(path,params,fallbackTitle){
   if(!window.BZSEO){ document.title=fallbackTitle; return; }
-  let m; try{ m=BZSEO.meta(path||'/',params,{biz:B,codes:activeCodes(),tf:TEMPS},{today:TODAY,withoutBody:true}); }catch(e){ console.warn(e); document.title=fallbackTitle; return; }
+  let m; try{ m=BZSEO.meta(path||'/',params,{biz:B,codes:activeCodes(),tf:TEMPS,arts:ARTICLES},{today:TODAY,withoutBody:true}); }catch(e){ console.warn(e); document.title=fallbackTitle; return; }
   document.title=m.title;
   const set=(sel,attr,val)=>{ const el=document.head.querySelector(sel); if(el) el.setAttribute(attr,val); };
   set('meta[name="description"]','content',m.desc);
@@ -2622,7 +2696,7 @@ function applySeo(path,params,fallbackTitle){
   set('link[rel="canonical"]','href',m.canonical);
   set('meta[property="og:title"]','content',m.title); set('meta[name="twitter:title"]','content',m.title);
   set('meta[property="og:description"]','content',m.desc); set('meta[name="twitter:description"]','content',m.desc);
-  set('meta[property="og:url"]','content',m.canonical);
+  set('meta[property="og:url"]','content',m.canonical); set('meta[property="og:type"]','content',m.type);
   set('meta[property="og:image"]','content',m.image); set('meta[name="twitter:image"]','content',m.image);
   const ld=document.getElementById('ld'); if(ld) ld.textContent=JSON.stringify(m.ld);
 }
@@ -2652,7 +2726,7 @@ const revealObs='IntersectionObserver' in window?new IntersectionObserver(es=>es
 function reveal(root){
   if(CALM||!revealObs) return;
   let k=0;
-  root.querySelectorAll('.coupon,.biz,.event,.cat,.prow,.ranking li,.bdg,.dm,.tfcard,.lot,.commucard').forEach(el=>{
+  root.querySelectorAll('.coupon,.biz,.event,.postcard,.cat,.prow,.ranking li,.bdg,.dm,.tfcard,.lot,.commucard').forEach(el=>{
     if(el.closest('dialog')) return;
     el.classList.add('rv'); el.style.setProperty('--d',Math.min(k++,5)*60+'ms'); revealObs.observe(el);
   });

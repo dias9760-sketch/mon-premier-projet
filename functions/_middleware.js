@@ -8,7 +8,7 @@ const CANONICAL_HOST = 'bonszahe.com';
 const REDIRECT_HOSTS = ['www.bonszahe.com', 'bonszahe.pages.dev'];
 const WIX_CLIENT_ID = '5ead703b-03d1-45f5-8049-74802f2b86f2';
 const API = 'https://www.wixapis.com';
-const CACHE_KEY = 'https://bonszahe.com/__bz_seo_data_v1';
+const CACHE_KEY = 'https://bonszahe.com/__bz_seo_data_v2';
 const CACHE_SECONDS = 600;
 const FILE_RE = /\.[a-z0-9]{2,5}$/i;
 
@@ -50,12 +50,13 @@ async function cmsData(ctx) {
   });
   if (!t.ok) throw new Error('token ' + t.status);
   const token = (await t.json()).access_token;
-  const [ents, codes, tfs] = await Promise.all([
+  const [ents, codes, tfs, arts] = await Promise.all([
     queryAll(token, 'Entreprises'),
     queryAll(token, 'CodesPromo'),
-    queryAll(token, 'TempsForts').catch(() => [])
+    queryAll(token, 'TempsForts').catch(() => []),
+    queryAll(token, 'Articles').catch(() => [])
   ]);
-  const raw = { ents, codes, tfs };
+  const raw = { ents, codes, tfs, arts };
   ctx.waitUntil(cache.put(key, new Response(JSON.stringify(raw), {
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=' + CACHE_SECONDS }
   })));
@@ -76,6 +77,7 @@ function render(html, m, indexable) {
   html = setMeta(html, /(<meta property="og:description" content=")[^"]*(")/, m.desc);
   html = setMeta(html, /(<meta name="twitter:description" content=")[^"]*(")/, m.desc);
   html = setMeta(html, /(<meta property="og:url" content=")[^"]*(")/, m.canonical);
+  html = setMeta(html, /(<meta property="og:type" content=")[^"]*(")/, m.type);
   html = setMeta(html, /(<meta property="og:image" content=")[^"]*(")/, m.image);
   html = setMeta(html, /(<meta name="twitter:image" content=")[^"]*(")/, m.image);
   const ld = JSON.stringify(m.ld).replace(/</g, '\\u003c');
@@ -101,10 +103,10 @@ export async function onRequest(ctx) {
     try {
       const today = todayMayotte();
       const raw = await cmsData(ctx);
-      const data = SEO.fromCMS(raw.ents, raw.codes, raw.tfs, today);
+      const data = SEO.fromCMS(raw.ents, raw.codes, raw.tfs, today, raw.arts);
       return new Response(SEO.sitemap(data, today), { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' } });
     } catch (e) {
-      return new Response(SEO.sitemap({ biz: [], codes: [], tf: [] }, todayMayotte()), { headers: { 'Content-Type': 'application/xml; charset=utf-8' } });
+      return new Response(SEO.sitemap({ biz: [], codes: [], tf: [], arts: [] }, todayMayotte()), { headers: { 'Content-Type': 'application/xml; charset=utf-8' } });
     }
   }
   if (FILE_RE.test(url.pathname)) return next();
@@ -118,7 +120,7 @@ export async function onRequest(ctx) {
   try {
     const today = todayMayotte();
     const raw = await cmsData(ctx);
-    const data = SEO.fromCMS(raw.ents, raw.codes, raw.tfs, today);
+    const data = SEO.fromCMS(raw.ents, raw.codes, raw.tfs, today, raw.arts);
     const m = SEO.meta(url.pathname, url.searchParams, data, { today });
     return new Response(render(html, m, indexable), { status: m.status, headers: htmlHeaders });
   } catch (e) {

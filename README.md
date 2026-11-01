@@ -68,3 +68,12 @@ Collection `RecherchesVides` (écriture ouverte, lecture publique) : quand une r
 la catégorie probable et un identifiant aléatoire du navigateur (une fois par mot et par visite). L'espace pro affiche, pour la catégorie
 de l'entreprise, les mots recherchés par au moins 3 personnes différentes sur 30 jours, les demandes publiées et des conseils.
 La page Contrôle montre le même radar pour toute l'île.
+
+## Blog
+
+Collection `Articles` (lecture publique, écriture réservée au propriétaire), gérée depuis le tableau de bord Wix. Pages `/blog` (liste, filtre
+par catégorie, article « À la une ») et `/blog/<slug>` (article, entreprises citées, « À lire aussi », partage WhatsApp/Facebook). Seuls les
+articles avec « Publié » coché et une date de publication arrivée s'affichent. Le contenu (texte enrichi Wix, Markdown, texte simple ou contenu
+Ricos) est converti et nettoyé par `articleHtml()` dans `site/seo.js`, partagé avec le pré-rendu (titre, description, données `BlogPosting`, plan du site).
+Mode d'emploi pour publier : `docs/guide-blog.md`.
+
