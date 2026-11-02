@@ -45,8 +45,8 @@ function fromCMS(ents,codes,tfs,today,arts,holo){
   }).sort((a,b)=>a.name.localeCompare(b.name,'fr'));
   const ref=v=>typeof v==='object'&&v?v._id:v;
   const st=v=>{ const k=key(v); return k.includes('attente')?'attente':k.includes('refus')?'refuse':k.includes('retir')?'retire':'valide'; };
-  const list=codes.filter(c=>(c.code||c.typeOffre==='magasin')&&idToSlug[ref(c.entreprise)]&&st(c.statut)==='valide').map(c=>{ const exp=dateFrom(c.dateExpiration);
-    return {id:c._id,biz:idToSlug[ref(c.entreprise)],deal:c.avantage||'Bon plan',detail:c.detail||'',code:String(c.code||'').trim(),store:c.typeOffre==='magasin',cond:c.conditions||'',exp,noExp:!exp,updated:dateFrom(c._updatedDate)}; })
+  const list=codes.filter(c=>(c.code||c.typeOffre==='magasin'||(c.typeOffre==='offre'&&c.avantage))&&idToSlug[ref(c.entreprise)]&&st(c.statut)==='valide').map(c=>{ const exp=dateFrom(c.dateExpiration);
+    return {id:c._id,biz:idToSlug[ref(c.entreprise)],deal:c.avantage||'Bon plan',detail:c.detail||'',code:String(c.code||'').trim(),store:c.typeOffre==='magasin',offre:c.typeOffre==='offre'&&!String(c.code||'').trim(),cond:c.conditions||'',exp,noExp:!exp,updated:dateFrom(c._updatedDate)}; })
     .filter(c=>c.noExp||c.exp>=today);
   const tf=(tfs||[]).filter(x=>x.slug&&x.titre).map(x=>({slug:x.slug,title:x.titre,desc:x.description||''}));
   return {biz,codes:list,tf,arts:mergeArticles(articlesFrom(arts,today),holoFrom(holo,today))};
@@ -196,7 +196,7 @@ function bizLd(b,codes){
   if(b.pos) o.geo={'@type':'GeoCoordinates',latitude:b.pos.lat,longitude:b.pos.lng};
   if(b.hours) o.openingHours=b.hours;
   o.areaServed={'@type':'AdministrativeArea',name:'Mayotte'};
-  if(codes.length) o.makesOffer=codes.slice(0,20).map(c=>Object.assign({'@type':'Offer',name:c.store?`${c.deal} (offre en magasin)`:`${c.deal} avec le code ${c.code}`,url:urlOf('/bon-plan/'+encodeURIComponent(c.id))},c.detail?{description:clip(c.detail,200)}:{},expOf(c)?{validThrough:iso(expOf(c))}:{}));
+  if(codes.length) o.makesOffer=codes.slice(0,20).map(c=>Object.assign({'@type':'Offer',name:c.store?`${c.deal} (offre en magasin)`:c.offre?`${c.deal} (sans code)`:`${c.deal} avec le code ${c.code}`,url:urlOf('/bon-plan/'+encodeURIComponent(c.id))},c.detail?{description:clip(c.detail,200)}:{},expOf(c)?{validThrough:iso(expOf(c))}:{}));
   return o;
 }
 const WEBSITE_LD={'@context':'https://schema.org','@graph':[
@@ -206,7 +206,7 @@ const WEBSITE_LD={'@context':'https://schema.org','@graph':[
 
 // Contenu HTML lisible sans JavaScript (robots, aperçus) — remplacé par l'application au chargement.
 const bizLink=b=>`<li><a href="/entreprises/${esc(b.slug)}">${esc(b.name)}</a>${b.desc?` — ${esc(clip(b.desc,140))}`:''}</li>`;
-const codeLink=(c,data)=>{ const b=data.biz.find(x=>x.slug===c.biz)||{name:''}; return `<li><a href="/bon-plan/${encodeURIComponent(c.id)}">${esc(c.deal)} chez ${esc(b.name)}</a>${c.store?' (offre en magasin)':c.code?` — code <strong>${esc(c.code)}</strong>`:''}</li>`; };
+const codeLink=(c,data)=>{ const b=data.biz.find(x=>x.slug===c.biz)||{name:''}; return `<li><a href="/bon-plan/${encodeURIComponent(c.id)}">${esc(c.deal)} chez ${esc(b.name)}</a>${c.store?' (offre en magasin)':c.offre?' (sans code)':c.code?` — code <strong>${esc(c.code)}</strong>`:''}</li>`; };
 const block=(h1,intro,inner)=>`<div class="wrap u16"><h1>${esc(h1)}</h1>${intro?`<p>${intro}</p>`:''}${inner||''}</div>`;
 const catLinks=data=>`<h2>Par catégorie</h2><ul>${CATS.filter(c=>data.biz.some(b=>b.cat===c.slug)).map(c=>`<li><a href="/entreprises?cat=${c.slug}">${esc(c.name)} à Mayotte</a></li>`).join('')}</ul>`;
 const comLinks=data=>`<h2>Par commune</h2><ul>${COMMUNES.filter(c=>data.biz.some(b=>b.commune===c.slug)).map(c=>`<li><a href="/entreprises?c=${c.slug}">Bons plans à ${esc(c.name)}</a></li>`).join('')}</ul>`;
@@ -231,7 +231,7 @@ function meta(path,params,data,opts){
     else{
       const com=comBy(b.commune), cat=catBy(b.cat)||CATS[0], mine=codes.filter(c=>c.biz===b.slug), where=com?`à ${com.name}`:'à Mayotte';
       title=`${b.name} : code promo et bons plans ${where} | Bonszahé`;
-      desc=mine.length?clip(`${plural(mine.length,'code promo','codes promo')} ${b.name} en ce moment : ${mine.slice(0,2).map(c=>c.deal+(c.store?' en magasin':c.code?' avec '+c.code:'')).join(', ')}. ${b.desc}`,158)
+      desc=mine.length?clip(`${plural(mine.length,'code promo','codes promo')} ${b.name} en ce moment : ${mine.slice(0,2).map(c=>c.deal+(c.store?' en magasin':c.offre?' sans code':c.code?' avec '+c.code:'')).join(', ')}. ${b.desc}`,158)
         :clip(b.desc?`${b.name} ${where} : ${b.desc} Adresse, contact et bons plans sur Bonszahé.`:`${b.name}, ${cat.phrase} ${where} : adresse, contact et bons plans sur Bonszahé.`,158);
       if(b.logo) image=b.logo;
       ld.push(bizLd(b,mine),crumbs([['Accueil','/'],['Entreprises','/entreprises'],[cat.name,'/entreprises?cat='+cat.slug],[b.name,'/entreprises/'+b.slug]]));
@@ -264,7 +264,7 @@ function meta(path,params,data,opts){
     if(!c||!b){ status=404; robots='noindex,follow'; title='Bon plan expiré ou introuvable | Bonszahé'; desc='Ce bon plan a expiré ou a été retiré. Découvrez les codes promo en cours à Mayotte.'; body=block('Ce bon plan n’existe plus','',`<p><a href="/codes">Voir les codes promo en cours</a></p>`); }
     else{
       title=`${c.deal} chez ${b.name}${c.code&&!c.store?' : code '+c.code:''} | Bonszahé`;
-      desc=clip(`${c.store?'Offre en magasin':'Code promo'} ${b.name} : ${c.deal}${c.detail?' – '+c.detail:''}. ${expOf(c)?'Valable jusqu’au '+frDate(expOf(c)):'Sans date limite'}. ${c.store?'Montrez l’offre en caisse.':'Copiez le code sur Bonszahé.'}`,158);
+      desc=clip(`${c.store?'Offre en magasin':c.offre?'Offre sans code':'Code promo'} ${b.name} : ${c.deal}${c.detail?' – '+c.detail:''}. ${expOf(c)?'Valable jusqu’au '+frDate(expOf(c)):'Sans date limite'}. ${c.store?'Montrez l’offre en caisse.':c.offre?'Aucun code à saisir.':'Copiez le code sur Bonszahé.'}`,158);
       if(b.logo) image=b.logo;
       ld.push(crumbs([['Accueil','/'],['Codes promo','/codes'],[b.name,'/entreprises/'+b.slug],[c.deal,'/bon-plan/'+encodeURIComponent(c.id)]]));
       body=block(`${c.deal} chez ${b.name}`,c.store?'Offre à montrer en caisse.':`Code promo : <strong>${esc(c.code)}</strong>`,

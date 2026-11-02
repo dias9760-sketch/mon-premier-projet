@@ -118,7 +118,6 @@ function getAuthVisitorToken(){
   return authVisitorPromise;
 }
 let baseCodes=[];
-let OFFRES=[], OFFER_REPORTS=[]; // offres sans code public (CodesPromo typeOffre « offre ») et leurs signalements
 let bizId={};
 let EVENTS=[];
 let ARTICLES=[]; // Blog : collection Wix « Articles » (voir seo.js, articlesFrom)
@@ -351,16 +350,15 @@ async function loadData(){
   VOTES=votes.filter(v=>v.code&&(v.sens==='up'||v.sens==='down')).map(v=>({id:v._id,code:v.code,dir:v.sens,owner:v._owner,at:dateFrom(v._updatedDate||v._createdDate)||TODAY}));
   COMMENTS=comms.filter(x=>x.code&&x.texte).map(x=>({id:x._id,code:x.code,text:String(x.texte).slice(0,500),parent:x.parent||'',name:x.pseudo||'',owner:x._owner,at:stamp(x._createdDate)}));
   LIKES=likes.filter(x=>x.commentaire).map(x=>({id:x._id,comment:x.commentaire,owner:x._owner,at:stamp(x._createdDate)}));
-  OFFER_REPORTS=reports.filter(x=>x.offre).map(x=>({id:x._id,offre:x.offre,owner:x._owner,motif:x.motif||'',at:stamp(x._createdDate)}));
   REPORTS=reports.filter(x=>x.commentaire).map(x=>({id:x._id,comment:x.commentaire,owner:x._owner,at:stamp(x._createdDate)}));
   MODERATION={}; moder.forEach(x=>{ if(x.commentaire) MODERATION[x.commentaire]=String(x.decision||'').toLowerCase().includes('masq')?'masque':'approuve'; });
   MOROS=moros.filter(v=>v.code&&(v.sens==='moro'||v.sens==='maji')).map(v=>({id:v._id,code:v.code,dir:v.sens,owner:v._owner,at:stamp(v._updatedDate||v._createdDate)}));
-  baseCodes=codes.filter(c=>(c.code||c.typeOffre==='magasin')&&idToSlug[refId(c.entreprise)]).map(c=>{
-    const exp=dateFrom(c.dateExpiration);
-    return {id:c._id,biz:idToSlug[refId(c.entreprise)],deal:c.avantage||'Bon plan',detail:c.detail||'',code:String(c.code||'').trim(),store:c.typeOffre==='magasin',cond:c.conditions||'',exp:exp||inDays(3650),noExp:!exp,verified:!!c.verifie,baseUp:+c.votesOui||0,baseDown:+c.votesNon||0,added:dateFrom(c._createdDate)||TODAY,addedAt:stamp(c._createdDate),updatedAt:stamp(c._updatedDate||c._createdDate),status:statutFrom(c.statut),link:c.lienOffre||'',by:c.contributeur||'',byName:c.contributeurNom||'',tf:String(c.tempsForts||'').split(/[\s,;]+/).filter(Boolean)};
+  // Offre sans code public (typeOffre « offre ») : même carte, mêmes votes, Moro et commentaires qu'un code.
+  const isOffre=c=>c.typeOffre==='offre'&&!String(c.code||'').trim()&&!!c.avantage;
+  baseCodes=codes.filter(c=>(c.code||c.typeOffre==='magasin'||isOffre(c))&&idToSlug[refId(c.entreprise)]).map(c=>{
+    const exp=dateFrom(c.dateExpiration); const offre=isOffre(c);
+    return {id:c._id,biz:idToSlug[refId(c.entreprise)],deal:c.avantage||'Bon plan',detail:c.detail||'',code:offre?'':String(c.code||'').trim(),store:c.typeOffre==='magasin',offre,cond:c.conditions||'',exp:exp||inDays(3650),noExp:!exp,verified:!!c.verifie,baseUp:+c.votesOui||0,baseDown:+c.votesNon||0,added:dateFrom(c._createdDate)||TODAY,addedAt:stamp(c._createdDate),updatedAt:stamp(c._updatedDate||c._createdDate),status:statutFrom(c.statut),link:offre?(/^https?:\/\//.test(c.lienOffre||'')?c.lienOffre:''):c.lienOffre||'',by:c.contributeur||'',byName:c.contributeurNom||'',tf:String(c.tempsForts||'').split(/[\s,;]+/).filter(Boolean)};
   });
-  OFFRES=codes.filter(c=>c.typeOffre==='offre'&&!String(c.code||'').trim()&&c.avantage&&idToSlug[refId(c.entreprise)]).map(c=>({
-    id:c._id,biz:idToSlug[refId(c.entreprise)],deal:c.avantage,cond:c.conditions||'',exp:dateFrom(c.dateExpiration),link:/^https?:\/\//.test(c.lienOffre||'')?c.lienOffre:'',status:statutFrom(c.statut),byName:c.contributeurNom||'',added:stamp(c._createdDate)}));
   EVENTS=events.filter(e=>e.publie!==false&&e.titre&&dateFrom(e.date)).map(e=>({
     id:e._id,title:e.titre,date:dateFrom(e.date),end:dateFrom(e.dateFin),time:e.heure||'',commune:communeFrom(e.commune),communeName:e.commune||'',place:e.lieu||'',desc:e.description||'',img:imgUrl(e.image),link:e.lien||'',biz:idToSlug[refId(e.entreprise)]||''
   })).sort((a,b)=>a.date-b.date);
@@ -456,34 +454,15 @@ const daysLeft = c => Math.round((c.exp - TODAY)/864e5);
 const activeCodes = () => allCodes().filter(c=>c.status==='valide' && daysLeft(c)>=0 && !flagged(c));
 const codesOf = slug => activeCodes().filter(c=>c.biz===slug);
 /* ---------- Offres sans code public ----------
-   Masquées automatiquement le lendemain de leur date de fin, ou dès 2 signalements de membres différents
-   (1 seul suffit s'il vient de l'entreprise qui gère la fiche ou du propriétaire du site). */
-const OFFER_MASK_AT=2;
-function offerReported(o){ const by=new Set(OFFER_REPORTS.filter(r=>r.offre===o.id).map(r=>r.owner)); const b=bizBy(o.biz);
-  return by.size>=OFFER_MASK_AT||by.has(ADMIN_ID)||(b&&b.owners.some(id=>by.has(id))); }
-const offerLive = o => o.status==='valide' && (!o.exp||o.exp>=TODAY) && !offerReported(o);
-const offersOf = slug => OFFRES.filter(o=>o.biz===slug&&offerLive(o)).sort((a,z)=>(a.exp||Infinity)-(z.exp||Infinity)||z.added-a.added);
+   Elles sont dans la liste des codes (c.offre) : mêmes votes, Moro, commentaires, tendances et points.
+   Masquées le lendemain de leur date de fin, ou comme un code après 3 « ne fonctionne plus ». */
+const offersOf = slug => codesOf(slug).filter(c=>c.offre);
 // Nombre de bons plans d'une entreprise : codes promo + offres sans code.
-const dealsCount = slug => codesOf(slug).length + offersOf(slug).length;
-const myOfferReport = id => !!me()&&OFFER_REPORTS.some(r=>r.offre===id&&r.owner===me().id);
-function offerCard(o){
-  const mine=myOfferReport(o.id);
-  return `<article class="offer" id="offre-${esc(o.id)}">
-    <span class="pill">Sans code public</span>
-    <h3>${esc(o.deal)}</h3>
-    <p class="offexp">${o.exp?`Valable jusqu’au ${fmt(o.exp)} inclus`:'Pas de date de fin annoncée : signalez-la si elle n’est plus valable'}</p>
-    ${o.cond?`<details open><summary>Conditions de l’offre</summary><p>${esc(o.cond)}</p></details>`:''}
-    <div class="offacts">${o.link?`<a class="btn btn-primary btn-sm" href="${esc(o.link)}" target="_blank" rel="noopener" data-track="site" data-trackbiz="${o.biz}">Voir l’offre sur le site</a>`:''}<button class="btn btn-ghost btn-sm" data-reportoffer="${esc(o.id)}"${mine?' disabled':''}>${mine?'Signalée, merci':'Signaler cette offre'}</button></div>
-  </article>`;
-}
-function reportOfferDialog(id){
-  const o=OFFRES.find(x=>x.id===id); if(!o) return;
-  openDialog(`<header><div><h2 id="dlgTitle">Signaler cette offre</h2><p class="u14 note">${esc(o.deal)} · ${esc(bizBy(o.biz).name)}<br>Au bout de ${OFFER_MASK_AT} signalements, l’offre est masquée automatiquement.</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
-  <form class="form" id="reportOfferForm" data-id="${esc(id)}">
-    ${['L’offre est terminée','L’offre n’existe pas ou est fausse','Les conditions sont différentes','Autre'].map((m,i)=>`<label class="radio"><input type="radio" name="motif" value="${m}"${i===0?' checked':''}> ${m}</label>`).join('')}
-    <button class="btn btn-primary" type="submit">Signaler</button>
-  </form>`);
-}
+const dealsCount = slug => codesOf(slug).length;
+// Libellé court d'un bon plan sans code (textes de l'espace pro, partage…).
+const dealKind = c => c.store?'Offre en magasin':c.offre?'Offre sans code':c.code;
+// Offre sans code : « Profiter en boutique » sauf si l'entreprise vend seulement en ligne ; « Voir l'offre » s'il y a un lien.
+const offerInShop = c => !c.link || bizBy(c.biz).sale!=='en-ligne';
 const isNew = c => (TODAY - c.added)/864e5 <= 7;
 const fmt = d => d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
 const esc = s => String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -511,7 +490,7 @@ function coupon(c,{showBiz=true,noLink=false}={}){
       </div>
       ${showBiz?`<a class="bizline" href="#/entreprises/${b.slug}">${logo(b)}<span>${esc(b.name)}</span></a>`:''}
       ${noLink?`<div class="deal">${esc(c.deal)}</div>`:`<a class="deal deallink" href="#/bon-plan/${encodeURIComponent(c.id)}">${esc(c.deal)}</a>`}
-      <p class="detail">${esc(c.detail)}</p>
+      ${c.offre?'':`<p class="detail">${esc(c.detail)}</p>`}
       ${c.cond?`<p class="cond">${esc(c.cond)}</p>`:''}
       <div class="meta">
         ${c.verified?`<span class="pill ok">${ic('check')}Code vérifié</span>`:''}
@@ -524,12 +503,14 @@ function coupon(c,{showBiz=true,noLink=false}={}){
     <div class="perf" aria-hidden="true"></div>
     <div class="stub">
       <div class="coderow">
-        ${c.store?`<span class="code store" aria-label="Offre en magasin">🏬 En magasin</span>
+        ${c.offre?`<span class="code store" aria-label="Offre sans code">✓ Sans code</span>
+        ${offerInShop(c)?`<button class="btn btn-primary btn-sm" data-caisse="${esc(c.id)}" data-copybiz="${b.slug}">${ic('store')}Profiter en boutique</button>`:''}
+        ${c.link?`<a class="btn ${offerInShop(c)?'btn-ghost':'btn-primary'} btn-sm" href="${esc(c.link)}" target="_blank" rel="noopener" data-track="site" data-trackbiz="${b.slug}">${ic('ext')}Voir l’offre</a>`:''}`:c.store?`<span class="code store" aria-label="Offre en magasin">🏬 En magasin</span>
         <button class="btn btn-primary btn-sm" data-caisse="${esc(c.id)}" data-copybiz="${b.slug}">${ic('store')}Montrer en caisse</button>`:`<span class="code" aria-label="Code promo">${esc(c.code)}</span>
         <button class="btn btn-primary btn-sm" data-copy="${esc(c.code)}" data-copybiz="${b.slug}" data-copyid="${esc(c.id)}">${ic('copy')}Copier le code</button>`}
       </div>
-      <p class="vlabel">Le code marche ?</p>
-      <div class="votes" role="group" aria-label="Ce code a-t-il fonctionné ?">
+      <p class="vlabel">${c.code?'Le code marche ?':'L’offre marche ?'}</p>
+      <div class="votes" role="group" aria-label="${c.code?'Ce code a-t-il fonctionné ?':'Cette offre a-t-elle fonctionné ?'}">
         <button class="vote up" data-vote="${c.id}" data-dir="up" aria-pressed="${v==='up'}">${ic('up')}Fonctionne (${c.up})</button>
         <button class="vote down" data-vote="${c.id}" data-dir="down" aria-pressed="${v==='down'}">${ic('down')}Ne fonctionne plus${c.down?' ('+c.down+')':''}</button>
       </div>
@@ -636,10 +617,10 @@ const SCENE = `<svg class="scene" viewBox="0 0 400 380" aria-hidden="true">
 /* ---------- Accueil : « Ça chauffe en ce moment » ---------- */
 // Les 3 premiers en coupon complet (2 seulement sur mobile : le 3e passe alors en ligne compacte), les suivants en lignes compactes.
 const HOT_BIG=3, HOT_SMALL=4;
-const hotCopyBtn=c=>c.store?`<button class="btn btn-primary btn-sm" data-caisse="${esc(c.id)}" data-copybiz="${c.biz}">${ic('store')}En caisse</button>`:`<button class="btn btn-primary btn-sm" data-copy="${esc(c.code)}" data-copybiz="${c.biz}" data-copyid="${esc(c.id)}">${ic('copy')}Copier</button>`;
+const hotCopyBtn=c=>c.offre&&!offerInShop(c)?`<a class="btn btn-primary btn-sm" href="${esc(c.link)}" target="_blank" rel="noopener" data-track="site" data-trackbiz="${c.biz}">${ic('ext')}Voir</a>`:c.store||c.offre?`<button class="btn btn-primary btn-sm" data-caisse="${esc(c.id)}" data-copybiz="${c.biz}">${ic('store')}En caisse</button>`:`<button class="btn btn-primary btn-sm" data-copy="${esc(c.code)}" data-copybiz="${c.biz}" data-copyid="${esc(c.id)}">${ic('copy')}Copier</button>`;
 function hotRow(c,rank,cls=''){
   const b=bizBy(c.biz), lv=heatLevel(c.heat);
-  return `<li class="prow${cls}"><a class="pmain" href="#/bon-plan/${encodeURIComponent(c.id)}"><span class="rk rk${rank}">${rank}</span>${logo(b)}<span class="grow"><strong>${esc(b.name)}</strong><small>${esc(c.deal)}${c.store?' · en magasin':''}</small></span></a><span class="pheat ${lv.k}" title="${c.moro} Moro, ${c.maji} Maji">${lv.k==='volcan'?'🌋':'🔥'} ${c.heat}</span>${hotCopyBtn(c)}</li>`;
+  return `<li class="prow${cls}"><a class="pmain" href="#/bon-plan/${encodeURIComponent(c.id)}"><span class="rk rk${rank}">${rank}</span>${logo(b)}<span class="grow"><strong>${esc(b.name)}</strong><small>${esc(c.deal)}${c.store?' · en magasin':c.offre?' · sans code':''}</small></span></a><span class="pheat ${lv.k}" title="${c.moro} Moro, ${c.maji} Maji">${lv.k==='volcan'?'🌋':'🔥'} ${c.heat}</span>${hotCopyBtn(c)}</li>`;
 }
 const hotMore=`<a class="btn btn-sun hotmore" href="#/tendances">🔥 Voir toutes les tendances</a>`;
 const MEDALS=['🥇','🥈','🥉'];
@@ -804,7 +785,7 @@ function drawDirectory(){
 function pageBusiness(slug){
   const b=B.find(x=>x.slug===slug);
   if(!b) return notFound('Cette entreprise n’existe pas','Le lien est peut-être ancien. Retrouvez-la dans l’annuaire.','<a class="btn btn-primary" href="#/entreprises">Voir les entreprises</a>','#/entreprises');
-  const codes=codesOf(slug).sort((a,b)=>b.verified-a.verified||b.up-a.up);
+  const codes=codesOf(slug).filter(c=>!c.offre).sort((a,b)=>b.verified-a.verified||b.up-a.up);
   const verified=codes.some(c=>c.verified);
   const offers=offersOf(slug);
   const fav=S.favs.includes(slug);
@@ -848,7 +829,7 @@ function pageBusiness(slug){
         </div>
         <div>
           <div class="head"><div><h2>Offres sans code ${esc(b.name)}</h2><p class="muted">${offers.length?plural(offers.length,'avantage','avantages')+' sans code à saisir':'Aucune offre sans code pour le moment'}</p></div></div>
-          ${offers.length?`<div class="offers">${offers.map(offerCard).join('')}</div><div class="offmore"><button class="btn btn-sun" data-proposeoffer="${slug}">${ic('plus')}Proposer une offre</button></div>`:
+          ${offers.length?`<div class="coupons">${offers.map(c=>coupon(c,{showBiz:false})).join('')}</div><div class="offmore"><button class="btn btn-sun" data-proposeoffer="${slug}">${ic('plus')}Proposer une offre</button></div>`:
             empty('Pas encore d’offre sans code pour '+esc(b.name),'Une remise en magasin, une offre de bienvenue, des soldes sans code ? Partagez-la : elle apparaîtra ici.',`<button class="btn btn-sun" data-proposeoffer="${slug}">${ic('plus')}Proposer une offre</button>`)}
         </div>
         ${catalogsOf(slug).length?`<div><div class="head"><h2>Catalogues & arrivages ${esc(b.name)}</h2><a class="link" href="#/catalogues">Tous les catalogues</a></div><div class="catalogs">${catalogsOf(slug).map(c=>catalogueCard(c,false)).join('')}</div></div>`:''}
@@ -886,16 +867,18 @@ const CODE_SORTS=[['tendance','Tendance'],['chauds','Les plus chauds 🔥'],['no
 let codeState={q:'',cat:'',com:'',type:'',sort:'tendance',verified:false};
 function pageCodes(params){
   const f=params.get('f')||'';
-  codeState={q:params.get('q')||'',cat:params.get('cat')||'',com:params.get('c')||'',type:['code','magasin'].includes(params.get('type'))?params.get('type'):'',
+  codeState={q:params.get('q')||'',cat:params.get('cat')||'',com:params.get('c')||'',type:['code','magasin','offre'].includes(params.get('type'))?params.get('type'):'',
     sort:f==='new'?'nouveaux':f==='soon'?'expire':CODE_SORTS.some(x=>x[0]===params.get('tri'))?params.get('tri'):'tendance',verified:f==='verified'};
   const act=activeCodes();
   return `<div class="wrap">
     ${backBtn('#/')}<div class="pagehead"><h1>Codes promo et offres</h1><p class="muted">Tous les bons plans valables aujourd'hui à Mayotte. Les offres expirées disparaissent automatiquement.</p></div>
+    <div class="chips typechips" role="group" aria-label="Type de bon plan">
+      ${[['','Tous'],['code','Codes promo'],['magasin','En magasin'],['offre','Sans code']].map(([v,l])=>`<button class="chip" data-codetype="${v}" aria-pressed="${codeState.type===v}">${l}</button>`).join('')}
+    </div>
     <div class="toolbar">
       <label class="field">${ic('search')}<span class="sr">Rechercher un code</span><input id="codeQ" type="search" placeholder="Entreprise, réduction, livraison…" value="${esc(codeState.q)}"></label>
       <div class="filters">
         <label class="sel"><span>Trier par</span><select id="codeSort">${selOpts(CODE_SORTS,codeState.sort)}</select></label>
-        <label class="sel"><span>Type d’offre</span><select id="codeType">${selOpts([['','Tous les bons plans'],['code','Codes promo'],['magasin','Offres en magasin']],codeState.type)}</select></label>
         <label class="sel"><span>Commune</span><select id="codeCom">${selOpts(communeOpts(new Set(act.map(c=>bizBy(c.biz).commune))),codeState.com)}</select></label>
         <label class="check"><input type="checkbox" id="codeVer"${codeState.verified?' checked':''}> Vérifiés uniquement</label>
         <button class="btn btn-ghost btn-sm" id="codeReset" type="button">Réinitialiser</button>
@@ -917,7 +900,8 @@ function drawCodes(){
     if(codeState.cat&&b.cat!==codeState.cat) return false;
     if(codeState.com&&b.commune!==codeState.com) return false;
     if(codeState.type==='magasin'&&!c.store) return false;
-    if(codeState.type==='code'&&c.store) return false;
+    if(codeState.type==='code'&&!c.code) return false;
+    if(codeState.type==='offre'&&!c.offre) return false;
     if(codeState.verified&&!c.verified) return false;
     if(q&&!norm(b.name+' '+c.deal+' '+c.detail+' '+c.code).includes(q)) return false;
     return true;
@@ -926,7 +910,7 @@ function drawCodes(){
   list.sort(by[codeState.sort]||by.tendance);
   const active=codeState.cat||codeState.com||codeState.type||codeState.verified||q||codeState.sort!=='tendance';
   document.getElementById('codeReset').hidden=!active;
-  const what=codeState.type==='magasin'?['offre','offres']:codeState.type==='code'?['code','codes']:['bon plan','bons plans'];
+  const what=codeState.type==='offre'?['offre sans code','offres sans code']:codeState.type==='magasin'?['offre','offres']:codeState.type==='code'?['code','codes']:['bon plan','bons plans'];
   document.getElementById('codeCount').textContent=`${list.length} ${list.length>1?what[1]:what[0]}${codeState.com?' à '+comBy(codeState.com).name:''}`;
   document.getElementById('codeList').innerHTML=list.length?list.map(c=>coupon(c)).join(''):
     `<div class="u5">${empty('Aucun bon plan ne correspond','Changez de filtre ou proposez un code que vous connaissez.',`<button class="btn btn-sun" data-propose="">${ic('plus')}Proposer un code promo</button>`)}</div>`;
@@ -1017,7 +1001,7 @@ function caisseDialog(id){
   <div class="caisse">
     <div class="bizline">${logo(b,'md')}<strong>${esc(b.name)}</strong></div>
     <div class="caisse-deal">${esc(c.deal)}</div>
-    ${c.detail?`<p>${esc(c.detail)}</p>`:''}
+    ${c.detail&&!c.offre?`<p>${esc(c.detail)}</p>`:''}
     ${c.cond?`<p class="muted">${esc(c.cond)}</p>`:''}
     <p class="caisse-meta">${c.noExp?'Sans date limite':'Valable jusqu’au '+fmt(c.exp)}${b.addr?'<br>'+esc(b.addr):''}</p>
     <p class="caisse-brand">Bon plan Bonszahé · ${fmt(new Date())}</p>
@@ -1084,7 +1068,7 @@ function pageDeal(id){
   const c=allCodes().find(x=>x.id===id);
   if(!c) return notFound('Ce bon plan n’existe plus','Il a peut-être expiré ou été retiré.','<a class="btn btn-primary" href="#/tendances">Voir les tendances</a>','#/tendances');
   const b=bizBy(c.biz);
-  const msg=`${c.deal} chez ${b.name} avec le code ${c.code} 👉 ${dealUrl(c)}`;
+  const msg=`${c.deal} chez ${b.name}${c.code?' avec le code '+c.code:c.offre?' (sans code)':' (en magasin)'} 👉 ${dealUrl(c)}`;
   const off=c.status!=='valide'||daysLeft(c)<0;
   return `<div class="wrap">
     ${backBtn('#/tendances')}
@@ -1209,7 +1193,7 @@ function pointsEngine(){
   const votes=latest(VOTES), moros=latest(MOROS);
   // Codes : doublons, 3 par jour, 10 pts à la confirmation ou après 48 h, pénalité si retiré vite ou signalé.
   const firstOf={};
-  codes.filter(c=>c.status!=='refuse'&&c.status!=='attente').sort((a,z)=>a.addedAt-z.addedAt).forEach(c=>{ const kk=c.biz+'|'+(c.store?'magasin|'+textKey(c.deal):c.code.toUpperCase()); if(!firstOf[kk]) firstOf[kk]=c.id; c._dup=firstOf[kk]!==c.id; });
+  codes.filter(c=>c.status!=='refuse'&&c.status!=='attente').sort((a,z)=>a.addedAt-z.addedAt).forEach(c=>{ const kk=c.biz+'|'+(c.store||c.offre?(c.offre?'offre|':'magasin|')+textKey(c.deal):c.code.toUpperCase()); if(!firstOf[kk]) firstOf[kk]=c.id; c._dup=firstOf[kk]!==c.id; });
   const perDayCodes={};
   codes.filter(c=>c.by&&(c.status==='valide'||c.status==='retire')).sort((a,z)=>a.addedAt-z.addedAt).forEach(c=>{
     if(badCode(c)){ add(c.by,c.status==='retire'?c.updatedAt:new Date(now),-RULES.penalty,'penalite'); flag(c.by,'Code retiré ou signalé'); return; }
@@ -1453,7 +1437,7 @@ function proWhen(rows){
 function proTips(b,all,live,views,actions){
   const t=[];
   if(!live.length) t.push(`Vous n’avez aucune offre en ligne : les visiteurs ne trouvent rien à utiliser sur votre fiche. <button class="linkbtn link" data-propose="${b.slug}">Publier une offre</button>`);
-  live.filter(c=>!c.noExp&&daysLeft(c)<=7).forEach(c=>t.push(`${c.store?'Votre offre en magasin':'Le code <strong>'+esc(c.code)+'</strong>'} expire ${daysLeft(c)?'dans '+plural(daysLeft(c),'jour','jours'):'aujourd’hui'} : pensez à publier la suite.`));
+  live.filter(c=>!c.noExp&&daysLeft(c)<=7).forEach(c=>t.push(`${c.code?'Le code <strong>'+esc(c.code)+'</strong>':'Votre '+dealKind(c).toLowerCase()} expire ${daysLeft(c)?'dans '+plural(daysLeft(c),'jour','jours'):'aujourd’hui'} : pensez à publier la suite.`));
   live.filter(c=>c.down>=1&&c.down>c.up).forEach(c=>t.push(`${plural(c.down,'membre signale','membres signalent')} que <strong>${esc(c.code||c.deal)}</strong> ne fonctionne plus : vérifiez-le ou <button class="linkbtn link" data-retire="${esc(c.id)}">retirez-le</button>.`));
   const expired=all.filter(c=>c.status==='valide'&&daysLeft(c)<0).length;
   if(expired) t.push(`${plural(expired,'offre a expiré','offres ont expiré')} : elle${expired>1?'s ne sont':' n’est'} plus visible${expired>1?'s':''}. Publiez une nouvelle offre pour rester en tête.`);
@@ -1503,7 +1487,7 @@ async function drawPro(){
       ${tips.length?`<div class="ptips"><h3>Nos conseils</h3><ul>${tips.map(x=>`<li>${x}</li>`).join('')}</ul></div>`:''}
       <h3>Quand vos clients sont actifs</h3>${proWhen(inP)}
       <h3>Vos offres <small class="muted">· codes copiés sur ${days} jours</small></h3>
-      ${codes.length?`<div class="list">${codes.map(({c,n,tot})=>`<div class="li poffer"><div class="grow"><strong>${c.store?'Offre en magasin':esc(c.code)}</strong> ${esc(c.deal)}
+      ${codes.length?`<div class="list">${codes.map(({c,n,tot})=>`<div class="li poffer"><div class="grow"><strong>${esc(dealKind(c))}</strong> ${esc(c.deal)}
         <div class="ptrack"><span class="pbar a" style="width:${n/cmax*100}%"></span><b>${plural(n,c.store?'affichage':'copie',c.store?'affichages':'copies')}</b></div>
         <small>${tot} au total · ${c.up} « fonctionne » · ${c.down} « ne fonctionne plus » · ${plural(countComments(c.id),'commentaire','commentaires')}${c.by===me().id?'':' · proposée par '+esc(c.byName||'un membre')}</small>${state(c)}</div><button class="btn btn-ghost btn-sm" data-retire="${esc(c.id)}">Retirer</button></div>`).join('')}</div>`:'<p class="muted">Aucune offre pour le moment.</p>'}
       ${recent.length?`<h3>Derniers commentaires</h3><div class="list">${recent.slice(0,5).map(cm=>{ const c=all.find(x=>x.id===cm.code); return `<a class="li" href="#/bon-plan/${encodeURIComponent(cm.code)}"><div class="grow"><strong>${esc(cm.name||'Membre')}</strong> <small class="muted">${ago(cm.at)} · ${esc(c.deal)}</small><small>${esc(cm.text.slice(0,140))}${cm.text.length>140?'…':''}</small></div></a>`; }).join('')}</div>`:''}
@@ -1668,7 +1652,7 @@ function weekRecap(){
   const evs=upcomingEvents().filter(e=>e.date<=inDays(7)).slice(0,4);
   return {hot,fresh,last,catas,evs,from:new Date(TODAY),to:inDays(7)};
 }
-const recapDeal=c=>`${c.deal} chez ${bizBy(c.biz).name}${c.store?' (en magasin)':c.code?' – code '+c.code:''}`;
+const recapDeal=c=>`${c.deal} chez ${bizBy(c.biz).name}${c.store?' (en magasin)':c.offre?' (sans code)':c.code?' – code '+c.code:''}`;
 function recapText(r){
   const d=x=>x.toLocaleDateString('fr-FR',{day:'numeric',month:'long'}), L=[`🔥 *Les bons plans Bonszahé de la semaine*`,`Du ${d(r.from)} au ${d(r.to)}`];
   if(r.hot.length) L.push('',`🌋 *Ça chauffe*`,...r.hot.map((c,i)=>`${i+1}. ${recapDeal(c)}`));
@@ -2579,7 +2563,7 @@ const RETRAIT_MOTIFS=['Le code a expiré','Le code est faux ou mal recopié','L�
 function retireDialog(id){
   const c=allCodes().find(x=>x.id===id); if(!c) return;
   const b=ownerOf(c.biz); if(!b){ toast('Seule l’entreprise qui gère la fiche peut retirer ce code.'); return; }
-  openDialog(`<header><div><h2 id="dlgTitle">Retirer ce code ?</h2><p class="u14 note">${c.store?'Offre en magasin':'<strong>'+esc(c.code)+'</strong>'} · ${esc(c.deal)} · ${esc(b.name)}</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+  openDialog(`<header><div><h2 id="dlgTitle">Retirer ce code ?</h2><p class="u14 note">${c.code?'<strong>'+esc(c.code)+'</strong>':dealKind(c)} · ${esc(c.deal)} · ${esc(b.name)}</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
   <form class="form" id="retireForm" data-id="${esc(c.id)}">
     <label>Pourquoi le retirer ?<select name="motif" required>${RETRAIT_MOTIFS.map(m=>`<option>${esc(m)}</option>`).join('')}</select></label>
     <p class="note">Le code disparaît du site pour tous les visiteurs. Pour le remplacer, publiez ensuite la bonne offre depuis votre espace pro.</p>
@@ -2590,7 +2574,7 @@ async function retireCode(f){
   const c=allCodes().find(x=>x.id===f.dataset.id); const b=c&&ownerOf(c.biz); if(!b) return;
   const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Retrait…';
   try{
-    await sendToWix('RetraitsCodes',{code:c.id,codeTexte:c.store?'Offre en magasin':c.code,entreprise:b.id,motif:new FormData(f).get('motif'),membreId:me().id,membreNom:me().name||''});
+    await sendToWix('RetraitsCodes',{code:c.id,codeTexte:dealKind(c),entreprise:b.id,motif:new FormData(f).get('motif'),membreId:me().id,membreNom:me().name||''});
     const base=baseCodes.find(x=>x.id===c.id); if(base) base.status='retire';
     dlg.close(); toast('Code retiré : il n’apparaît plus sur Bonszahé.'); refresh();
   }catch(err){ console.warn(err); btn.disabled=false; btn.textContent='Retirer le code'; toast(err.status===401||err.status===403?'Session expirée : reconnectez-vous.':'Retrait impossible pour le moment. Réessayez.'); }
@@ -2961,10 +2945,6 @@ document.addEventListener('click',async e=>{
     try{ await call('DELETE',`/wix-data/v2/items/${encodeURIComponent(t.dataset.delcomment)}?dataCollectionId=Commentaires`); COMMENTS=COMMENTS.filter(x=>x.id!==t.dataset.delcomment); refresh(); toast('Commentaire supprimé'); }
     catch(err){ console.warn(err); toast('Suppression impossible. Réessayez.'); }
   }
-  else if(t.dataset.reportoffer){
-    if(!requireLogin('Connectez-vous pour signaler une offre.',()=>reportOfferDialog(t.dataset.reportoffer))) return;
-    reportOfferDialog(t.dataset.reportoffer);
-  }
   else if(t.dataset.report){
     if(!requireLogin('Connectez-vous pour signaler un commentaire.',()=>reportDialog(t.dataset.report))) return;
     reportDialog(t.dataset.report);
@@ -3040,6 +3020,7 @@ document.addEventListener('click',async e=>{
     }catch(err){ console.warn(err); toast('Envoi impossible. Vérifiez l’adresse e-mail.'); }
   }
   else if(t.dataset.dircat!==undefined){ dirState.cat=t.dataset.dircat; document.querySelectorAll('[data-dircat]').forEach(b=>b.setAttribute('aria-pressed',b===t)); drawDirectory(); }
+  else if(t.dataset.codetype!==undefined){ codeState.type=t.dataset.codetype; document.querySelectorAll('[data-codetype]').forEach(b=>b.setAttribute('aria-pressed',b===t)); drawCodes(); }
   else if(t.dataset.codecat!==undefined){ codeState.cat=t.dataset.codecat; document.querySelectorAll('[data-codecat]').forEach(b=>b.setAttribute('aria-pressed',b===t)); drawCodes(); }
   else if(t.id==='logout'){ logout(); route(); toast('Vous êtes déconnecté'); }
 });
@@ -3054,7 +3035,6 @@ document.addEventListener('change',e=>{
   if(e.target.name==='type'&&e.target.closest('#demandeForm')){ const a=e.target.value==='achat', f=e.target.closest('form'); f.querySelector('.achatfields').hidden=!a; f.texte.placeholder=a?'Ex. Une machine à laver 7 kg, livrée à Sada':'Ex. Quelqu’un a un code pour une livraison gratuite chez… ?'; }
   if(e.target.name==='type'&&e.target.closest('#alertForm')){ document.querySelectorAll('#alertForm .af').forEach(l=>l.hidden=!l.classList.contains('af-'+e.target.value)); }
   if(id==='codeSort'){ codeState.sort=e.target.value; drawCodes(); }
-  if(id==='codeType'){ codeState.type=e.target.value; drawCodes(); }
   if(id==='codeCom'){ codeState.com=e.target.value; drawCodes(); }
   if(id==='codeVer'){ codeState.verified=e.target.checked; drawCodes(); }
   if(id==='dirCom'){ dirState.com=e.target.value; drawDirectory(); }
@@ -3125,7 +3105,7 @@ document.addEventListener('submit',async e=>{
     const d=Object.fromEntries(new FormData(f));
     const store=d.type==='magasin', offre=d.type==='offre';
     const p={biz:d.biz,code:store||offre?'':(d.code||'').trim().toUpperCase(),deal:d.deal.trim(),detail:(d.detail||'').trim(),cond:d.cond.trim(),exp:d.exp||'',link:d.link.trim()};
-    if(offre&&OFFRES.some(o=>o.biz===p.biz&&offerLive(o)&&textKey(o.deal)===textKey(p.deal))){ toast('Cette offre est déjà en ligne pour cette entreprise. Merci !'); return; }
+    if(offre&&activeCodes().some(c=>c.offre&&c.biz===p.biz&&textKey(c.deal)===textKey(p.deal))){ toast('Cette offre est déjà en ligne pour cette entreprise. Merci !'); return; }
     if(!store&&activeCodes().some(c=>c.biz===p.biz&&c.code.toUpperCase()===p.code)){ toast('Ce code est déjà en ligne pour cette entreprise. Merci !'); return; }
     const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Publication…';
     sendToWix('PropositionsCodes',{code:p.code,typeOffre:offre?'offre':store?'magasin':'code',entreprise:bizId[p.biz]||p.biz,avantage:p.deal,detail:p.detail,conditions:p.cond,dateExpiration:p.exp,lienOffre:p.link,tempsForts:d.tf||'',statut:'En attente',contributeurId:me().id,contributeurNom:me().name})
@@ -3154,12 +3134,6 @@ document.addEventListener('submit',async e=>{
     const btn=f.querySelector('button[type=submit]'); btn.disabled=true;
     try{ await excludeMember(f.dataset.id,(new FormData(f).get('motif')||'').toString().trim().slice(0,200)); dlg.close(); refresh(); toast('Membre exclu du programme de points.'); }
     catch(err){ console.warn(err); btn.disabled=false; toast('Exclusion impossible. Réessayez.'); }
-  }
-  else if(f.id==='reportOfferForm'){
-    e.preventDefault(); const id=f.dataset.id; const motif=(new FormData(f).get('motif')||'Autre').toString();
-    const btn=f.querySelector('button[type=submit]'); btn.disabled=true;
-    try{ const r=await sendToWix('Signalements',{offre:id,motif}); OFFER_REPORTS.push({id:r.dataItem&&r.dataItem.id,offre:id,owner:me().id,motif,at:new Date()}); dlg.close(); refresh(); toast('Merci, l’offre est signalée.'); }
-    catch(err){ console.warn(err); btn.disabled=false; toast(err.status===401||err.status===403?'Session expirée : reconnectez-vous.':'Signalement impossible. Réessayez.'); }
   }
   else if(f.id==='reportForm'){
     e.preventDefault(); const cid=f.dataset.cid; const motif=(new FormData(f).get('motif')||'Autre').toString();
