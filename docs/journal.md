@@ -1,5 +1,18 @@
 # Bonszahé : journal de passation
 
+## Session du 2 nov. 2026 : offres sans code comme les codes promo
+
+> Code en ligne : branche `claude/modest-clarke-d3ern5`, commit `02d833e`, version `?v=52`. Copie Wix identique (empreintes vérifiées avant et après).
+> Sauvegarde : la version précédente (commit `af1417c`, `?v=51`) était identique sur GitHub et sur Wix ; on peut y revenir à tout moment.
+
+**Publié et vérifié** (validé par le propriétaire après maquette et captures du vrai site) :
+- Les offres sans code (`typeOffre = offre`) entrent dans `baseCodes` (champ `c.offre`) : **même carte que les codes** (`coupon()`), Moro/Maji, « Fonctionne / Ne fonctionne plus », commentaires, page `/bon-plan/<id>`, Tendances, onglet Codes promo, points.
+- Zone du code : « ✓ Sans code » + « Profiter en boutique » (fenêtre « Montrez cet écran en caisse ») sauf si l'entreprise vend seulement en ligne, + « Voir l'offre » s'il y a un lien.
+- Toujours dans le bloc « Offres sans code » de la fiche. Le champ `detail` n'est **pas** affiché pour les offres (il contient parfois des notes internes).
+- **Bouton « Signaler cette offre » supprimé** : même règle que les codes (masquée après 3 « ne fonctionne plus » et plus de non que de oui). `OFFRES`, `offerCard`, `reportOfferDialog` n'existent plus.
+- Codes promo : filtre **Tous / Codes promo / En magasin / Sans code** en haut (remplace le menu « Type d'offre »), lien direct `#/codes?type=offre`.
+- `seo.js` : les offres sans code ont leur pré-rendu (« Offre sans code … Aucun code à saisir »).
+
 ## Session du 1ᵉʳ nov. 2026 : le blog
 
 > État au **1ᵉʳ novembre 2026, 14 h 40 (Mayotte)**. Code en ligne : branche `claude/modest-clarke-d3ern5`, version des fichiers `?v=49`.
