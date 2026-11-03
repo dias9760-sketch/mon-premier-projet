@@ -357,7 +357,7 @@ async function loadData(){
   const isOffre=c=>c.typeOffre==='offre'&&!String(c.code||'').trim()&&!!c.avantage;
   baseCodes=codes.filter(c=>(c.code||c.typeOffre==='magasin'||isOffre(c))&&idToSlug[refId(c.entreprise)]).map(c=>{
     const exp=dateFrom(c.dateExpiration); const offre=isOffre(c);
-    return {id:c._id,biz:idToSlug[refId(c.entreprise)],deal:c.avantage||'Bon plan',detail:c.detail||'',code:offre?'':String(c.code||'').trim(),store:c.typeOffre==='magasin',offre,cond:c.conditions||'',exp:exp||inDays(3650),noExp:!exp,verified:!!c.verifie,baseUp:+c.votesOui||0,baseDown:+c.votesNon||0,added:dateFrom(c._createdDate)||TODAY,addedAt:stamp(c._createdDate),updatedAt:stamp(c._updatedDate||c._createdDate),status:statutFrom(c.statut),link:offre?(/^https?:\/\//.test(c.lienOffre||'')?c.lienOffre:''):c.lienOffre||'',by:c.contributeur||'',byName:c.contributeurNom||'',tf:String(c.tempsForts||'').split(/[\s,;]+/).filter(Boolean)};
+    return {id:c._id,biz:idToSlug[refId(c.entreprise)],deal:c.avantage||'Bon plan',detail:c.detail||'',code:offre?'':String(c.code||'').trim(),store:c.typeOffre==='magasin',offre,where:['boutique','en-ligne','les-deux'].includes(c.ouProfiter)?c.ouProfiter:'',cond:c.conditions||'',exp:exp||inDays(3650),noExp:!exp,verified:!!c.verifie,baseUp:+c.votesOui||0,baseDown:+c.votesNon||0,added:dateFrom(c._createdDate)||TODAY,addedAt:stamp(c._createdDate),updatedAt:stamp(c._updatedDate||c._createdDate),status:statutFrom(c.statut),link:offre?(/^https?:\/\//.test(c.lienOffre||'')?c.lienOffre:''):c.lienOffre||'',by:c.contributeur||'',byName:c.contributeurNom||'',tf:String(c.tempsForts||'').split(/[\s,;]+/).filter(Boolean)};
   });
   EVENTS=events.filter(e=>e.publie!==false&&e.titre&&dateFrom(e.date)).map(e=>({
     id:e._id,title:e.titre,date:dateFrom(e.date),end:dateFrom(e.dateFin),time:e.heure||'',commune:communeFrom(e.commune),communeName:e.commune||'',place:e.lieu||'',desc:e.description||'',img:imgUrl(e.image),link:e.lien||'',biz:idToSlug[refId(e.entreprise)]||''
@@ -461,8 +461,10 @@ const offersOf = slug => codesOf(slug).filter(c=>c.offre);
 const dealsCount = slug => codesOf(slug).length;
 // Libellé court d'un bon plan sans code (textes de l'espace pro, partage…).
 const dealKind = c => c.store?'Offre en magasin':c.offre?'Offre sans code':c.code;
-// Offre sans code : « Profiter en boutique » sauf si l'entreprise vend seulement en ligne ; « Voir l'offre » s'il y a un lien.
-const offerInShop = c => !c.link || bizBy(c.biz).sale!=='en-ligne';
+// Offre sans code : où en profiter. Le champ CMS « ouProfiter » (boutique / en-ligne / les-deux) décide ;
+// s'il est vide : « Profiter en boutique » sauf si l'entreprise vend seulement en ligne, « Voir l'offre » s'il y a un lien.
+const offerInShop = c => c.where?c.where!=='en-ligne':(!c.link || bizBy(c.biz).sale!=='en-ligne');
+const offerOnline = c => !!c.link && c.where!=='boutique';
 const isNew = c => (TODAY - c.added)/864e5 <= 7;
 const fmt = d => d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
 const esc = s => String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -505,7 +507,7 @@ function coupon(c,{showBiz=true,noLink=false}={}){
       <div class="coderow">
         ${c.offre?`<span class="code store" aria-label="Offre sans code">✓ Sans code</span>
         ${offerInShop(c)?`<button class="btn btn-primary btn-sm" data-caisse="${esc(c.id)}" data-copybiz="${b.slug}">${ic('store')}Profiter en boutique</button>`:''}
-        ${c.link?`<a class="btn ${offerInShop(c)?'btn-ghost':'btn-primary'} btn-sm" href="${esc(c.link)}" target="_blank" rel="noopener" data-track="site" data-trackbiz="${b.slug}">${ic('ext')}Voir l’offre</a>`:''}`:c.store?`<span class="code store" aria-label="Offre en magasin">🏬 En magasin</span>
+        ${offerOnline(c)?`<a class="btn ${offerInShop(c)?'btn-ghost':'btn-primary'} btn-sm" href="${esc(c.link)}" target="_blank" rel="noopener" data-track="site" data-trackbiz="${b.slug}">${ic('ext')}Voir l’offre</a>`:''}`:c.store?`<span class="code store" aria-label="Offre en magasin">🏬 En magasin</span>
         <button class="btn btn-primary btn-sm" data-caisse="${esc(c.id)}" data-copybiz="${b.slug}">${ic('store')}Montrer en caisse</button>`:`<span class="code" aria-label="Code promo">${esc(c.code)}</span>
         <button class="btn btn-primary btn-sm" data-copy="${esc(c.code)}" data-copybiz="${b.slug}" data-copyid="${esc(c.id)}">${ic('copy')}Copier le code</button>`}
       </div>
@@ -617,7 +619,7 @@ const SCENE = `<svg class="scene" viewBox="0 0 400 380" aria-hidden="true">
 /* ---------- Accueil : « Ça chauffe en ce moment » ---------- */
 // Les 3 premiers en coupon complet (2 seulement sur mobile : le 3e passe alors en ligne compacte), les suivants en lignes compactes.
 const HOT_BIG=3, HOT_SMALL=4;
-const hotCopyBtn=c=>c.offre&&!offerInShop(c)?`<a class="btn btn-primary btn-sm" href="${esc(c.link)}" target="_blank" rel="noopener" data-track="site" data-trackbiz="${c.biz}">${ic('ext')}Voir</a>`:c.store||c.offre?`<button class="btn btn-primary btn-sm" data-caisse="${esc(c.id)}" data-copybiz="${c.biz}">${ic('store')}En caisse</button>`:`<button class="btn btn-primary btn-sm" data-copy="${esc(c.code)}" data-copybiz="${c.biz}" data-copyid="${esc(c.id)}">${ic('copy')}Copier</button>`;
+const hotCopyBtn=c=>c.offre&&!offerInShop(c)&&c.link?`<a class="btn btn-primary btn-sm" href="${esc(c.link)}" target="_blank" rel="noopener" data-track="site" data-trackbiz="${c.biz}">${ic('ext')}Voir</a>`:c.store||c.offre?`<button class="btn btn-primary btn-sm" data-caisse="${esc(c.id)}" data-copybiz="${c.biz}">${ic('store')}En caisse</button>`:`<button class="btn btn-primary btn-sm" data-copy="${esc(c.code)}" data-copybiz="${c.biz}" data-copyid="${esc(c.id)}">${ic('copy')}Copier</button>`;
 function hotRow(c,rank,cls=''){
   const b=bizBy(c.biz), lv=heatLevel(c.heat);
   return `<li class="prow${cls}"><a class="pmain" href="#/bon-plan/${encodeURIComponent(c.id)}"><span class="rk rk${rank}">${rank}</span>${logo(b)}<span class="grow"><strong>${esc(b.name)}</strong><small>${esc(c.deal)}${c.store?' · en magasin':c.offre?' · sans code':''}</small></span></a><span class="pheat ${lv.k}" title="${c.moro} Moro, ${c.maji} Maji">${lv.k==='volcan'?'🌋':'🔥'} ${c.heat}</span>${hotCopyBtn(c)}</li>`;
