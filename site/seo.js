@@ -231,7 +231,7 @@ function meta(path,params,data,opts){
     else{
       const com=comBy(b.commune), cat=catBy(b.cat)||CATS[0], mine=codes.filter(c=>c.biz===b.slug), where=com?`à ${com.name}`:'à Mayotte';
       title=`${b.name} : code promo et bons plans ${where} | Bonszahé`;
-      desc=mine.length?clip(`${plural(mine.length,'code promo','codes promo')} ${b.name} en ce moment : ${mine.slice(0,2).map(c=>c.deal+(c.store?' en magasin':c.offre?' sans code':c.code?' avec '+c.code:'')).join(', ')}. ${b.desc}`,158)
+      desc=mine.length?clip(`${plural(mine.length,'bon plan','bons plans')} ${b.name} en ce moment : ${mine.slice(0,2).map(c=>c.deal+(c.store?' en magasin':c.offre?' sans code':c.code?' avec '+c.code:'')).join(', ')}. ${b.desc}`,158)
         :clip(b.desc?`${b.name} ${where} : ${b.desc} Adresse, contact et bons plans sur Bonszahé.`:`${b.name}, ${cat.phrase} ${where} : adresse, contact et bons plans sur Bonszahé.`,158);
       if(b.logo) image=b.logo;
       ld.push(bizLd(b,mine),crumbs([['Accueil','/'],['Entreprises','/entreprises'],[cat.name,'/entreprises?cat='+cat.slug],[b.name,'/entreprises/'+b.slug]]));

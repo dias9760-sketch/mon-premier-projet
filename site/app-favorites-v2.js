@@ -652,7 +652,7 @@ function pageHome(){
         </form>
         <div class="hero-ctas">
           <a class="btn btn-primary" href="#/codes">Découvrir les bons plans</a>
-          <span>${act.length} codes actifs, ${B.length} entreprises</span>
+          <span>${plural(act.length,'bon plan en cours','bons plans en cours')}, ${B.length} entreprises</span>
         </div>
       </div>
       ${SCENE}
