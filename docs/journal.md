@@ -16,6 +16,8 @@
 - **3 nov. (v=53)** : nouveau champ CMS `CodesPromo.ouProfiter` (« Où profiter de l'offre » : `boutique` / `en-ligne` / `les-deux`). Il choisit les boutons d'une offre sans code ; vide = règle d'avant (selon le type de vente de la fiche et la présence d'un lien). Non demandé dans le formulaire des membres.
 - **3 nov., CMS** : Zarahissi : offre Black Friday « 1 acheté = 1 offert » (jusqu'au 23/11/2026, `ouProfiter = en-ligne`) et horaires `Lun-Sam 8h30-18h30 · Dim 8h30-12h`. La fiche garde son type de vente vide (magasin physique : elle reste sur la carte).
 
+- **7 nov. (v=54)** : accueil « N bons plans en cours, N entreprises » (au lieu de « codes actifs »), et description Google des fiches « N bons plans [entreprise] en ce moment ». Règle : le total codes + offres sans code s'appelle « bons plans ».
+
 ## Session du 1ᵉʳ nov. 2026 : le blog
 
 > État au **1ᵉʳ novembre 2026, 14 h 40 (Mayotte)**. Code en ligne : branche `claude/modest-clarke-d3ern5`, version des fichiers `?v=49`.
