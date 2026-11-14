@@ -174,3 +174,13 @@ Le 31 octobre, une autre session avait publié sa propre version (bloc « Offres
 | `site/index.html` | Numéro de version `?v=NN` |
 | `docs/contexte-projet-ia.md` | Présentation du projet pour une IA |
 | `README.md` | Fonctionnement technique et double publication |
+
+## 14 nov. 2026 : ajout de CasaPro et correction des horaires
+
+- **CasaPro** ajoutée dans `Entreprises` (slug `casapro`, catégorie Maison, Mamoudzou, boutique + vente en ligne) :
+  - logo transmis par le propriétaire, envoyé dans la médiathèque Wix ;
+  - horaires et position issus de la fiche Google (même adresse et même téléphone) ;
+  - description tirée de casapro.yt (luminaires, outillage, électricité & sécurité, particuliers et pros, devis sur demande, parking gratuit).
+- **15 fiches** avaient le champ `horaires` enregistré sous la forme `{ stringValue: "…" }` au lieu d'un texte. Leurs horaires ne s'affichaient donc pas. Le texte a été réenregistré à l'identique. Fiches concernées : somay, ballou, maycig, cazdeco, zazaland, foulera, mbadzio, cjumo, bebe-wangou, meubles-et-deco, mzuri-sana, jeleo-boutique, sunday-officiel, maktaba-may-islam, parapharmacie-tsoundzou.
+- **Piège** : lors d'une mise à jour par lot (`bulk/items/patch`), passer la valeur **directement** (`setFieldOptions: { value: "texte" }`), jamais sous la forme `{ stringValue: … }`.
+- Aucun changement de code : rien à republier.
