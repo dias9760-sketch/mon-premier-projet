@@ -184,3 +184,9 @@ Le 31 octobre, une autre session avait publié sa propre version (bloc « Offres
 - **15 fiches** avaient le champ `horaires` enregistré sous la forme `{ stringValue: "…" }` au lieu d'un texte. Leurs horaires ne s'affichaient donc pas. Le texte a été réenregistré à l'identique. Fiches concernées : somay, ballou, maycig, cazdeco, zazaland, foulera, mbadzio, cjumo, bebe-wangou, meubles-et-deco, mzuri-sana, jeleo-boutique, sunday-officiel, maktaba-may-islam, parapharmacie-tsoundzou.
 - **Piège** : lors d'une mise à jour par lot (`bulk/items/patch`), passer la valeur **directement** (`setFieldOptions: { value: "texte" }`), jamais sous la forme `{ stringValue: … }`.
 - Aucun changement de code : rien à republier.
+
+## 14-15 nov. 2026 : Biona Services et AfroHairVibe
+- **Biona Services** (`biona-services`, Services, Dzaoudzi/Labattoir) : fiche + logo, pas de position (aucune fiche Google trouvée). Message TikTok fourni.
+- **AfroHairVibe** (`afrohairvibe`, Beauté, Dzaoudzi/Labattoir, boutique + en ligne) : fiche, logo PNG vérifié (14 623 octets), horaires et position Google (-12.7838197, 45.2796557).
+  - Offre sans code « -5 % sur votre 1re commande » (inscription newsletter) dans `CodesPromo`. Message Instagram fourni.
+- ⚠️ Piège : dans `CodesPromo`, le champ `entreprise` doit contenir l'**identifiant (_id)** de la fiche, pas le slug, sinon l'offre ne s'affiche pas.
