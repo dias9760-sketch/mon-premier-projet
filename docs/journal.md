@@ -190,3 +190,4 @@ Le 31 octobre, une autre session avait publié sa propre version (bloc « Offres
 - **AfroHairVibe** (`afrohairvibe`, Beauté, Dzaoudzi/Labattoir, boutique + en ligne) : fiche, logo PNG vérifié (14 623 octets), horaires et position Google (-12.7838197, 45.2796557).
   - Offre sans code « -5 % sur votre 1re commande » (inscription newsletter) dans `CodesPromo`. Message Instagram fourni.
 - ⚠️ Piège : dans `CodesPromo`, le champ `entreprise` doit contenir l'**identifiant (_id)** de la fiche, pas le slug, sinon l'offre ne s'affiche pas.
+- **15 nov.** : e-mail de présentation envoyé depuis contact@bonszahe.com (boîte bonszahe976@gmail.com) à CasaPro, Biona Services et AfroHairVibe. Il demande une offre et la revendication de la fiche, avec le guide « Bonszahé en 2 minutes » (`docs/guide-court.pdf`) en pièce jointe. Relance possible vers le 22 nov. (modèle dans `kit-commercant/messages.md` § 3).
