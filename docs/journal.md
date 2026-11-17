@@ -206,3 +206,12 @@ Le 31 octobre, une autre session avait publié sa propre version (bloc « Offres
   - Offre sans code « -5 % sur votre 1re commande » (inscription newsletter) dans `CodesPromo`. Message Instagram fourni.
 - ⚠️ Piège : dans `CodesPromo`, le champ `entreprise` doit contenir l'**identifiant (_id)** de la fiche, pas le slug, sinon l'offre ne s'affiche pas.
 - **15 nov.** : e-mail de présentation envoyé depuis contact@bonszahe.com (boîte bonszahe976@gmail.com) à CasaPro, Biona Services et AfroHairVibe. Il demande une offre et la revendication de la fiche, avec le guide « Bonszahé en 2 minutes » (`docs/guide-court.pdf`) en pièce jointe. Relance possible vers le 22 nov. (modèle dans `kit-commercant/messages.md` § 3).
+
+## 17 nov. 2026 (suite) : page Prix, étape 2 (v=56)
+- **Publié et vérifié** sur bonszahe.com (script v=56) et sur la copie Wix (empreintes app 3b1f463399e410d9, index 6f5314fa902cf6b3, css 12dc5181f71de7bf, seo inchangé 479c6893acd7b976).
+- « Signaler un prix » : on peut joindre une **photo de l'étiquette ou du ticket**. Elle est réduite avant l'envoi, puis enregistrée dans le champ `photo` (texte) de **RelevesPrix**. Un bouton « 📷 Voir la photo » s'affiche dans la fiche produit et dans le fil.
+- « Demander un produit » : un bandeau sur la page Prix, et le même bouton quand une recherche ne donne rien. Les demandes vont dans la nouvelle collection **DemandesProduits** (nom, format, categorie, magasin, commentaire, pseudo, statut). Les membres peuvent ajouter, tout le monde peut lire, seul l'admin peut modifier ou supprimer.
+- Page Contrôle (admin) : deux nouvelles rubriques, « Prix avec photo à valider » (boutons Valider / Masquer) et « Produits demandés par les membres ».
+- Il faut être connecté pour signaler un prix ou demander un produit. Hors connexion, le site affiche l'écran de connexion (vérifié en ligne).
+- À faire : faire un vrai test, en étant connecté, avec une photo prise au téléphone, puis valider ce test dans Contrôle.
+- Point de vigilance : une image de test « test-bonszahe.jpg » (8×8 pixels) est restée dans le Gestionnaire de médias Wix. Said peut la supprimer.
