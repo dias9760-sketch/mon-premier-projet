@@ -1,5 +1,20 @@
 # Bonszahé : journal de passation
 
+## Session du 17 nov. 2026 : accueil et page Prix
+
+> Code en ligne : commit `8a66fbb`, version `?v=55`. Copie Wix identique (empreintes vérifiées avant et après). Maquettes validées : https://claude.ai/artifact/Q3JUR4fnjta9giSwWeyvbB
+
+**Publié et vérifié sur bonszahe.com :**
+- Accueil : bandeau de 5 raccourcis (Prix, Catalogues, Événements, Demandes, Récompenses) juste après « Bientôt : … » (choix B du propriétaire). Les rubriques du bas restent.
+- Page Prix refaite (mélange comparateur + panier malin + communauté) : recherche, 8 boutons enseignes, catégories, cartes produits avec prix au kilo/litre/pièce, fiche produit (classement des magasins, écart en %, « Tous formats au kilo »), panier malin (gardé dans le navigateur, `bonszahe:panier`), missions de la semaine, derniers prix, top du mois (si 2 contributeurs ou plus), carburants.
+- CMS : `ProduitsSuivis` + champs `quantite`, `unite` (kg/L/pièce), `image` (photo modifiable par le propriétaire ; sinon illustration emoji). `MagasinsPrix` + `enseigne`, `vedette` (bouton), `ordre`. Enseignes en boutons : Carrefour, Intermarché Baobab, Sodifram, HD Hyper Discount, Sodicash, Douka Bé (Mamoudzou), Somaco, Distrimax (Kawéni + Combani ajoutés). Shopi et SNIE sans bouton. « Baobab Cavani » renommé « Intermarché Baobab », « Douka Bé » → « Douka Bé Mamoudzou ».
+- Nettoyage : relevés « Couches/Savon/Lessive — de x à y € » rattachés à Couches / Savon / Lessive ; les 3 anciens produits sont masqués (`actif` = faux), rien supprimé.
+
+**À faire / à décider :**
+- « Farine (à l'unité) » et « Lait (à l'unité) » : format inconnu, à confirmer avant de les rattacher à Farine 1 kg / Lait UHT 1 L.
+- Étape 2 : photo d'étiquette envoyée par les membres, demande d'ajout de produit par les membres.
+- Relever les prix dans les 8 enseignes (seul Intermarché Baobab a des prix, 31 oct.).
+
 ## Session du 2 nov. 2026 : offres sans code comme les codes promo
 
 > Code en ligne : branche `claude/modest-clarke-d3ern5`, commit `02d833e`, version `?v=52`. Copie Wix identique (empreintes vérifiées avant et après).
