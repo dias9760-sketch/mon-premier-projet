@@ -128,6 +128,7 @@ let DEMANDES=[], PARRAINAGES=[], RECOMPENSES=[], TEMPS=[];
 // Exclusions et validations du classement : seules les lignes créées par le propriétaire du site comptent.
 let EXCLUS={}, VALIDATIONS={};
 let CATALOGUES=[];
+let DEM_PRODUITS=[];
 let PRODUITS=[], MAGASINS_PRIX=[], RELEVES=[], CONFIRMS=[], PRICE_HIDDEN={}, REGLEMENTES=[], SEARCHES=[];
 let dataSource='snapshot';
 let tokenPromise=null;
@@ -330,13 +331,13 @@ const SALES={boutique:'Boutique physique','en-ligne':'Vente en ligne / livraison
 // Date et heure complètes d'un champ système Wix ({$date:…}), pour le classement Tendance.
 const stamp=v=>{ const d=new Date(typeof v==='object'&&v?v.$date:v); return isNaN(d)?new Date(TODAY):d; };
 async function loadData(){
-  const [ents,codes,votes,events,moros,comms,likes,reports,moder,dms,parr,recs,tfs,excl,vals,catas,prods,mags,rels,confs,hids,regs,srch,arts]=await Promise.all([
+  const [ents,codes,votes,events,moros,comms,likes,reports,moder,dms,parr,recs,tfs,excl,vals,catas,prods,mags,rels,confs,hids,regs,srch,arts,dprods]=await Promise.all([
     queryAll('Entreprises'),queryAll('CodesPromo'),
     queryAll('Votes').catch(()=>[]),queryAll('Evenements').catch(()=>[]),queryAll('Moro').catch(()=>[]),
     queryAll('Commentaires').catch(()=>[]),queryAll('JaimeCommentaires').catch(()=>[]),queryAll('Signalements').catch(()=>[]),queryAll('Moderation').catch(()=>[]),
     queryAll('Demandes').catch(()=>[]),queryAll('Parrainages').catch(()=>[]),queryAll('Recompenses').catch(()=>[]),queryAll('TempsForts').catch(()=>[]),
     queryAll('Exclusions').catch(()=>[]),queryAll('ValidationsClassement').catch(()=>[]),queryAll('Catalogues').catch(()=>[]),
-    queryAll('ProduitsSuivis').catch(()=>[]),queryAll('MagasinsPrix').catch(()=>[]),queryAll('RelevesPrix').catch(()=>[]),queryAll('ConfirmationsPrix').catch(()=>[]),queryAll('MasquagesPrix').catch(()=>[]),queryAll('PrixReglementes').catch(()=>[]),queryAll('RecherchesVides').catch(()=>[]),queryAll('Articles').catch(()=>[])
+    queryAll('ProduitsSuivis').catch(()=>[]),queryAll('MagasinsPrix').catch(()=>[]),queryAll('RelevesPrix').catch(()=>[]),queryAll('ConfirmationsPrix').catch(()=>[]),queryAll('MasquagesPrix').catch(()=>[]),queryAll('PrixReglementes').catch(()=>[]),queryAll('RecherchesVides').catch(()=>[]),queryAll('Articles').catch(()=>[]),queryAll('DemandesProduits').catch(()=>[])
   ]);
   const idToSlug={}; const used=new Set();
   const list=ents.filter(e=>e.publiee!==false&&e.nom).map(e=>{
@@ -375,7 +376,8 @@ async function loadData(){
     return {id:x._id,biz,enseigne:x.enseigne||'',cat:biz?bizBy(biz).cat:catFrom(x.categorie),type:key(x.type).includes('arriv')?'arrivage':'catalogue',title:x.titre,link:x.lien,cover:imgUrl(x.couverture)||imgUrl(x.couvertureLien),desc:x.description||'',start:dateFrom(x.debut),end:dateFrom(x.fin),checked:dateFrom(x.verifieLe),at:stamp(x._createdDate)}; }).filter(c=>c.biz||c.enseigne);
   PRODUITS=prods.filter(x=>x.nom&&x.actif!==false).map(x=>({id:x._id,nom:x.nom,format:x.format||'',emoji:x.emoji||'🛒',ordre:+x.ordre||99,reglemente:x.reglemente||'',cat:x.categorie||'',quantite:+x.quantite>0?+x.quantite:0,unite:['kg','L','pièce'].includes(x.unite)?x.unite:'kg',image:imgUrl(x.image)})).sort((a,z)=>a.ordre-z.ordre);
   MAGASINS_PRIX=mags.filter(x=>x.nom&&x.actif!==false).map(x=>({nom:x.nom,commune:communeFrom(x.commune),enseigne:x.enseigne||'',vedette:!!x.vedette,ordre:+x.ordre||99}));
-  RELEVES=rels.filter(x=>x.produit&&x.magasin&&+x.prix>0).map(x=>({id:x._id,produit:x.produit,magasin:String(x.magasin).slice(0,80),commune:communeFrom(x.commune),prix:+x.prix,day:dateFrom(x.date)||dateFrom(x._createdDate)||TODAY,pseudo:x.pseudo||'',owner:x._owner,at:stamp(x._createdDate)}));
+  RELEVES=rels.filter(x=>x.produit&&x.magasin&&+x.prix>0).map(x=>({id:x._id,produit:x.produit,magasin:String(x.magasin).slice(0,80),commune:communeFrom(x.commune),prix:+x.prix,day:dateFrom(x.date)||dateFrom(x._createdDate)||TODAY,pseudo:x.pseudo||'',owner:x._owner,at:stamp(x._createdDate),photo:/^https:\/\/static\.wixstatic\.com\//.test(x.photo||'')?x.photo:''}));
+  DEM_PRODUITS=dprods.filter(x=>x.nom).map(x=>({id:x._id,nom:String(x.nom).slice(0,80),format:String(x.format||'').slice(0,40),cat:x.categorie||'',magasin:String(x.magasin||'').slice(0,80),comment:String(x.commentaire||'').slice(0,300),pseudo:x.pseudo||'',statut:x.statut||'En attente',owner:x._owner,at:stamp(x._createdDate)})).sort((a,z)=>z.at-a.at);
   CONFIRMS=confs.filter(x=>x.releve).map(x=>({id:x._id,releve:x.releve,owner:x._owner,at:stamp(x._createdDate)}));
   REGLEMENTES=regs.filter(x=>/^\d{4}-\d{2}$/.test(String(x.mois||''))&&x.produit&&+x.prix>0).map(x=>({mois:x.mois,produit:x.produit,libelle:x.libelle||x.produit,prix:+x.prix,unite:x.unite||'',source:x.source||''}));
   SEARCHES=srch.filter(x=>x.terme).map(x=>({terme:norm(x.terme).slice(0,40),categorie:x.categorie||'',visiteur:x.visiteur||'',at:stamp(x._createdDate)}));
@@ -1797,7 +1799,7 @@ function prixFiltered(){
 function drawPrixGrid(com){
   const el=document.getElementById('prixGrid'); if(!el) return;
   const list=prixFiltered();
-  el.innerHTML=list.length?list.map(p=>prodCard(p,com)).join(''):`<div class="u5">${empty('Aucun produit trouvé','Essayez un autre mot, ou demandez-nous d’ajouter ce produit.','<a class="btn btn-sun" href="#/contact">Demander un produit</a>')}</div>`;
+  el.innerHTML=list.length?list.map(p=>prodCard(p,com)).join(''):`<div class="u5">${empty('Aucun produit trouvé','Essayez un autre mot, ou demandez-nous d’ajouter ce produit.',`<button class="btn btn-sun" data-demprod="${esc(prixState.q.trim())}">Demander ce produit</button>`)}</div>`;
   const c=document.getElementById('prixCount'); if(c) c.textContent=plural(list.length,'produit','produits');
 }
 // Panier malin : produits et quantités gardés dans le navigateur.
@@ -1839,17 +1841,18 @@ function pagePrix(params){
   return `<div class="wrap prixpage">
     ${backBtn('#/')}<div class="pagehead"><h1>💰 Prix à Mayotte</h1><p class="muted">Le vrai prix au kilo, magasin par magasin. Comparez avant de faire vos courses.</p></div>
     <label class="field prixsearch">${ic('search')}<span class="sr">Chercher un produit</span><input id="prixQ" type="search" placeholder="Riz, huile, mabawa, lait…" value="${esc(prixState.q)}" autocomplete="off"></label>
-    <div class="prixhero u13"><div><strong>Un prix en rayon ? Partagez-le.</strong><small>Chaque prix confirmé par un autre membre vous rapporte ${PRICE_RULES.points} points pour les récompenses du mois.</small></div><button class="btn btn-sun" data-prixform="">${ic('plus')}Signaler un prix</button></div>
+    <div class="prixhero u13"><div><strong>Un prix en rayon ? Une photo suffit.</strong><small>Prenez l’étiquette ou le ticket en photo et indiquez le prix : chaque prix confirmé vous rapporte ${PRICE_RULES.points} points pour les récompenses du mois.</small></div><button class="btn btn-sun" data-prixform="">📷 Signaler un prix</button></div>
     <div class="head u13"><div><h2>Magasins</h2></div>${prixState.ens?`<button class="linkbtn link" data-prixens="">Tous les magasins</button>`:''}</div>
     <div class="ensrow" role="group" aria-label="Choisir un magasin">${ens.map(e=>`<button class="ens" data-prixens="${e.k}" aria-pressed="${prixState.ens===e.k}"><i style="background:${ensColor(e.k)}">${esc(ensShort(e.k,e.nom))}</i><small>${esc(e.nom)}</small></button>`).join('')}</div>
     <div class="chips u10" role="group" aria-label="Catégories"><button class="chip" data-prixcat="" aria-pressed="${!prixState.cat}">Tout</button>${prodCats().map(c=>`<button class="chip" data-prixcat="${esc(c)}" aria-pressed="${prixState.cat===c}">${PRIX_CATS[c]||'🛒'} ${esc(c)}</button>`).join('')}</div>
     <div class="filters u10"><label class="sel"><span>Commune</span><select id="prixCom">${selOpts([['','Toute l’île'],...[...COMMUNES].sort((a,z)=>a.name.localeCompare(z.name,'fr')).map(c=>[c.slug,c.name])],com)}</select></label><p class="results" id="prixCount"></p></div>
     <div class="pgrid u10" id="prixGrid"></div>
+    <div class="demband u13"><span>🛒 Un produit manque dans la liste ?</span><button class="btn btn-ghost btn-sm" data-demprod="">Demander un produit</button></div>
     <div class="prixcols u18">
       <section class="card"><h2>🧺 Mon panier malin</h2><p class="muted">Vos courses habituelles : le total dans chaque magasin.</p><div id="panierBox">${panierBlock(com)}</div></section>
       <div class="stack">
         ${ms.length?`<section class="card"><h2>🎯 Missions de la semaine</h2><p class="muted">Ces prix manquent : relevez-les lors de vos courses.</p>${ms.map(({p,e})=>`<button class="mission" data-prixform="${esc(p.id)}"><span class="e">${p.emoji}</span><span class="grow"><strong>${esc(p.nom)} ${esc(p.format)}</strong><small>chez ${esc(e.nom)} · aucun prix récent</small></span><b>+${PRICE_RULES.points} pts</b></button>`).join('')}</section>`:''}
-        ${lp.length?`<section class="card"><h2>Derniers prix relevés</h2><ul class="feed">${lp.map(r=>{ const p=PRODUITS.find(x=>x.id===r.produit), ok=confirmersOf(r.id).size>0; return `<li><span class="av">${esc((r.pseudo||'?').slice(0,2).toUpperCase())}</span><span class="grow"><strong>${esc(p.nom)} ${esc(p.format)} · ${fmtPrice(r.prix)}</strong><small class="muted">${esc(r.magasin)} · ${ago(r.at)}</small></span><span class="${ok?'tagok':'tagwait'}">${ok?'✓ Confirmé':'À confirmer'}</span></li>`; }).join('')}</ul></section>`:''}
+        ${lp.length?`<section class="card"><h2>Derniers prix relevés</h2><ul class="feed">${lp.map(r=>{ const p=PRODUITS.find(x=>x.id===r.produit), ok=confirmersOf(r.id).size>0; return `<li><span class="av">${esc((r.pseudo||'?').slice(0,2).toUpperCase())}</span><span class="grow"><strong>${esc(p.nom)} ${esc(p.format)} · ${fmtPrice(r.prix)}</strong><small class="muted">${esc(r.magasin)} · ${ago(r.at)}${r.photo?` · <button class="linkbtn link" data-prixphoto="${esc(r.id)}">📷 photo</button>`:''}</small></span><span class="${ok?'tagok':'tagwait'}">${ok?'✓ Confirmé':'À confirmer'}</span></li>`; }).join('')}</ul></section>`:''}
         ${top.length>1?`<section class="card"><h2>🏆 Top relevés du mois</h2><div class="podium">${top.map(([n,c],i)=>`<div>${MEDALS[i]}<b>${esc(n)}</b>${plural(c,'prix','prix')}</div>`).join('')}</div></section>`:''}
       </div>
     </div>
@@ -1870,10 +1873,51 @@ function prixProdDialog(id,fam=false){
   openDialog(`<header><div class="pdhead">${prodImg(p,'pimg md')}<div><h2 id="dlgTitle">${esc(p.nom)}</h2><p class="u14 note">${fam?'Tous formats confondus, au '+unitLbl(p).replace('le ',''):esc(p.format)}${regMax(p)!==null?' · maximum légal '+fmtPrice(regMax(p)):''}</p></div></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
   ${sib.length>1?`<div class="seg"><button data-prixfam="${esc(p.id)}" data-f="0" aria-pressed="${!fam}">Ce format</button><button data-prixfam="${esc(p.id)}" data-f="1" aria-pressed="${fam}">Tous formats (${unitLbl(p).replace('le ','au ').replace('la ','à la ')})</button></div>`:''}
   ${rows.length?`<ul class="cmplist">${rows.map(r=>{ const v=fam?r.u:r.prix, d=refv&&v>refv+.0001?Math.round((v/refv-1)*100):0, e=ensOf(r.magasin), mine=me()&&r.owner===me().id, conf=myConfirm(r.id), win=r===ref;
-    return `<li class="cmp${win?' win':''}${r.odd?' odd':''}${r.stale?' stale':''}"><i class="lg" style="background:${e?ensColor(e):'#8a7a6a'}">${esc(e?ensShort(e,r.magasin):ensInitials(r.magasin))}</i><span class="grow"><strong>${esc(r.magasin)}</strong><small class="muted">${fam?esc(r.p.format)+' · ':''}${priceDays(r)?'il y a '+priceDays(r)+' j':'aujourd’hui'}${r.odd?' · à vérifier':''}${r.over?' · au-dessus du maximum':''}</small>${win?'<span class="tagwin">Le moins cher</span>':''}</span>
+    return `<li class="cmp${win?' win':''}${r.odd?' odd':''}${r.stale?' stale':''}"><i class="lg" style="background:${e?ensColor(e):'#8a7a6a'}">${esc(e?ensShort(e,r.magasin):ensInitials(r.magasin))}</i><span class="grow"><strong>${esc(r.magasin)}</strong><small class="muted">${fam?esc(r.p.format)+' · ':''}${priceDays(r)?'il y a '+priceDays(r)+' j':'aujourd’hui'}${r.odd?' · à vérifier':''}${r.over?' · au-dessus du maximum':''}</small>${r.photo?`<button class="linkbtn link phbtn" data-prixphoto="${esc(r.id)}">📷 Voir la photo</button>`:''}${win?'<span class="tagwin">Le moins cher</span>':''}</span>
       <span class="pr"><b>${fam||p.quantite?fmtUnit(r.p,r.prix):fmtPrice(r.prix)}</b><small>${d?`<span class="plus">+${d} %</span> `:''}${fmtPrice(r.prix)}</small>${mine?'':`<button class="linkbtn link" data-confprix="${esc(r.id)}" aria-pressed="${!!conf}">${conf?'✓ Confirmé':'Je confirme'}</button>`}</span></li>`; }).join('')}</ul>`
     :`<p class="muted">Aucun prix pour l’instant. Vous l’avez vu en magasin ?</p>`}
   <div class="bandbtns u10"><button class="btn btn-sun" data-prixform="${esc(p.id)}">${ic('plus')}Signaler un prix</button><button class="btn btn-ghost" data-panieradd="${esc(p.id)}">${PANIER[p.id]?'✓ Dans mon panier':'🧺 Ajouter au panier'}</button></div>`);
+}
+/* ---------- Étape 2 : photos des prix et demandes de produits ---------- */
+// Réduit la photo (1280 px max, JPEG) puis l'envoie dans la médiathèque Wix ; renvoie son adresse.
+async function shrinkImage(file,max=1280,q=.72){
+  const url=URL.createObjectURL(file);
+  try{ const img=await new Promise((ok,ko)=>{ const i=new Image(); i.onload=()=>ok(i); i.onerror=ko; i.src=url; });
+    const k=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight)), c=document.createElement('canvas');
+    c.width=Math.round(img.naturalWidth*k); c.height=Math.round(img.naturalHeight*k); c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    return await new Promise(ok=>c.toBlob(ok,'image/jpeg',q)); }finally{ URL.revokeObjectURL(url); }
+}
+async function uploadPhoto(file,prefix){
+  if(!/^image\//.test(file.type)) throw new Error('not image');
+  const blob=await shrinkImage(file); if(!blob||blob.size>4e6) throw new Error('too big');
+  const name=`${prefix}-${isoDay(TODAY)}-${Math.random().toString(36).slice(2,8)}.jpg`;
+  const g=await call('POST','/ricos/v1/ricos-document/generate-file-upload-url',{mimeType:'image/jpeg',fileName:name});
+  const r=await fetch(g.uploadUrl,{method:'PUT',headers:{'Content-Type':'image/jpeg'},body:blob}); if(!r.ok) throw new Error('upload '+r.status);
+  const j=await r.json(); const u=j&&j.file&&j.file.url; if(!/^https:\/\/static\.wixstatic\.com\//.test(u||'')) throw new Error('no url'); return u;
+}
+function photoDialog(id){
+  const r=RELEVES.find(x=>x.id===id); if(!r||!r.photo) return; const p=PRODUITS.find(x=>x.id===r.produit);
+  openDialog(`<header><div><h2 id="dlgTitle">📷 ${esc(p?p.nom+' '+p.format:'Photo du prix')}</h2><p class="u14 note">${fmtPrice(r.prix)} · ${esc(r.magasin)} · ${fmt(r.day)} · par ${esc(r.pseudo)}</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+  <img class="pricephoto" src="${esc(r.photo)}" alt="Photo du prix envoyée par ${esc(r.pseudo)}">`);
+}
+function demandeProduitDialog(q=''){
+  if(!me()){ requireLogin('Connectez-vous pour demander l’ajout d’un produit.',()=>demandeProduitDialog(q)); return; }
+  openDialog(`<header><div><h2 id="dlgTitle">Demander un produit</h2><p class="u14 note">Un produit du quotidien manque ? Dites-nous lequel : nous l’ajouterons après vérification.</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+  <form class="form" id="demProdForm">
+    <label>Produit<input name="nom" required maxlength="80" value="${esc(q)}" placeholder="Ex. Lait en poudre, huile de palme…"></label>
+    <div class="two"><label>Format<input name="format" maxlength="40" placeholder="Ex. 400 g, 5 L, paquet de 10"></label><label>Catégorie<select name="categorie">${['Alimentation','Boissons','Hygiène','Maison','Bébé','Autre'].map(c=>`<option>${c}</option>`).join('')}</select></label></div>
+    <label>Magasin où vous l’achetez <small class="muted">(facultatif)</small><input name="magasin" maxlength="80"></label>
+    <label>Commentaire <small class="muted">(facultatif)</small><textarea name="commentaire" maxlength="300" rows="2"></textarea></label>
+    <button class="btn btn-primary" type="submit">Envoyer la demande</button>
+  </form>`);
+}
+async function sendDemandeProduit(f){
+  const d=Object.fromEntries(new FormData(f)); const nom=String(d.nom||'').trim(); if(!nom) return;
+  if(DEM_PRODUITS.some(x=>x.statut==='En attente'&&key(x.nom)===key(nom)&&key(x.format)===key(d.format||''))){ dlg.close(); toast('Ce produit est déjà demandé : merci, nous nous en occupons.'); return; }
+  const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Envoi…';
+  const data={nom,format:String(d.format||'').trim(),categorie:d.categorie||'',magasin:String(d.magasin||'').trim(),commentaire:String(d.commentaire||'').trim(),pseudo:me().name||'',statut:'En attente'};
+  try{ const r=await sendToWix('DemandesProduits',data); DEM_PRODUITS.unshift(Object.assign({id:r.dataItem&&r.dataItem.id,cat:data.categorie,comment:data.commentaire,owner:me().id,at:new Date()},data)); dlg.close(); refresh(); toast('Merci ! Votre demande est envoyée.'); }
+  catch(ex){ console.warn(ex); btn.disabled=false; btn.textContent='Envoyer la demande'; toast(ex.status===401||ex.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'); }
 }
 function prixDialog(prodId){
   if(!me()){ requireLogin('Connectez-vous pour signaler un prix : chaque relevé confirmé vous rapporte '+PRICE_RULES.points+' points.',()=>prixDialog(prodId)); return; }
@@ -1884,10 +1928,14 @@ function prixDialog(prodId){
     <label>Magasin<input name="magasin" list="prixShops" required maxlength="80" placeholder="Ex. Sodifram Kawéni, douka de mon quartier…"><datalist id="prixShops">${shops.map(s=>`<option value="${esc(s)}">`).join('')}</datalist></label>
     <div class="two"><label>Commune${communeSelect('commune','')}</label><label>Prix (€)<input name="prix" type="number" inputmode="decimal" min="0.05" max="9999" step="0.01" required placeholder="Ex. 8,90"></label></div>
     <label>Date du relevé<input name="date" type="date" required value="${isoDay(TODAY)}" max="${isoDay(TODAY)}"></label>
+    <label class="photopick">📷 Photo de l’étiquette ou du ticket <small class="muted">(facultatif, recommandé)</small><input name="photo" type="file" accept="image/*" capture="environment"></label>
+    <div class="photoprev" id="prixPrev" hidden></div>
+    <p class="note">Avec une photo, votre prix est vérifié plus vite. Photographiez seulement l’étiquette ou le ticket, sans personne dessus.</p>
     <p class="note err" id="prixErr" role="alert"></p>
     <button class="btn btn-primary" type="submit">Envoyer le prix</button>
   </form>`);
   const f=document.getElementById('prixForm');
+  f.photo.addEventListener('change',()=>{ const fl=f.photo.files[0], pv=document.getElementById('prixPrev'); if(!fl){ pv.hidden=true; pv.innerHTML=''; return; } pv.hidden=false; pv.innerHTML=`<img src="${URL.createObjectURL(fl)}" alt="Aperçu de la photo">`; });
   f.magasin.addEventListener('change',()=>{ const m=MAGASINS_PRIX.find(x=>key(x.nom)===key(f.magasin.value))||B.find(b=>key(b.name)===key(f.magasin.value)); const c=m&&(m.commune||''); if(c&&!f.commune.value) f.commune.value=c; });
 }
 async function sendPrix(f){
@@ -1899,8 +1947,10 @@ async function sendPrix(f){
   const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Envoi…';
   const data={produit:d.produit,magasin:String(d.magasin).trim(),commune:d.commune||'',prix,date:d.date,pseudo:me().name};
   try{
+    const fl=f.photo&&f.photo.files[0];
+    if(fl){ btn.textContent='Envoi de la photo…'; try{ data.photo=await uploadPhoto(fl,'prix'); }catch(px){ console.warn(px); err.textContent='La photo n’a pas pu être envoyée : le prix part sans photo.'; } btn.textContent='Envoi…'; }
     const r=await sendToWix('RelevesPrix',data);
-    RELEVES.push({id:r.dataItem&&r.dataItem.id,produit:data.produit,magasin:data.magasin,commune:data.commune,prix,day:dateFrom(data.date)||TODAY,pseudo:data.pseudo,owner:me().id,at:new Date()});
+    RELEVES.push({id:r.dataItem&&r.dataItem.id,produit:data.produit,magasin:data.magasin,commune:data.commune,prix,day:dateFrom(data.date)||TODAY,pseudo:data.pseudo,owner:me().id,at:new Date(),photo:data.photo||''});
     dlg.close(); refresh(); toast('Merci ! Votre prix est en ligne. Il vous rapportera '+PRICE_RULES.points+' points dès qu’un autre membre le confirmera.');
   }catch(ex){ console.warn(ex); btn.disabled=false; btn.textContent='Envoyer le prix'; toast(ex.status===401||ex.status===403?'Session expirée : reconnectez-vous.':'Envoi impossible pour le moment. Réessayez dans un instant.'); }
 }
@@ -1914,7 +1964,13 @@ async function toggleConfirmPrix(id){
 function pricesAudit(){
   const odd=PRODUITS.flatMap(p=>priceRows(p.id).filter(r=>r.odd).map(r=>Object.assign({p},r)));
   const hidden=RELEVES.filter(r=>PRICE_HIDDEN[r.id]);
-  return `<div class="head u13"><div><h2>Prix à vérifier</h2><p class="muted">${RELEVES.length} relevé${RELEVES.length>1?'s':''} de prix au total. Un prix masqué n’apparaît plus nulle part.</p></div></div>
+  const withPhoto=RELEVES.filter(r=>r.photo&&!PRICE_HIDDEN[r.id]&&!confirmersOf(r.id).size).sort((a,z)=>z.at-a.at);
+  const dem=DEM_PRODUITS.filter(x=>x.statut==='En attente');
+  return `<div class="head u13"><div><h2>📷 Prix avec photo à valider</h2><p class="muted">Valider confirme le prix (le membre gagne ses points) ; Masquer le retire.</p></div></div>
+    ${withPhoto.length?`<div class="list">${withPhoto.map(r=>{ const p=PRODUITS.find(x=>x.id===r.produit); return `<div class="li"><a href="${esc(r.photo)}" target="_blank" rel="noopener"><img class="phthumb" src="${esc(r.photo)}" alt="Photo du prix"></a><div class="grow"><strong>${p?esc(p.nom+' '+p.format):'Produit'} : ${fmtPrice(r.prix)}</strong><small>${esc(r.magasin)} · par ${esc(r.pseudo)} · ${fmt(r.day)}</small></div>${r.owner===(me()&&me().id)?'':`<button class="btn btn-primary btn-sm" data-confprix="${esc(r.id)}">Valider</button>`}<button class="btn btn-ghost btn-sm" data-hideprix="${esc(r.id)}">Masquer</button></div>`; }).join('')}</div>`:'<p class="muted">Aucune photo en attente.</p>'}
+    <div class="head u13"><div><h2>🛒 Produits demandés par les membres</h2><p class="muted">Pour en ajouter un : collection ProduitsSuivis du CMS, puis passez la demande à « Ajouté » dans DemandesProduits.</p></div></div>
+    ${dem.length?`<div class="list">${dem.map(x=>`<div class="li"><div class="grow"><strong>${esc(x.nom)}${x.format?' · '+esc(x.format):''}</strong><small>${esc(x.cat)}${x.magasin?' · vu chez '+esc(x.magasin):''} · par ${esc(x.pseudo)} · ${ago(x.at)}${x.comment?'<br>'+esc(x.comment):''}</small></div></div>`).join('')}</div>`:'<p class="muted">Aucune demande en attente.</p>'}
+    <div class="head u13"><div><h2>Prix à vérifier</h2><p class="muted">${RELEVES.length} relevé${RELEVES.length>1?'s':''} de prix au total. Un prix masqué n’apparaît plus nulle part.</p></div></div>
     ${odd.length?`<div class="list">${odd.map(r=>`<div class="li"><div class="grow"><strong>${r.p.emoji} ${esc(r.p.nom)} : ${fmtPrice(r.prix)}</strong><small>${esc(r.magasin)} · par ${esc(r.pseudo)} · ${fmt(r.day)}</small></div><button class="btn btn-ghost btn-sm" data-hideprix="${esc(r.id)}">Masquer</button></div>`).join('')}</div>`:'<p class="muted">Aucun prix suspect pour le moment.</p>'}
     ${hidden.length?`<details class="card u10"><summary><strong>${hidden.length} relevé${hidden.length>1?'s':''} masqué${hidden.length>1?'s':''}</strong></summary><div class="list u10">${hidden.map(r=>`<div class="li"><div class="grow"><strong>${fmtPrice(r.prix)} · ${esc(r.magasin)}</strong><small>par ${esc(r.pseudo)} · ${fmt(r.day)}</small></div><button class="btn btn-ghost btn-sm" data-showprix="${esc(r.id)}">Réafficher</button></div>`).join('')}</div></details>`:''}`;
 }
@@ -3124,6 +3180,8 @@ document.addEventListener('click',async e=>{
   else if(t.dataset.prixens!==undefined){ prixState.ens=prixState.ens===t.dataset.prixens?'':t.dataset.prixens; refresh(); }
   else if(t.dataset.prixcat!==undefined){ prixState.cat=t.dataset.prixcat; document.querySelectorAll('[data-prixcat]').forEach(b=>b.setAttribute('aria-pressed',b===t)); drawPrixGrid(prixCom()); }
   else if(t.dataset.prixprod){ prixProdDialog(t.dataset.prixprod); }
+  else if(t.dataset.prixphoto){ photoDialog(t.dataset.prixphoto); }
+  else if(t.dataset.demprod!==undefined){ demandeProduitDialog(t.dataset.demprod); }
   else if(t.dataset.prixfam){ prixProdDialog(t.dataset.prixfam,t.dataset.f==='1'); }
   else if(t.dataset.panierbase!==undefined){ PANIER_BASE.forEach(([n,f])=>{ const p=PRODUITS.find(x=>x.nom===n&&x.format===f); if(p&&!PANIER[p.id]) PANIER[p.id]=1; }); savePanier(); drawPanier(); }
   else if(t.dataset.panierqty){ const id=t.dataset.panierqty; PANIER[id]=Math.max(0,Math.min(99,(PANIER[id]||0)+(+t.dataset.d))); if(!PANIER[id]) delete PANIER[id]; savePanier(); drawPanier(); }
@@ -3311,6 +3369,7 @@ document.addEventListener('submit',async e=>{
   }
   else if(f.id==='offerForm'){ e.preventDefault(); sendOffer(f); }
   else if(f.id==='prixForm'){ e.preventDefault(); sendPrix(f); }
+  else if(f.id==='demProdForm'){ e.preventDefault(); sendDemandeProduit(f); }
   else if(f.id==='proCatalogForm'){
     e.preventDefault(); const b=ownerOf(f.dataset.biz); if(!b) return;
     const d=Object.fromEntries(new FormData(f)); const t=k=>String(d[k]||'').trim();

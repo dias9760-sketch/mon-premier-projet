@@ -1164,3 +1164,12 @@ section.block.homeflash{padding-bottom:0}
 .cmp .pr b{font-family:var(--display);font-size:1.02rem}
 .cmp .pr small{color:var(--muted);font-size:.74rem}
 .cmp .plus{color:#C23E20;font-weight:700}
+/* Étape 2 : photos des prix et demandes de produits */
+.photopick{display:grid;gap:6px}
+.photopick input{font-size:.9rem}
+.photoprev img{max-width:100%;max-height:220px;border-radius:12px;border:1px solid var(--line)}
+.pricephoto{display:block;max-width:100%;max-height:70vh;margin:0 auto;border-radius:14px}
+.phbtn{justify-self:start;font-size:.8rem;margin-top:2px}
+.phthumb{width:56px;height:56px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+.demband{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 16px;border-radius:16px;border:1px dashed var(--line);background:var(--surface)}
+.demband span{font-weight:600}
