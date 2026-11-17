@@ -215,3 +215,12 @@ Le 31 octobre, une autre session avait publié sa propre version (bloc « Offres
 - Il faut être connecté pour signaler un prix ou demander un produit. Hors connexion, le site affiche l'écran de connexion (vérifié en ligne).
 - À faire : faire un vrai test, en étant connecté, avec une photo prise au téléphone, puis valider ce test dans Contrôle.
 - Point de vigilance : une image de test « test-bonszahe.jpg » (8×8 pixels) est restée dans le Gestionnaire de médias Wix. Said peut la supprimer.
+
+## 17 nov. 2026 (soir) : correction du classement sur mobile (v=57)
+- Problème signalé par Said, vidéo à l'appui : sur mobile, le classement « Ça chauffe » de l'accueil s'affichait en une seule ligne horizontale, et la page entière se décalait sur le côté.
+- Cause : la page Prix (v=55) avait réutilisé deux noms de classe déjà pris :
+  - `.podium`, utilisé par le classement de l'accueil ;
+  - `.seg`, utilisé par les onglets (Connexion, Tendances, Demandes, Catalogues, statistiques pro).
+- Correction : le podium des relevés de prix s'appelle maintenant `.relpodium`, et le sélecteur « Ce format / Tous formats » `.fmtseg`. Les onglets du site retrouvent leur ancien aspect.
+- Publié et vérifié sur bonszahe.com (v=57, classement en grille) et sur la copie Wix (empreintes app 53df999281531815, index f7d8e8805565524a, css 5dcffa8ba64ebc71).
+- **Règle :** avant d'ajouter une classe CSS, vérifier qu'elle n'existe pas déjà dans `styles-favorites-v2.css` et `app-favorites-v2.js`.
