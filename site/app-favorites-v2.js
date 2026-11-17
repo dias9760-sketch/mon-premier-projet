@@ -373,8 +373,8 @@ async function loadData(){
   VALIDATIONS={}; vals.filter(x=>x._owner===ADMIN_ID&&x.mois).forEach(x=>VALIDATIONS[String(x.mois).slice(0,7)]={row:x._id,ids:String(x.gagnants||'').split(/[\s,;]+/).filter(Boolean),noms:String(x.noms||'').split(' | ').filter(Boolean),at:stamp(x._createdDate)});
   CATALOGUES=catas.filter(x=>x.publie===true&&x.titre&&/^https?:\/\//.test(x.lien||'')).map(x=>{ const biz=idToSlug[refId(x.entreprise)]||B.find(b=>b.slug===x.entreprise)?.slug||'';
     return {id:x._id,biz,enseigne:x.enseigne||'',cat:biz?bizBy(biz).cat:catFrom(x.categorie),type:key(x.type).includes('arriv')?'arrivage':'catalogue',title:x.titre,link:x.lien,cover:imgUrl(x.couverture)||imgUrl(x.couvertureLien),desc:x.description||'',start:dateFrom(x.debut),end:dateFrom(x.fin),checked:dateFrom(x.verifieLe),at:stamp(x._createdDate)}; }).filter(c=>c.biz||c.enseigne);
-  PRODUITS=prods.filter(x=>x.nom&&x.actif!==false).map(x=>({id:x._id,nom:x.nom,format:x.format||'',emoji:x.emoji||'🛒',ordre:+x.ordre||99,reglemente:x.reglemente||''})).sort((a,z)=>a.ordre-z.ordre);
-  MAGASINS_PRIX=mags.filter(x=>x.nom&&x.actif!==false).map(x=>({nom:x.nom,commune:communeFrom(x.commune)}));
+  PRODUITS=prods.filter(x=>x.nom&&x.actif!==false).map(x=>({id:x._id,nom:x.nom,format:x.format||'',emoji:x.emoji||'🛒',ordre:+x.ordre||99,reglemente:x.reglemente||'',cat:x.categorie||'',quantite:+x.quantite>0?+x.quantite:0,unite:['kg','L','pièce'].includes(x.unite)?x.unite:'kg',image:imgUrl(x.image)})).sort((a,z)=>a.ordre-z.ordre);
+  MAGASINS_PRIX=mags.filter(x=>x.nom&&x.actif!==false).map(x=>({nom:x.nom,commune:communeFrom(x.commune),enseigne:x.enseigne||'',vedette:!!x.vedette,ordre:+x.ordre||99}));
   RELEVES=rels.filter(x=>x.produit&&x.magasin&&+x.prix>0).map(x=>({id:x._id,produit:x.produit,magasin:String(x.magasin).slice(0,80),commune:communeFrom(x.commune),prix:+x.prix,day:dateFrom(x.date)||dateFrom(x._createdDate)||TODAY,pseudo:x.pseudo||'',owner:x._owner,at:stamp(x._createdDate)}));
   CONFIRMS=confs.filter(x=>x.releve).map(x=>({id:x._id,releve:x.releve,owner:x._owner,at:stamp(x._createdDate)}));
   REGLEMENTES=regs.filter(x=>/^\d{4}-\d{2}$/.test(String(x.mois||''))&&x.produit&&+x.prix>0).map(x=>({mois:x.mois,produit:x.produit,libelle:x.libelle||x.produit,prix:+x.prix,unite:x.unite||'',source:x.source||''}));
@@ -664,6 +664,15 @@ function pageHome(){
   ${(()=>{ const n=me()?alertDeals(true).length:0; const tb=tfBanner(); return n||tb?`<section class="block homeflash"><div class="wrap stack">
     ${n?`<a class="tfband alertband" href="#/alertes"><span class="tfemo">🔔</span><span class="grow"><strong>${n} nouveau${n>1?'x':''} bon${n>1?'s':''} plan${n>1?'s':''} pour vos alertes</strong><small>Ils correspondent à ce que vous suivez.</small></span>${ic('left','class="flip"')}</a>`:''}${tb}
   </div></section>`:''; })()}
+  <section class="block shortcuts"><div class="wrap">
+    <div class="shortrail" role="list">
+      <a class="short" role="listitem" href="#/prix"><span class="ico" style="background:var(--vert-50)">💰</span><strong>Prix à Mayotte</strong><small>Le moins cher, magasin par magasin</small></a>
+      <a class="short" role="listitem" href="#/catalogues"><span class="ico" style="background:var(--soleil-50)">📖</span><strong>Catalogues</strong><small>${activeCatalogues().length?plural(activeCatalogues().length,'catalogue en cours','catalogues en cours'):'Promos et arrivages'}</small></a>
+      <a class="short" role="listitem" href="#/evenements"><span class="ico" style="background:#EDE6F7">📅</span><strong>Événements</strong><small>${upcomingEvents().length?plural(upcomingEvents().length,'événement à venir','événements à venir'):'Ce qui se passe sur l’île'}</small></a>
+      <a class="short" role="listitem" href="#/demandes"><span class="ico" style="background:var(--lagon-50)">🙋</span><strong>Demandes</strong><small>Un code ou un achat ? Demandez</small></a>
+      <a class="short" role="listitem" href="#/recompenses"><span class="ico" style="background:#DFF4F7">🎁</span><strong>Récompenses</strong><small>Les lots du mois</small></a>
+    </div>
+  </div></section>
   <section class="u18 block">
     <div class="wrap">
       <div class="head"><div><h2>Catégories</h2></div><a class="link" href="#/categories">Toutes les catégories</a></div>
@@ -1742,23 +1751,129 @@ function priceRow(r){
   return `<li class="pricerow${r.odd?' odd':''}${r.stale?' stale':''}"><div class="grow"><strong>${esc(r.magasin)}</strong><small>${r.commune?esc(comBy(r.commune).name)+' · ':''}${priceDays(r)?'il y a '+priceDays(r)+' j':'aujourd’hui'} · par ${esc(r.pseudo||'Membre')}${r.conf?` · ✓ confirmé ${r.conf} fois`:''}${r.odd?' · <span class="pill wait">À vérifier</span>':''}${r.over?` · <span class="pill no">⚠️ Au-dessus du prix maximum (${fmtPrice(r.max)})</span>`:''}</small></div>
     <b>${fmtPrice(r.prix)}</b>${mine?'':`<button class="btn btn-ghost btn-sm" data-confprix="${esc(r.id)}" aria-pressed="${!!conf}">${conf?'✓ Confirmé':'Je confirme'}</button>`}</li>`;
 }
+/* ---------- Page Prix à Mayotte (comparateur + panier malin + communauté) ---------- */
+// Enseignes en boutons : magasins « vedette » du CMS (MagasinsPrix), triés par « ordre ».
+const ENS_COLORS={'carrefour':'#1E5BB8','intermarchebaobab':'#D22B2B','sodifram':'#0E8A5F','hdhyperdiscount':'#E07A00','sodicash':'#5B3A8E','doukabe':'#E4502F','somaco':'#0B6E8A','distrimax':'#8A3B12'};
+const ENS_SHORT={'carrefour':'C','intermarchebaobab':'ITM','sodifram':'SDF','hdhyperdiscount':'HD','sodicash':'SC','doukabe':'DB','somaco':'SMC','distrimax':'DMX'};
+const ENS_ALIAS={'intermarchebaobab':['baobab','intermarche'],'hdhyperdiscount':['hyperdiscount'],'doukabe':['doukabe']};
+function enseignes(){
+  const m={}; MAGASINS_PRIX.filter(x=>x.vedette&&x.enseigne).forEach(x=>{ const k=key(x.enseigne); if(!m[k]) m[k]={k,nom:x.enseigne,ordre:x.ordre}; else m[k].ordre=Math.min(m[k].ordre,x.ordre); });
+  return Object.values(m).sort((a,z)=>a.ordre-z.ordre||a.nom.localeCompare(z.nom,'fr'));
+}
+const ensColor=k=>ENS_COLORS[k]||['#1E5BB8','#0E8A5F','#D22B2B','#5B3A8E','#E07A00','#0B6E8A'][[...k].reduce((s,c)=>s+c.charCodeAt(0),0)%6];
+const ensShort=(k,n)=>ENS_SHORT[k]||ensInitials(n);
+const ensInitials=n=>{ const w=n.replace(/[^A-Za-zÀ-ÿ0-9 ]/g,' ').split(/\s+/).filter(Boolean); return (w.length>1&&w[0].length<=3?w[0]:w.slice(0,2).map(x=>x[0]).join('')).toUpperCase().slice(0,3); };
+// Enseigne d'un relevé (le magasin est saisi librement par les membres).
+function ensOf(mag){
+  const k=key(mag); const m=MAGASINS_PRIX.find(x=>key(x.nom)===k); if(m&&m.enseigne) return key(m.enseigne);
+  const e=enseignes().find(e=>k.includes(e.k)||(ENS_ALIAS[e.k]||[]).some(a=>k.includes(a))); return e?e.k:'';
+}
+const unitPrice=(p,prix)=>p.quantite>0?prix/p.quantite:null;
+const unitLbl=p=>p.unite==='pièce'?'la pièce':p.unite==='L'?'le litre':'le kilo';
+const fmtUnit=(p,prix)=>{ const u=unitPrice(p,prix); return u===null?'':`${fmtPrice(u)}/${p.unite==='pièce'?'pièce':p.unite}`; };
+const PRIX_CATS={Alimentation:'🍚',Boissons:'💧',Hygiène:'🧼',Maison:'🧺',Carburant:'⛽'};
+const prodCats=()=>[...new Set(PRODUITS.map(p=>p.cat).filter(Boolean))];
+let prixState={q:'',ens:'',cat:''};
+const prixCom=()=>communeFrom(new URLSearchParams((curH().split('?')[1])||'').get('c')||'')||'';
+function drawPanier(){ const el=document.getElementById('panierBox'); if(el) el.innerHTML=panierBlock(prixCom()); }
+// Meilleur prix « fiable » (ni à vérifier, ni ancien), éventuellement pour une enseigne.
+const okRows=(p,com,ens)=>priceRows(p.id,com).filter(r=>!r.odd&&!r.stale&&(!ens||ensOf(r.magasin)===ens));
+const bestIn=(p,com,ens)=>okRows(p,com,ens)[0]||null;
+function prodImg(p,cls='pimg'){ return p.image?`<span class="${cls} hasimg"><img src="${esc(p.image)}" alt="" loading="lazy"></span>`:`<span class="${cls} pc-${key(p.cat)||'autre'}" aria-hidden="true">${p.emoji}</span>`; }
+function prodCard(p,com){
+  const all=bestIn(p,com,''), ens=prixState.ens, mine=ens?bestIn(p,com,ens):all;
+  const nb=new Set(priceRows(p.id,com).map(r=>ensOf(r.magasin)||key(r.magasin))).size;
+  const win=ens&&mine&&all&&mine.prix<=all.prix+.001;
+  return `<button class="pcard" data-prixprod="${esc(p.id)}">${win?'<span class="pwin">Le moins cher</span>':''}${prodImg(p)}
+    <strong>${esc(p.nom)}</strong><small class="muted">${esc(p.format)}</small>
+    ${mine?`<span class="pbest"><b>${p.quantite?fmtUnit(p,mine.prix):fmtPrice(mine.prix)}</b><small>${p.quantite?fmtPrice(mine.prix)+' · ':''}${esc(mine.magasin)}</small></span>`
+      :`<span class="pnone">${ens?'Pas encore de prix ici':'Aucun prix'} · <u>signaler</u></span>`}
+    ${nb>1?`<small class="pcount">${nb} magasins comparés</small>`:''}</button>`;
+}
+function prixFiltered(){
+  const q=norm(prixState.q.trim());
+  return PRODUITS.filter(p=>(!prixState.cat||p.cat===prixState.cat)&&(!q||norm(p.nom+' '+p.format+' '+p.cat).includes(q)));
+}
+function drawPrixGrid(com){
+  const el=document.getElementById('prixGrid'); if(!el) return;
+  const list=prixFiltered();
+  el.innerHTML=list.length?list.map(p=>prodCard(p,com)).join(''):`<div class="u5">${empty('Aucun produit trouvé','Essayez un autre mot, ou demandez-nous d’ajouter ce produit.','<a class="btn btn-sun" href="#/contact">Demander un produit</a>')}</div>`;
+  const c=document.getElementById('prixCount'); if(c) c.textContent=plural(list.length,'produit','produits');
+}
+// Panier malin : produits et quantités gardés dans le navigateur.
+const PANIER_KEY='bonszahe:panier';
+let PANIER=(()=>{ try{ return JSON.parse(localStorage.getItem(PANIER_KEY)||'{}')||{}; }catch(e){ return {}; } })();
+const savePanier=()=>{ try{ localStorage.setItem(PANIER_KEY,JSON.stringify(PANIER)); }catch(e){} };
+const PANIER_BASE=[['Riz','5 kg'],['Huile','1 L'],['Sucre','1 kg'],['Lait UHT','1 L'],['Œufs','plateau de 30'],['Mabawa (ailes de poulet)','1 kg'],['Pâtes','500 g']];
+function panierBlock(com){
+  const items=Object.entries(PANIER).map(([id,n])=>({p:PRODUITS.find(x=>x.id===id),n})).filter(x=>x.p&&x.n>0);
+  if(!items.length) return `<div class="pempty"><p>Ajoutez vos produits habituels : on calcule le total magasin par magasin.</p><div class="bandbtns"><button class="btn btn-sun" data-panierbase="">🧺 Commencer avec le panier de base</button></div></div>`;
+  const tot=enseignes().map(e=>{ let s=0,known=0; items.forEach(({p,n})=>{ const b=bestIn(p,com,e.k); if(b){ s+=b.prix*n; known++; } }); return {e,s,known}; }).filter(x=>x.known).sort((a,z)=>z.known-a.known||a.s-z.s);
+  const full=tot.filter(x=>x.known===items.length), win=full.length?full.reduce((a,z)=>z.s<a.s?z:a):null, max=Math.max(...tot.map(x=>x.s),1);
+  const save=win&&full.length>1?Math.max(...full.map(x=>x.s))-win.s:0;
+  return `<ul class="plist">${items.map(({p,n})=>{ const b=bestIn(p,com,''); return `<li>${prodImg(p,'pimg sm')}<span class="grow"><strong>${esc(p.nom)}</strong><small class="muted">${esc(p.format)}${b?' · dès '+fmtPrice(b.prix):''}</small></span>
+      <span class="qty"><button data-panierqty="${esc(p.id)}" data-d="-1" aria-label="Retirer un">−</button><b>${n}</b><button data-panierqty="${esc(p.id)}" data-d="1" aria-label="Ajouter un">+</button></span></li>`; }).join('')}</ul>
+    ${tot.length?`<div class="ptot"><h3>Total de votre panier</h3>${tot.map(x=>`<div class="pbtot${win&&x===win?' win':''}"><span class="nm"><i style="background:${ensColor(x.e.k)}">${esc(ensShort(x.e.k,x.e.nom))}</i>${esc(x.e.nom)}</span><span class="tr"><i style="width:${Math.round(x.s/max*100)}%"></i></span><b>${fmtPrice(x.s)}</b><small>${x.known===items.length?'panier complet':x.known+'/'+items.length+' prix connus'}</small></div>`).join('')}
+      ${save>0.009?`<p class="psave">💡 Vous économisez <b>${fmtPrice(save)}</b> chez ${esc(win.e.nom)}.</p>`:win?'':`<p class="note">Aucun magasin n’a encore tous les prix de votre panier : signalez les prix manquants pour compléter la comparaison.</p>`}</div>`
+      :`<p class="note">Pas encore assez de prix pour comparer ce panier : signalez ceux que vous voyez en magasin.</p>`}
+    <div class="bandbtns u10"><a class="btn btn-wa btn-sm" href="${waHref(recapPanier(com))}" target="_blank" rel="noopener">Partager le panier malin</a><button class="linkbtn link" data-panierclear="">Vider le panier</button></div>`;
+}
+// Missions : prix manquants ou anciens dans les enseignes suivies (rotation chaque semaine).
+function missions(com){
+  const ens=enseignes(), prods=PRODUITS.filter(p=>!p.reglemente&&p.quantite);
+  const all=[]; prods.forEach(p=>ens.forEach(e=>{ if(!bestIn(p,com,e.k)) all.push({p,e}); }));
+  const wk=Math.floor(TODAY/(7*DAY)); const start=all.length?wk%all.length:0;
+  return [...all.slice(start),...all.slice(0,start)].filter((x,i,a)=>a.findIndex(y=>y.p===x.p)===i).slice(0,3);
+}
+function lastPrices(){
+  return [...RELEVES].filter(r=>!PRICE_HIDDEN[r.id]&&PRODUITS.some(p=>p.id===r.produit)).sort((a,z)=>z.at-a.at).slice(0,6);
+}
+function topReleveurs(){
+  const mk=monthKey(TODAY), c={}; RELEVES.filter(r=>monthKey(r.at)===mk&&r.pseudo).forEach(r=>c[r.pseudo]=(c[r.pseudo]||0)+1);
+  return Object.entries(c).sort((a,z)=>z[1]-a[1]).slice(0,3);
+}
 function pagePrix(params){
   const com=communeFrom(params.get('c')||'')||'';
-  const withPrice=PRODUITS.filter(p=>bestPrice(p.id,com));
-  const txt=recapPanier(com);
-  return `<div class="wrap">
-    ${backBtn('#/')}<div class="pagehead"><h1>💰 Prix à Mayotte</h1><p class="muted">Les prix des produits du quotidien relevés par les habitants, magasin par magasin. Comparez avant de faire vos courses et aidez les autres en signalant les prix que vous voyez.</p>
-      <div class="bandbtns u10"><button class="btn btn-sun" data-prixform="">${ic('plus')}Signaler un prix</button>${withPrice.length?`<a class="btn btn-wa" href="${waHref(txt)}" target="_blank" rel="noopener">Partager le panier malin</a>`:''}</div></div>
+  const ens=enseignes(); if(prixState.ens&&!ens.some(e=>e.k===prixState.ens)) prixState.ens='';
+  const ms=missions(com), lp=lastPrices(), top=topReleveurs();
+  return `<div class="wrap prixpage">
+    ${backBtn('#/')}<div class="pagehead"><h1>💰 Prix à Mayotte</h1><p class="muted">Le vrai prix au kilo, magasin par magasin. Comparez avant de faire vos courses.</p></div>
+    <label class="field prixsearch">${ic('search')}<span class="sr">Chercher un produit</span><input id="prixQ" type="search" placeholder="Riz, huile, mabawa, lait…" value="${esc(prixState.q)}" autocomplete="off"></label>
+    <div class="prixhero u13"><div><strong>Un prix en rayon ? Partagez-le.</strong><small>Chaque prix confirmé par un autre membre vous rapporte ${PRICE_RULES.points} points pour les récompenses du mois.</small></div><button class="btn btn-sun" data-prixform="">${ic('plus')}Signaler un prix</button></div>
+    <div class="head u13"><div><h2>Magasins</h2></div>${prixState.ens?`<button class="linkbtn link" data-prixens="">Tous les magasins</button>`:''}</div>
+    <div class="ensrow" role="group" aria-label="Choisir un magasin">${ens.map(e=>`<button class="ens" data-prixens="${e.k}" aria-pressed="${prixState.ens===e.k}"><i style="background:${ensColor(e.k)}">${esc(ensShort(e.k,e.nom))}</i><small>${esc(e.nom)}</small></button>`).join('')}</div>
+    <div class="chips u10" role="group" aria-label="Catégories"><button class="chip" data-prixcat="" aria-pressed="${!prixState.cat}">Tout</button>${prodCats().map(c=>`<button class="chip" data-prixcat="${esc(c)}" aria-pressed="${prixState.cat===c}">${PRIX_CATS[c]||'🛒'} ${esc(c)}</button>`).join('')}</div>
+    <div class="filters u10"><label class="sel"><span>Commune</span><select id="prixCom">${selOpts([['','Toute l’île'],...[...COMMUNES].sort((a,z)=>a.name.localeCompare(z.name,'fr')).map(c=>[c.slug,c.name])],com)}</select></label><p class="results" id="prixCount"></p></div>
+    <div class="pgrid u10" id="prixGrid"></div>
+    <div class="prixcols u18">
+      <section class="card"><h2>🧺 Mon panier malin</h2><p class="muted">Vos courses habituelles : le total dans chaque magasin.</p><div id="panierBox">${panierBlock(com)}</div></section>
+      <div class="stack">
+        ${ms.length?`<section class="card"><h2>🎯 Missions de la semaine</h2><p class="muted">Ces prix manquent : relevez-les lors de vos courses.</p>${ms.map(({p,e})=>`<button class="mission" data-prixform="${esc(p.id)}"><span class="e">${p.emoji}</span><span class="grow"><strong>${esc(p.nom)} ${esc(p.format)}</strong><small>chez ${esc(e.nom)} · aucun prix récent</small></span><b>+${PRICE_RULES.points} pts</b></button>`).join('')}</section>`:''}
+        ${lp.length?`<section class="card"><h2>Derniers prix relevés</h2><ul class="feed">${lp.map(r=>{ const p=PRODUITS.find(x=>x.id===r.produit), ok=confirmersOf(r.id).size>0; return `<li><span class="av">${esc((r.pseudo||'?').slice(0,2).toUpperCase())}</span><span class="grow"><strong>${esc(p.nom)} ${esc(p.format)} · ${fmtPrice(r.prix)}</strong><small class="muted">${esc(r.magasin)} · ${ago(r.at)}</small></span><span class="${ok?'tagok':'tagwait'}">${ok?'✓ Confirmé':'À confirmer'}</span></li>`; }).join('')}</ul></section>`:''}
+        ${top.length>1?`<section class="card"><h2>🏆 Top relevés du mois</h2><div class="podium">${top.map(([n,c],i)=>`<div>${MEDALS[i]}<b>${esc(n)}</b>${plural(c,'prix','prix')}</div>`).join('')}</div></section>`:''}
+      </div>
+    </div>
     ${fuelCard()}
-    <div class="filters u13"><label class="sel"><span>Commune</span><select id="prixCom">${selOpts([['','Toute l’île'],...[...COMMUNES].sort((a,z)=>a.name.localeCompare(z.name,'fr')).map(c=>[c.slug,c.name])],com)}</select></label></div>
-    ${withPrice.length?`<div class="card panier u13"><h2>🧺 Le panier malin${com?' à '+esc(comBy(com).name):''}</h2><p class="muted">Le prix le plus bas relevé ces 30 derniers jours pour chaque produit.</p>
-      <ul class="panierlist">${withPrice.map(p=>{ const b=bestPrice(p.id,com); return `<li><span>${p.emoji} ${esc(p.nom)} <small class="muted">${esc(p.format)}</small></span><b>${fmtPrice(b.prix)}</b><small class="muted">${esc(b.magasin)}</small></li>`; }).join('')}</ul></div>`:''}
-    <div class="prodgrid u13">${PRODUITS.map(p=>{ const rows=priceRows(p.id,com), b=bestPrice(p.id,com);
-      return `<details class="card prod"${rows.length&&rows.length<=3?' open':''}><summary><span class="prodemo">${p.emoji}</span><span class="grow"><strong>${esc(p.nom)}</strong><small class="muted">${esc(p.format)}${regMax(p)!==null?` · maximum légal ${fmtPrice(regMax(p))}`:''}</small></span>${b?`<span class="best"><b>${fmtPrice(b.prix)}</b><small>${esc(b.magasin)}</small></span>`:'<small class="muted">Pas encore de prix</small>'}</summary>
-        ${rows.length?`<ul class="pricerows">${rows.map(priceRow).join('')}</ul>`:`<p class="muted">Vous connaissez le prix ? <button class="linkbtn link" data-prixform="${p.id}">Signalez-le</button></p>`}</details>`; }).join('')}</div>
-    <p class="note u13">Prix relevés par la communauté, à vérifier en magasin. Un prix très différent des autres est marqué « À vérifier » jusqu’à ce qu’un autre membre le confirme. Un relevé confirmé par un autre membre rapporte ${PRICE_RULES.points} points (${PRICE_RULES.rewardPerDay} relevés récompensés par jour).</p>
+    <p class="note u13">Prix relevés par l’équipe et la communauté, à vérifier en magasin. Un prix très différent des autres est marqué « À vérifier » jusqu’à ce qu’un autre membre le confirme. Les prix de plus de ${PRICE_RULES.staleDays} jours ne servent plus à la comparaison.</p>
     <div class="u8"></div>
   </div>`;
+}
+// Fiche produit : tous les magasins, au prix ou au kilo, et les autres formats du même produit.
+function prixProdDialog(id,fam=false){
+  const p=PRODUITS.find(x=>x.id===id); if(!p) return;
+  const com=prixCom();
+  const sib=PRODUITS.filter(x=>x.quantite&&key(x.nom)===key(p.nom));
+  const prods=fam&&p.quantite?sib:[p];
+  const rows=prods.flatMap(x=>priceRows(x.id,com).map(r=>Object.assign({p:x,u:unitPrice(x,r.prix)},r)));
+  rows.sort((a,z)=>a.odd-z.odd||a.stale-z.stale||(fam?a.u-z.u:a.prix-z.prix));
+  const ref=rows.find(r=>!r.odd&&!r.stale), refv=ref?(fam?ref.u:ref.prix):null;
+  openDialog(`<header><div class="pdhead">${prodImg(p,'pimg md')}<div><h2 id="dlgTitle">${esc(p.nom)}</h2><p class="u14 note">${fam?'Tous formats confondus, au '+unitLbl(p).replace('le ',''):esc(p.format)}${regMax(p)!==null?' · maximum légal '+fmtPrice(regMax(p)):''}</p></div></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+  ${sib.length>1?`<div class="seg"><button data-prixfam="${esc(p.id)}" data-f="0" aria-pressed="${!fam}">Ce format</button><button data-prixfam="${esc(p.id)}" data-f="1" aria-pressed="${fam}">Tous formats (${unitLbl(p).replace('le ','au ').replace('la ','à la ')})</button></div>`:''}
+  ${rows.length?`<ul class="cmplist">${rows.map(r=>{ const v=fam?r.u:r.prix, d=refv&&v>refv+.0001?Math.round((v/refv-1)*100):0, e=ensOf(r.magasin), mine=me()&&r.owner===me().id, conf=myConfirm(r.id), win=r===ref;
+    return `<li class="cmp${win?' win':''}${r.odd?' odd':''}${r.stale?' stale':''}"><i class="lg" style="background:${e?ensColor(e):'#8a7a6a'}">${esc(e?ensShort(e,r.magasin):ensInitials(r.magasin))}</i><span class="grow"><strong>${esc(r.magasin)}</strong><small class="muted">${fam?esc(r.p.format)+' · ':''}${priceDays(r)?'il y a '+priceDays(r)+' j':'aujourd’hui'}${r.odd?' · à vérifier':''}${r.over?' · au-dessus du maximum':''}</small>${win?'<span class="tagwin">Le moins cher</span>':''}</span>
+      <span class="pr"><b>${fam||p.quantite?fmtUnit(r.p,r.prix):fmtPrice(r.prix)}</b><small>${d?`<span class="plus">+${d} %</span> `:''}${fmtPrice(r.prix)}</small>${mine?'':`<button class="linkbtn link" data-confprix="${esc(r.id)}" aria-pressed="${!!conf}">${conf?'✓ Confirmé':'Je confirme'}</button>`}</span></li>`; }).join('')}</ul>`
+    :`<p class="muted">Aucun prix pour l’instant. Vous l’avez vu en magasin ?</p>`}
+  <div class="bandbtns u10"><button class="btn btn-sun" data-prixform="${esc(p.id)}">${ic('plus')}Signaler un prix</button><button class="btn btn-ghost" data-panieradd="${esc(p.id)}">${PANIER[p.id]?'✓ Dans mon panier':'🧺 Ajouter au panier'}</button></div>`);
 }
 function prixDialog(prodId){
   if(!me()){ requireLogin('Connectez-vous pour signaler un prix : chaque relevé confirmé vous rapporte '+PRICE_RULES.points+' points.',()=>prixDialog(prodId)); return; }
@@ -2691,6 +2806,7 @@ function route(){
   applySeo(path,params,title);
   if(p==='entreprises'&&!parts[1]) drawDirectory();
   if(p==='codes') drawCodes();
+  if(p==='prix') drawPrixGrid(communeFrom(params.get('c')||'')||'');
   syncTabbar();
   document.querySelectorAll('[data-nav]').forEach(a=>{ a.getAttribute('data-nav')===nav?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current'); });
   document.getElementById('loginBtn').textContent=me()?me().name:'Connexion';
@@ -3005,6 +3121,14 @@ document.addEventListener('click',async e=>{
   else if(t.dataset.proevent){ proEventDialog(t.dataset.proevent); }
   else if(t.dataset.offer){ offerDialog(t.dataset.offer); }
   else if(t.dataset.prixform!==undefined){ prixDialog(t.dataset.prixform); }
+  else if(t.dataset.prixens!==undefined){ prixState.ens=prixState.ens===t.dataset.prixens?'':t.dataset.prixens; refresh(); }
+  else if(t.dataset.prixcat!==undefined){ prixState.cat=t.dataset.prixcat; document.querySelectorAll('[data-prixcat]').forEach(b=>b.setAttribute('aria-pressed',b===t)); drawPrixGrid(prixCom()); }
+  else if(t.dataset.prixprod){ prixProdDialog(t.dataset.prixprod); }
+  else if(t.dataset.prixfam){ prixProdDialog(t.dataset.prixfam,t.dataset.f==='1'); }
+  else if(t.dataset.panierbase!==undefined){ PANIER_BASE.forEach(([n,f])=>{ const p=PRODUITS.find(x=>x.nom===n&&x.format===f); if(p&&!PANIER[p.id]) PANIER[p.id]=1; }); savePanier(); drawPanier(); }
+  else if(t.dataset.panierqty){ const id=t.dataset.panierqty; PANIER[id]=Math.max(0,Math.min(99,(PANIER[id]||0)+(+t.dataset.d))); if(!PANIER[id]) delete PANIER[id]; savePanier(); drawPanier(); }
+  else if(t.dataset.panieradd){ const id=t.dataset.panieradd; if(PANIER[id]) delete PANIER[id]; else PANIER[id]=1; savePanier(); t.textContent=PANIER[id]?'✓ Dans mon panier':'🧺 Ajouter au panier'; drawPanier(); }
+  else if(t.dataset.panierclear!==undefined){ PANIER={}; savePanier(); drawPanier(); }
   else if(t.dataset.confprix){ if(!me()){ requireLogin('Connectez-vous pour confirmer un prix.',()=>refresh()); return; } t.disabled=true; try{ const on=await toggleConfirmPrix(t.dataset.confprix); refresh(); toast(on?'Merci, prix confirmé !':'Confirmation retirée.'); }catch(err){ console.warn(err); t.disabled=false; toast('Action impossible. Réessayez.'); } }
   else if((t.dataset.hideprix||t.dataset.showprix)&&isAdmin()){ t.disabled=true; try{ if(t.dataset.hideprix){ const r=await sendToWix('MasquagesPrix',{releve:t.dataset.hideprix,motif:'Prix incorrect'}); PRICE_HIDDEN[t.dataset.hideprix]=r.dataItem&&r.dataItem.id; } else { const id=t.dataset.showprix; await call('DELETE',`/wix-data/v2/items/${encodeURIComponent(PRICE_HIDDEN[id])}?dataCollectionId=MasquagesPrix`); delete PRICE_HIDDEN[id]; } refresh(); }catch(err){ console.warn(err); t.disabled=false; toast('Action impossible. Réessayez.'); } }
   else if(t.dataset.procatalog){ proCatalogDialog(t.dataset.procatalog); }
@@ -3052,6 +3176,7 @@ document.addEventListener('change',e=>{
 document.addEventListener('input',e=>{
   if(e.target.id==='dirQ'){ dirState.q=e.target.value; drawDirectory(); }
   if(e.target.id==='codeQ'){ codeState.q=e.target.value; drawCodes(); }
+  if(e.target.id==='prixQ'){ prixState.q=e.target.value; drawPrixGrid(prixCom()); }
 });
 
 async function afterAuth(res,btn,label){
