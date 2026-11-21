@@ -227,3 +227,21 @@ Le 31 octobre, une autre session avait publié sa propre version (bloc « Offres
 
 ## 21 nov. 2026 : événements
 - **21 nov.** : 14 événements ajoutés dans `Evenements` (21 nov. → 5 déc.), vérifiés sur bonszahe.com/evenements. La recherche automatique (`trig_01DHEMxv4sutBpyvT12uhGVb`) lit désormais en priorité **mayotte-agenda.yt** (pages /agenda puis fiches) et **sortiramayotte.fr** (JSON-LD de l'accueil, heures en UTC +3). L'accès réseau à tous les domaines est ouvert.
+
+## 21 nov. 2026 : page Prix, prix des sites de courses en ligne (v=58)
+- **Publié et vérifié** sur bonszahe.com et sur la copie Wix (script v=58). Choix validé par le propriétaire : mélange « interrupteur + logos cliquables », sans panier type pour l'instant.
+- Page Prix : interrupteur « 🏪 En rayon / 🛒 En ligne ».
+  - En rayon : rien ne change, les prix en ligne sont exclus (panier malin, missions, fil, top du mois, comparaisons).
+  - En ligne : logos des sites avec chariot et badge, bouton « Tous les sites » ; un clic sur un logo affiche le bandeau du site (délai, livraison, zones, « Commander sur le site ») et filtre les produits ; chaque carte montre prix au kilo, prix du paquet, livraison, stock (si connu) et date du relevé. Les sites « Pros » ne sont jamais « le moins cher » (affichés en petit sous la carte).
+  - Fiche produit en ligne : tous les sites avec « Voir sur le site ↗ ».
+- CMS :
+  - `MagasinsPrix` : 7 sites ajoutés (MaoréShop, Chronocourse, C'jumo, Bazar Dagoni, Douka Magic, Somaco Online, Mayotte Tropic) avec les nouveaux champs `enLigne` (oui), `siteWeb`, `delai`, `livraison`, `zones`, `badge` (« Pros », « Rappel », « Place de marché »). Champ vide = « à confirmer » sur le site.
+  - `RelevesPrix` : nouveaux champs facultatifs `lien` (page du produit) et `stock` (« en stock » / « rupture »). Un prix en ligne = un relevé dont le `magasin` est le nom exact du site.
+  - 5 premiers prix (21/11) : Riz 5 kg MaoréShop 7,80 € ; Riz thaï jasmin 20 kg MaoréShop 34,60 € ; Huile de tournesol 3 L MaoréShop 8,80 € ; Mabawa 10 kg Chronocourse 31,60 € ; Mabawa 10 kg Mayotte Tropic 23,50 € (pros). Stock non renseigné.
+- Le formulaire « Signaler un prix » des membres ne propose pas les sites en ligne (prix ajoutés par l'administrateur).
+- ⚠️ **Copie Wix ≠ GitHub** : la copie Wix contient un « lecteur de catalogue » (`catalogue-reader.js`, `catalogue-reader.css`, et leurs lignes dans `index.html`) ajouté par une autre session, **absent de GitHub**. Il a été conservé : seuls les `?v=57` ont été passés à 58 dans l'`index.html` de Wix. À rapatrier sur GitHub si on veut garder ce lecteur.
+- Empreintes (FNV maison, script dans la session) : app ed6451690225e378, css 1a94632a7726557f, seo inchangé.
+- À faire :
+  - Vérifier et ajouter les prix à confirmer : MaoréShop lait / sucre / farine / mabawa ; Chronocourse riz parfumé 20 kg (« à partir de 31,99 € ») ; huile 5 L (format absent des produits).
+  - Compléter délais / livraison / zones de Bazar Dagoni, Douka Magic, Somaco Online, Chronocourse (frais).
+  - Plus tard : panier type « riz + mabawa » quand il y aura assez de prix (maquette : https://claude.ai/artifact/D2Yz5yCKSTqtKAcKXjS39N).

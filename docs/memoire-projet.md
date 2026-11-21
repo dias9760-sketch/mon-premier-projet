@@ -48,7 +48,7 @@
 - **Copie de secours** : site Wix Headless `32761e4f-414e-47d0-9089-2d5676be0455` (https://instant-avuufedtgexz-zamayotte-1409.wix-site-host.com). Non indexée. Elle doit rester **identique** à bonszahe.com.
 - **Ancien site Wix Studio** (zamayotte.wixstudio.com/bonszahe) : **ne pas modifier**.
 - **Données** : CMS Wix, commun aux deux sites. Les comptes membres sont gérés par Wix.
-- **Version des fichiers** : `?v=NN` dans `site/index.html`. Actuellement **48** ; à augmenter à chaque changement de JS ou de CSS.
+- **Version des fichiers** : `?v=NN` dans `site/index.html`. Actuellement **58** ; à augmenter à chaque changement de JS ou de CSS.
 
 ### Collections du CMS Wix (principales)
 | Collection | Contenu / champs utiles |
@@ -58,6 +58,7 @@
 | `PropositionsCodes` | Propositions des membres (statut « En attente »). **Une automatisation Wix** les copie dans `CodesPromo`, puis la proposition passe à « Traité ». |
 | `Evenements` | `titre`, `date` et `dateFin` (`AAAA-MM-JJ`), `heure`, `commune`, `lieu`, `description`, `image`, `lien`, `entreprise`, `publie`. **Écriture réservée à l'administrateur** (via l'API Wix). |
 | `EvenementsProposes` | Événements proposés par les entreprises |
+| `MagasinsPrix` / `RelevesPrix` | Magasins et prix relevés. Sites de courses en ligne : `MagasinsPrix.enLigne` = oui, avec `siteWeb`, `delai`, `livraison`, `zones`, `badge`. Prix en ligne : relevé avec `magasin` = nom du site, `lien`, `stock`. |
 | `Signalements` | Signalements de commentaires (`commentaire`) ou d'offres sans code (`offre`), avec un `motif` |
 | `Catalogues` / `CataloguesProposes` | Catalogues ; une automatisation Wix les ajoute non publiés |
 | Autres | `Votes`, `Commentaires`, `Moro`, `Demandes`, `Alertes`, `RelevesPrix`, `PrixReglementes`, `Statistiques`, `MessagesContact`, `Exclusions`, `ValidationsClassement`… |
@@ -105,7 +106,7 @@ Une modification qui ne touche que le CMS ou `docs/` ne demande pas de republier
   - une fenêtre de détail et un bouton « Ajouter à mon agenda » (`.ics`).
 - **Espace pro** : revendication de fiche, publication d'offres, statistiques, radar des recherches.
 - **Page Contrôle** (administrateur) : modération, activités suspectes, fiches aux horaires illisibles.
-- **Prix à Mayotte** : relevés des membres et prix maximums des carburants et du gaz.
+- **Prix à Mayotte** : relevés des membres, prix maximums des carburants et du gaz, et interrupteur « En rayon / En ligne » pour les prix des sites de courses en ligne (21 nov.).
 - **Mentions légales** : éditeur rempli. **Il manque l'adresse postale et le statut juridique** (`EDITEUR` dans `app-favorites-v2.js`).
 
 ## 6. Contenu actuel
