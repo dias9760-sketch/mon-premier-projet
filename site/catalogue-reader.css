@@ -1,0 +1,28 @@
+.bzcr-open{overflow:hidden!important}
+.bzcr{position:fixed;inset:0;z-index:9999;background:rgba(9,31,49,.82);display:flex;align-items:center;justify-content:center;padding:12px;font-family:var(--body,system-ui)}
+.bzcr-shell{background:var(--bg,#fffcf7);color:var(--ink,#1f2b3d);width:min(100%,1050px);height:min(94dvh,1000px);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 28px 70px #0005}
+.bzcr-head{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface,#fff);padding:13px 18px;border-bottom:1px solid var(--line,#eee)}
+.bzcr-heading{min-width:0}.bzcr-heading h2{font-size:clamp(15px,2.6vw,22px);margin:3px 0 0;line-height:1.22}.bzcr-eyebrow{font-size:12px;font-weight:700;color:var(--corail,#e4502f)}
+.bzcr-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:14px 14px 18px;text-align:center}
+.bzcr-stage{display:flex;justify-content:center;align-items:flex-start;overflow:auto;max-height:calc(94dvh - 265px);border-radius:12px;background:#ede9e3;padding:10px;touch-action:pan-y}
+.bzcr-main-image{display:block;width:auto;max-width:100%;max-height:calc(94dvh - 285px);height:auto;object-fit:contain;border-radius:3px;background:#fff;box-shadow:0 3px 14px #0002;cursor:zoom-in}
+.bzcr-main-image.bzcr-zoomed{max-height:none;max-width:none;width:min(1000px,190vw);cursor:zoom-out}
+.bzcr-controls{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px auto 6px}
+.bzcr-btn{border:1px solid var(--line,#ddd);background:var(--surface,#fff);color:var(--ink,#333);border-radius:12px;padding:9px 13px;min-height:42px;font-weight:700;cursor:pointer}
+.bzcr-btn:hover:not(:disabled){background:var(--soleil-50,#fff1d6)}.bzcr-btn:disabled{opacity:.35;cursor:not-allowed}
+.bzcr-primary{background:var(--lagon-700,#0b3a6e);color:#fff;border-color:transparent}
+.bzcr-close{white-space:nowrap}.bzcr-count{font-size:13px;font-weight:800;min-width:83px}
+.bzcr-tools{display:flex;justify-content:center;gap:8px}.bzcr-tools .bzcr-btn{font-size:12px;min-height:35px;padding:5px 12px}
+.bzcr-note{font-size:12px;color:var(--muted,#6f6155);padding:8px 0}
+.bzcr-thumbs{display:flex;overflow-x:auto;gap:8px;justify-content:flex-start;padding:6px 3px 12px;scroll-snap-type:x mandatory}
+.bzcr-thumb{flex:0 0 62px;background:var(--surface,#fff);border:2px solid transparent;border-radius:9px;padding:4px;cursor:pointer;scroll-snap-align:center;font-size:11px;font-weight:700}
+.bzcr-thumb.selected{border-color:var(--corail,#e4502f)}.bzcr-thumb img{display:block;width:100%;aspect-ratio:566/765;object-fit:cover;border-radius:5px}
+@media(max-width:600px){.bzcr{padding:0;align-items:stretch}.bzcr-shell{height:100dvh;max-height:none;border-radius:0;padding-bottom:env(safe-area-inset-bottom)}.bzcr-head{padding:10px 12px}.bzcr-body{padding:9px}.bzcr-stage{padding:5px;max-height:calc(100dvh - 275px)}.bzcr-main-image{max-height:calc(100dvh - 285px)}.bzcr-thumb{flex-basis:52px}.bzcr-controls{gap:6px}.bzcr-btn{padding:9px}.bzcr-note{font-size:11px}.bzcr-heading h2{font-size:15px}}
+@media(prefers-reduced-motion:reduce){.bzcr *{scroll-behavior:auto!important}}
+
+/* Catalogue PDF Mayotte : liseuse intégrée, avec solution de secours. */
+.bzcr-pdf-body{display:flex;flex-direction:column;gap:9px;padding:10px;overflow:hidden}
+.bzcr-pdf-frame{display:block;flex:1;min-height:0;width:100%;border:1px solid var(--line,#e8decf);border-radius:10px;background:#fff}
+.bzcr-pdf-note{font-size:12px;color:var(--muted,#6f6155);text-align:center}
+.bzcr-pdf-link{text-decoration:none;text-align:center;align-self:center;flex:0 0 auto;font-size:12px;max-width:100%}
+@media(max-width:600px){.bzcr-pdf-body{padding:7px}.bzcr-pdf-frame{border-radius:5px}.bzcr-pdf-link{font-size:11px;padding:7px 9px;min-height:34px}}
