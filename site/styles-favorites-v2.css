@@ -1173,3 +1173,34 @@ section.block.homeflash{padding-bottom:0}
 .phthumb{width:56px;height:56px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
 .demband{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 16px;border-radius:16px;border:1px dashed var(--line);background:var(--surface)}
 .demband span{font-weight:600}
+/* ---------- Prix en ligne (sites de courses en ligne) ---------- */
+:root{--ol:#2A5BD7;--ol-50:#E7EEFD}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ol:#8CAEFF;--ol-50:#1E2A47}}
+:root[data-theme="dark"]{--ol:#8CAEFF;--ol-50:#1E2A47}
+.modesw{display:inline-flex;gap:4px;padding:4px;border-radius:99px;background:var(--soft);border:1px solid var(--line);align-self:flex-start;max-width:100%}
+.modesw button{border:0;background:none;font:800 .92rem var(--body,inherit);color:var(--muted);padding:9px 16px;border-radius:99px;cursor:pointer}
+.modesw button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.modesw button.ol[aria-pressed="true"]{color:var(--ol)}
+.ens i{position:relative}
+.ens[aria-pressed="true"] i{outline:3px solid var(--ol);outline-offset:2px}
+.ens i.olall{background:var(--ol)}
+.enscart{position:absolute;right:-6px;bottom:-6px;width:22px;height:22px;border-radius:50%;background:var(--ol);border:2px solid var(--bg);display:grid;place-items:center;font-size:.62rem}
+.ensflag{position:absolute;top:-7px;right:-10px;font:800 .6rem/1 var(--display);padding:3px 6px;border-radius:99px;background:var(--soleil-50);color:#8A5D00;border:1px solid var(--bg)}
+.sitestrip{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 16px;border-radius:18px;background:var(--ol-50);margin-top:10px}
+.sitestrip>i{width:46px;height:46px;flex:0 0 46px;border-radius:50%;display:grid;place-items:center;font:800 .8rem var(--display);font-style:normal;color:#fff}
+.sitestrip .grow{flex:1;min-width:200px}
+.sitestrip strong{font-family:var(--display);font-size:1.08rem}
+.sitestrip dl{margin:4px 0 0;display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:.84rem}
+.sitestrip dt{color:var(--muted)} .sitestrip dd{margin:0;font-weight:700}
+.olgo{background:var(--ol);color:#fff}
+.olcard{border-color:color-mix(in srgb,var(--ol) 25%,var(--line))}
+.olcard:hover{border-color:var(--ol)}
+.olcard .pbest b{color:var(--ol)}
+.olstock{position:absolute;top:8px;left:8px;z-index:1;font-size:.68rem;font-weight:800;border-radius:8px;padding:2px 8px;background:var(--vert-50);color:var(--vert)}
+.olstock.no{background:#FBE4E1;color:#B4322A}
+.olsite{display:flex;flex-wrap:wrap;align-items:center;gap:4px;font-size:.78rem;font-weight:800;color:var(--ol);margin-top:4px}
+.olbadge{display:inline-block;margin-left:6px;font:800 .66rem/1.4 var(--display);padding:1px 7px;border-radius:99px;background:var(--soleil-50);color:#8A5D00;vertical-align:middle}
+.olsite .olbadge{margin-left:0}
+.olship{font-size:.74rem;font-weight:700;color:var(--ol);background:var(--ol-50);border-radius:8px;padding:4px 7px;margin-top:4px}
+.olpro{color:#8A5D00;font-weight:700}
+.oldate{color:var(--muted);margin-top:4px;padding-top:4px;border-top:1px dashed var(--line)}

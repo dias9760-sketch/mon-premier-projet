@@ -375,8 +375,8 @@ async function loadData(){
   CATALOGUES=catas.filter(x=>x.publie===true&&x.titre&&/^https?:\/\//.test(x.lien||'')).map(x=>{ const biz=idToSlug[refId(x.entreprise)]||B.find(b=>b.slug===x.entreprise)?.slug||'';
     return {id:x._id,biz,enseigne:x.enseigne||'',cat:biz?bizBy(biz).cat:catFrom(x.categorie),type:key(x.type).includes('arriv')?'arrivage':'catalogue',title:x.titre,link:x.lien,cover:imgUrl(x.couverture)||imgUrl(x.couvertureLien),desc:x.description||'',start:dateFrom(x.debut),end:dateFrom(x.fin),checked:dateFrom(x.verifieLe),at:stamp(x._createdDate)}; }).filter(c=>c.biz||c.enseigne);
   PRODUITS=prods.filter(x=>x.nom&&x.actif!==false).map(x=>({id:x._id,nom:x.nom,format:x.format||'',emoji:x.emoji||'🛒',ordre:+x.ordre||99,reglemente:x.reglemente||'',cat:x.categorie||'',quantite:+x.quantite>0?+x.quantite:0,unite:['kg','L','pièce'].includes(x.unite)?x.unite:'kg',image:imgUrl(x.image)})).sort((a,z)=>a.ordre-z.ordre);
-  MAGASINS_PRIX=mags.filter(x=>x.nom&&x.actif!==false).map(x=>({nom:x.nom,commune:communeFrom(x.commune),enseigne:x.enseigne||'',vedette:!!x.vedette,ordre:+x.ordre||99}));
-  RELEVES=rels.filter(x=>x.produit&&x.magasin&&+x.prix>0).map(x=>({id:x._id,produit:x.produit,magasin:String(x.magasin).slice(0,80),commune:communeFrom(x.commune),prix:+x.prix,day:dateFrom(x.date)||dateFrom(x._createdDate)||TODAY,pseudo:x.pseudo||'',owner:x._owner,at:stamp(x._createdDate),photo:/^https:\/\/static\.wixstatic\.com\//.test(x.photo||'')?x.photo:''}));
+  MAGASINS_PRIX=mags.filter(x=>x.nom&&x.actif!==false).map(x=>({nom:x.nom,commune:communeFrom(x.commune),enseigne:x.enseigne||'',vedette:!!x.vedette,ordre:+x.ordre||99,enLigne:x.enLigne===true,siteWeb:/^https:\/\//.test(x.siteWeb||'')?x.siteWeb:'',delai:x.delai||'',livraison:x.livraison||'',zones:x.zones||'',badge:x.badge||''}));
+  RELEVES=rels.filter(x=>x.produit&&x.magasin&&+x.prix>0).map(x=>({id:x._id,produit:x.produit,magasin:String(x.magasin).slice(0,80),commune:communeFrom(x.commune),prix:+x.prix,day:dateFrom(x.date)||dateFrom(x._createdDate)||TODAY,pseudo:x.pseudo||'',owner:x._owner,at:stamp(x._createdDate),photo:/^https:\/\/static\.wixstatic\.com\//.test(x.photo||'')?x.photo:'',lien:/^https:\/\//.test(x.lien||'')?x.lien:'',stock:key(x.stock||'')}));
   DEM_PRODUITS=dprods.filter(x=>x.nom).map(x=>({id:x._id,nom:String(x.nom).slice(0,80),format:String(x.format||'').slice(0,40),cat:x.categorie||'',magasin:String(x.magasin||'').slice(0,80),comment:String(x.commentaire||'').slice(0,300),pseudo:x.pseudo||'',statut:x.statut||'En attente',owner:x._owner,at:stamp(x._createdDate)})).sort((a,z)=>z.at-a.at);
   CONFIRMS=confs.filter(x=>x.releve).map(x=>({id:x._id,releve:x.releve,owner:x._owner,at:stamp(x._createdDate)}));
   REGLEMENTES=regs.filter(x=>/^\d{4}-\d{2}$/.test(String(x.mois||''))&&x.produit&&+x.prix>0).map(x=>({mois:x.mois,produit:x.produit,libelle:x.libelle||x.produit,prix:+x.prix,unite:x.unite||'',source:x.source||''}));
@@ -1730,8 +1730,11 @@ const myConfirm=id=>me()&&CONFIRMS.find(c=>c.releve===id&&c.owner===me().id);
 const fmtPrice=p=>p.toLocaleString('fr-FR',{style:'currency',currency:'EUR'});
 const median=a=>{ const s=[...a].sort((x,z)=>x-z), m=Math.floor(s.length/2); return s.length%2?s[m]:(s[m-1]+s[m])/2; };
 // Dernier prix par magasin pour un produit (60 jours max), avec l'état « à vérifier ».
-function priceRows(prodId,com=''){
-  const recent=RELEVES.filter(r=>r.produit===prodId&&!PRICE_HIDDEN[r.id]&&priceDays(r)<=PRICE_RULES.maxDays);
+// Sites de courses en ligne (MagasinsPrix.enLigne) : leurs prix restent à part des prix en rayon.
+const onlineMags=()=>MAGASINS_PRIX.filter(m=>m.enLigne).sort((a,z)=>a.ordre-z.ordre||a.nom.localeCompare(z.nom,'fr'));
+const onlineMag=mag=>MAGASINS_PRIX.find(m=>m.enLigne&&key(m.nom)===key(mag))||null;
+function priceRows(prodId,com='',online=false){
+  const recent=RELEVES.filter(r=>r.produit===prodId&&!PRICE_HIDDEN[r.id]&&priceDays(r)<=PRICE_RULES.maxDays&&!!onlineMag(r.magasin)===online);
   const last={}; recent.forEach(r=>{ const k=key(r.magasin)+'|'+r.commune; if(!last[k]||last[k].day<r.day||(+last[k].day===+r.day&&last[k].at<r.at)) last[k]=r; });
   return Object.values(last).filter(r=>!com||r.commune===com).map(r=>{
     const others=recent.filter(x=>x.id!==r.id&&priceDays(x)<=PRICE_RULES.staleDays).map(x=>x.prix);
@@ -1755,11 +1758,11 @@ function priceRow(r){
 }
 /* ---------- Page Prix à Mayotte (comparateur + panier malin + communauté) ---------- */
 // Enseignes en boutons : magasins « vedette » du CMS (MagasinsPrix), triés par « ordre ».
-const ENS_COLORS={'carrefour':'#1E5BB8','intermarchebaobab':'#D22B2B','sodifram':'#0E8A5F','hdhyperdiscount':'#E07A00','sodicash':'#5B3A8E','doukabe':'#E4502F','somaco':'#0B6E8A','distrimax':'#8A3B12'};
-const ENS_SHORT={'carrefour':'C','intermarchebaobab':'ITM','sodifram':'SDF','hdhyperdiscount':'HD','sodicash':'SC','doukabe':'DB','somaco':'SMC','distrimax':'DMX'};
+const ENS_COLORS={'carrefour':'#1E5BB8','intermarchebaobab':'#D22B2B','sodifram':'#0E8A5F','hdhyperdiscount':'#E07A00','sodicash':'#5B3A8E','doukabe':'#E4502F','somaco':'#0B6E8A','distrimax':'#8A3B12','maoreshop':'#7A3FB5','chronocourse':'#B07A0A','cjumo':'#C2410C','bazardagoni':'#A16207','doukamagic':'#0F766E','somacoonline':'#0E7490','mayottetropic':'#15803D'};
+const ENS_SHORT={'carrefour':'C','intermarchebaobab':'ITM','sodifram':'SDF','hdhyperdiscount':'HD','sodicash':'SC','doukabe':'DB','somaco':'SMC','distrimax':'DMX','maoreshop':'MS','chronocourse':'CC','cjumo':'CJ','bazardagoni':'BD','doukamagic':'DM','somacoonline':'SO','mayottetropic':'MT'};
 const ENS_ALIAS={'intermarchebaobab':['baobab','intermarche'],'hdhyperdiscount':['hyperdiscount'],'doukabe':['doukabe']};
 function enseignes(){
-  const m={}; MAGASINS_PRIX.filter(x=>x.vedette&&x.enseigne).forEach(x=>{ const k=key(x.enseigne); if(!m[k]) m[k]={k,nom:x.enseigne,ordre:x.ordre}; else m[k].ordre=Math.min(m[k].ordre,x.ordre); });
+  const m={}; MAGASINS_PRIX.filter(x=>x.vedette&&x.enseigne&&!x.enLigne).forEach(x=>{ const k=key(x.enseigne); if(!m[k]) m[k]={k,nom:x.enseigne,ordre:x.ordre}; else m[k].ordre=Math.min(m[k].ordre,x.ordre); });
   return Object.values(m).sort((a,z)=>a.ordre-z.ordre||a.nom.localeCompare(z.nom,'fr'));
 }
 const ensColor=k=>ENS_COLORS[k]||['#1E5BB8','#0E8A5F','#D22B2B','#5B3A8E','#E07A00','#0B6E8A'][[...k].reduce((s,c)=>s+c.charCodeAt(0),0)%6];
@@ -1775,7 +1778,7 @@ const unitLbl=p=>p.unite==='pièce'?'la pièce':p.unite==='L'?'le litre':'le kil
 const fmtUnit=(p,prix)=>{ const u=unitPrice(p,prix); return u===null?'':`${fmtPrice(u)}/${p.unite==='pièce'?'pièce':p.unite}`; };
 const PRIX_CATS={Alimentation:'🍚',Boissons:'💧',Hygiène:'🧼',Maison:'🧺',Carburant:'⛽'};
 const prodCats=()=>[...new Set(PRODUITS.map(p=>p.cat).filter(Boolean))];
-let prixState={q:'',ens:'',cat:''};
+let prixState={q:'',ens:'',cat:'',mode:'rayon',site:''};
 const prixCom=()=>communeFrom(new URLSearchParams((curH().split('?')[1])||'').get('c')||'')||'';
 function drawPanier(){ const el=document.getElementById('panierBox'); if(el) el.innerHTML=panierBlock(prixCom()); }
 // Meilleur prix « fiable » (ni à vérifier, ni ancien), éventuellement pour une enseigne.
@@ -1796,8 +1799,36 @@ function prixFiltered(){
   const q=norm(prixState.q.trim());
   return PRODUITS.filter(p=>(!prixState.cat||p.cat===prixState.cat)&&(!q||norm(p.nom+' '+p.format+' '+p.cat).includes(q)));
 }
+// Prix en ligne : meilleur prix d'un produit (hors rupture ; les sites « Pros » à part sauf si on les choisit).
+const olRows=(p,site)=>priceRows(p.id,'',true).filter(r=>!r.odd&&!r.stale&&(!site||key(r.magasin)===site));
+function olBest(p,site){
+  const rows=olRows(p,site), avail=rows.filter(r=>r.stock!=='rupture'), pub=avail.filter(r=>site||!/pro/i.test((onlineMag(r.magasin)||{}).badge||''));
+  const u=r=>p.quantite?r.prix/p.quantite:r.prix, pick=a=>a.slice().sort((x,z)=>u(x)-u(z))[0]||null;
+  return {best:pick(pub)||pick(avail)||pick(rows),pro:site?null:pick(avail.filter(r=>!pub.includes(r)))};
+}
+const shortDay=d=>d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+const olShip=m=>m?(m.livraison||m.delai||'Livraison : à confirmer'):'';
+function olBadge(m){ return m&&m.badge?`<span class="olbadge">${esc(m.badge)}</span>`:''; }
+function olStock(r){ return r.stock==='rupture'?'<span class="olstock no">Rupture</span>':r.stock?'<span class="olstock">En stock</span>':''; }
+function prodCardOnline(p){
+  const {best,pro}=olBest(p,prixState.site); if(!best) return '';
+  const m=onlineMag(best.magasin), nb=new Set(olRows(p,'').map(r=>key(r.magasin))).size;
+  return `<button class="pcard olcard" data-prixprod="${esc(p.id)}">${prodImg(p)}${olStock(best)}
+    <strong>${esc(p.nom)}</strong><small class="muted">${esc(p.format)}</small>
+    <span class="pbest"><b>${p.quantite?fmtUnit(p,best.prix):fmtPrice(best.prix)}</b><small>${p.quantite?fmtPrice(best.prix)+' le paquet':''}</small></span>
+    <span class="olsite">🛒 ${esc(best.magasin)}${olBadge(m)}</span>
+    <span class="olship">🚚 ${esc(olShip(m))}</span>
+    ${pro?`<small class="olpro">Pros : ${p.quantite?fmtUnit(p,pro.prix):fmtPrice(pro.prix)} chez ${esc(pro.magasin)}</small>`:''}
+    <small class="oldate">Relevé le ${shortDay(best.day)}${nb>1?' · '+nb+' sites comparés':''}</small></button>`;
+}
 function drawPrixGrid(com){
   const el=document.getElementById('prixGrid'); if(!el) return;
+  if(prixState.mode==='ligne'){
+    const cards=prixFiltered().map(prodCardOnline).filter(Boolean);
+    el.innerHTML=cards.length?cards.join(''):`<div class="u5">${empty(prixState.site?'Pas encore de prix relevé sur ce site':'Pas encore de prix en ligne pour cette recherche','Les prix des sites de courses en ligne sont ajoutés au fur et à mesure.')}</div>`;
+    const c=document.getElementById('prixCount'); if(c) c.textContent=plural(cards.length,'produit','produits');
+    return;
+  }
   const list=prixFiltered();
   el.innerHTML=list.length?list.map(p=>prodCard(p,com)).join(''):`<div class="u5">${empty('Aucun produit trouvé','Essayez un autre mot, ou demandez-nous d’ajouter ce produit.',`<button class="btn btn-sun" data-demprod="${esc(prixState.q.trim())}">Demander ce produit</button>`)}</div>`;
   const c=document.getElementById('prixCount'); if(c) c.textContent=plural(list.length,'produit','produits');
@@ -1828,27 +1859,33 @@ function missions(com){
   return [...all.slice(start),...all.slice(0,start)].filter((x,i,a)=>a.findIndex(y=>y.p===x.p)===i).slice(0,3);
 }
 function lastPrices(){
-  return [...RELEVES].filter(r=>!PRICE_HIDDEN[r.id]&&PRODUITS.some(p=>p.id===r.produit)).sort((a,z)=>z.at-a.at).slice(0,6);
+  return [...RELEVES].filter(r=>!PRICE_HIDDEN[r.id]&&!onlineMag(r.magasin)&&PRODUITS.some(p=>p.id===r.produit)).sort((a,z)=>z.at-a.at).slice(0,6);
 }
 function topReleveurs(){
-  const mk=monthKey(TODAY), c={}; RELEVES.filter(r=>monthKey(r.at)===mk&&r.pseudo).forEach(r=>c[r.pseudo]=(c[r.pseudo]||0)+1);
+  const mk=monthKey(TODAY), c={}; RELEVES.filter(r=>monthKey(r.at)===mk&&r.pseudo&&!onlineMag(r.magasin)).forEach(r=>c[r.pseudo]=(c[r.pseudo]||0)+1);
   return Object.entries(c).sort((a,z)=>z[1]-a[1]).slice(0,3);
 }
 function pagePrix(params){
   const com=communeFrom(params.get('c')||'')||'';
   const ens=enseignes(); if(prixState.ens&&!ens.some(e=>e.k===prixState.ens)) prixState.ens='';
   const ms=missions(com), lp=lastPrices(), top=topReleveurs();
+  const ols=onlineMags(); if(!ols.length) prixState.mode='rayon';
+  const online=prixState.mode==='ligne', site=online&&prixState.site?ols.find(m=>key(m.nom)===prixState.site)||null:null; if(online&&!site) prixState.site='';
   return `<div class="wrap prixpage">
     ${backBtn('#/')}<div class="pagehead"><h1>💰 Prix à Mayotte</h1><p class="muted">Le vrai prix au kilo, magasin par magasin. Comparez avant de faire vos courses.</p></div>
     <label class="field prixsearch">${ic('search')}<span class="sr">Chercher un produit</span><input id="prixQ" type="search" placeholder="Riz, huile, mabawa, lait…" value="${esc(prixState.q)}" autocomplete="off"></label>
-    <div class="prixhero u13"><div><strong>Un prix en rayon ? Une photo suffit.</strong><small>Prenez l’étiquette ou le ticket en photo et indiquez le prix : chaque prix confirmé vous rapporte ${PRICE_RULES.points} points pour les récompenses du mois.</small></div><button class="btn btn-sun" data-prixform="">📷 Signaler un prix</button></div>
+    ${ols.length?`<div class="modesw u13" role="group" aria-label="Où acheter"><button data-prixmode="rayon" aria-pressed="${!online}">🏪 En rayon</button><button data-prixmode="ligne" class="ol" aria-pressed="${online}">🛒 En ligne</button></div>`:''}
+    ${online?`<div class="head u13"><div><h2>Sites de courses en ligne</h2><p class="muted">Les sites où l’on commande et se fait livrer à Mayotte. Prix relevés par l’équipe Bonszahé sur les sites.</p></div></div>
+    <div class="ensrow" role="group" aria-label="Choisir un site"><button class="ens" data-prixsite="" aria-pressed="${!prixState.site}"><i class="olall">Tous</i><small>Tous les sites</small></button>${ols.map(m=>{ const k=key(m.nom); return `<button class="ens" data-prixsite="${k}" aria-pressed="${prixState.site===k}"><i style="background:${ensColor(k)}">${esc(ensShort(k,m.nom))}<span class="enscart" aria-hidden="true">🛒</span>${m.badge&&m.badge!=='Place de marché'?`<span class="ensflag">${esc(m.badge)}</span>`:''}</i><small>${esc(m.nom)}</small></button>`; }).join('')}</div>
+    ${site?`<div class="sitestrip"><i style="background:${ensColor(key(site.nom))}">${esc(ensShort(key(site.nom),site.nom))}</i><div class="grow"><strong>${esc(site.nom)}${olBadge(site)}</strong><dl><dt>Délai</dt><dd>${esc(site.delai||'à confirmer')}</dd><dt>Livraison</dt><dd>${esc(site.livraison||'à confirmer')}</dd><dt>Zones</dt><dd>${esc(site.zones||'à confirmer')}</dd></dl></div>${site.siteWeb?`<a class="btn btn-sm olgo" href="${esc(site.siteWeb)}" target="_blank" rel="noopener">Commander sur le site ↗</a>`:''}</div>`:''}`
+    :`<div class="prixhero u13"><div><strong>Un prix en rayon ? Une photo suffit.</strong><small>Prenez l’étiquette ou le ticket en photo et indiquez le prix : chaque prix confirmé vous rapporte ${PRICE_RULES.points} points pour les récompenses du mois.</small></div><button class="btn btn-sun" data-prixform="">📷 Signaler un prix</button></div>
     <div class="head u13"><div><h2>Magasins</h2></div>${prixState.ens?`<button class="linkbtn link" data-prixens="">Tous les magasins</button>`:''}</div>
-    <div class="ensrow" role="group" aria-label="Choisir un magasin">${ens.map(e=>`<button class="ens" data-prixens="${e.k}" aria-pressed="${prixState.ens===e.k}"><i style="background:${ensColor(e.k)}">${esc(ensShort(e.k,e.nom))}</i><small>${esc(e.nom)}</small></button>`).join('')}</div>
+    <div class="ensrow" role="group" aria-label="Choisir un magasin">${ens.map(e=>`<button class="ens" data-prixens="${e.k}" aria-pressed="${prixState.ens===e.k}"><i style="background:${ensColor(e.k)}">${esc(ensShort(e.k,e.nom))}</i><small>${esc(e.nom)}</small></button>`).join('')}</div>`}
     <div class="chips u10" role="group" aria-label="Catégories"><button class="chip" data-prixcat="" aria-pressed="${!prixState.cat}">Tout</button>${prodCats().map(c=>`<button class="chip" data-prixcat="${esc(c)}" aria-pressed="${prixState.cat===c}">${PRIX_CATS[c]||'🛒'} ${esc(c)}</button>`).join('')}</div>
-    <div class="filters u10"><label class="sel"><span>Commune</span><select id="prixCom">${selOpts([['','Toute l’île'],...[...COMMUNES].sort((a,z)=>a.name.localeCompare(z.name,'fr')).map(c=>[c.slug,c.name])],com)}</select></label><p class="results" id="prixCount"></p></div>
+    <div class="filters u10">${online?'':`<label class="sel"><span>Commune</span><select id="prixCom">${selOpts([['','Toute l’île'],...[...COMMUNES].sort((a,z)=>a.name.localeCompare(z.name,'fr')).map(c=>[c.slug,c.name])],com)}</select></label>`}<p class="results" id="prixCount"></p></div>
     <div class="pgrid u10" id="prixGrid"></div>
     <div class="demband u13"><span>🛒 Un produit manque dans la liste ?</span><button class="btn btn-ghost btn-sm" data-demprod="">Demander un produit</button></div>
-    <div class="prixcols u18">
+    ${online?`<p class="note u13">Prix relevés sur les sites de courses en ligne, à vérifier sur le site au moment de commander. Les frais de livraison s’ajoutent selon le site. Les prix de plus de ${PRICE_RULES.staleDays} jours ne servent plus à la comparaison.</p>`:`<div class="prixcols u18">
       <section class="card"><h2>🧺 Mon panier malin</h2><p class="muted">Vos courses habituelles : le total dans chaque magasin.</p><div id="panierBox">${panierBlock(com)}</div></section>
       <div class="stack">
         ${ms.length?`<section class="card"><h2>🎯 Missions de la semaine</h2><p class="muted">Ces prix manquent : relevez-les lors de vos courses.</p>${ms.map(({p,e})=>`<button class="mission" data-prixform="${esc(p.id)}"><span class="e">${p.emoji}</span><span class="grow"><strong>${esc(p.nom)} ${esc(p.format)}</strong><small>chez ${esc(e.nom)} · aucun prix récent</small></span><b>+${PRICE_RULES.points} pts</b></button>`).join('')}</section>`:''}
@@ -1857,13 +1894,24 @@ function pagePrix(params){
       </div>
     </div>
     ${fuelCard()}
-    <p class="note u13">Prix relevés par l’équipe et la communauté, à vérifier en magasin. Un prix très différent des autres est marqué « À vérifier » jusqu’à ce qu’un autre membre le confirme. Les prix de plus de ${PRICE_RULES.staleDays} jours ne servent plus à la comparaison.</p>
+    <p class="note u13">Prix relevés par l’équipe et la communauté, à vérifier en magasin. Un prix très différent des autres est marqué « À vérifier » jusqu’à ce qu’un autre membre le confirme. Les prix de plus de ${PRICE_RULES.staleDays} jours ne servent plus à la comparaison.</p>`}
     <div class="u8"></div>
   </div>`;
 }
 // Fiche produit : tous les magasins, au prix ou au kilo, et les autres formats du même produit.
+function prixProdDialogOnline(p){
+  const rows=priceRows(p.id,'',true).slice().sort((a,z)=>(a.stock==='rupture')-(z.stock==='rupture')||a.stale-z.stale||a.prix-z.prix);
+  const first=rows.find(r=>!r.stale&&r.stock!=='rupture'&&!/pro/i.test((onlineMag(r.magasin)||{}).badge||''));
+  openDialog(`<header><div class="pdhead">${prodImg(p,'pimg md')}<div><h2 id="dlgTitle">${esc(p.nom)}</h2><p class="u14 note">${esc(p.format)} · prix en ligne</p></div></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
+  ${rows.length?`<ul class="cmplist">${rows.map(r=>{ const m=onlineMag(r.magasin), k=key(r.magasin), win=r===first;
+    return `<li class="cmp${win?' win':''}${r.stale||r.stock==='rupture'?' stale':''}"><i class="lg" style="background:${ensColor(k)}">${esc(ensShort(k,r.magasin))}</i><span class="grow"><strong>${esc(r.magasin)}${olBadge(m)}</strong><small class="muted">🚚 ${esc(olShip(m))}</small><small class="muted">Relevé le ${shortDay(r.day)}${r.stock==='rupture'?' · rupture de stock':r.stock?' · en stock':''}</small>${r.lien||(m&&m.siteWeb)?`<a class="link" href="${esc(r.lien||m.siteWeb)}" target="_blank" rel="noopener">Voir sur le site ↗</a>`:''}${win?'<span class="tagwin">Le moins cher</span>':''}</span>
+      <span class="pr"><b>${p.quantite?fmtUnit(p,r.prix):fmtPrice(r.prix)}</b><small>${fmtPrice(r.prix)}</small></span></li>`; }).join('')}</ul>`
+    :`<p class="muted">Aucun prix en ligne pour l’instant.</p>`}
+  <p class="note u10">Les sites marqués « Pros » vendent aux professionnels. « Rappel » : un commercial rappelle pour valider la commande.</p>`);
+}
 function prixProdDialog(id,fam=false){
   const p=PRODUITS.find(x=>x.id===id); if(!p) return;
+  if(prixState.mode==='ligne'&&curH().startsWith('#/prix')) return prixProdDialogOnline(p);
   const com=prixCom();
   const sib=PRODUITS.filter(x=>x.quantite&&key(x.nom)===key(p.nom));
   const prods=fam&&p.quantite?sib:[p];
@@ -1921,7 +1969,7 @@ async function sendDemandeProduit(f){
 }
 function prixDialog(prodId){
   if(!me()){ requireLogin('Connectez-vous pour signaler un prix : chaque relevé confirmé vous rapporte '+PRICE_RULES.points+' points.',()=>prixDialog(prodId)); return; }
-  const shops=[...new Set([...MAGASINS_PRIX.map(m=>m.nom),...B.filter(isShop).map(b=>b.name)])].sort((a,z)=>a.localeCompare(z,'fr'));
+  const shops=[...new Set([...MAGASINS_PRIX.filter(m=>!m.enLigne).map(m=>m.nom),...B.filter(isShop).map(b=>b.name)])].sort((a,z)=>a.localeCompare(z,'fr'));
   openDialog(`<header><div><h2 id="dlgTitle">Signaler un prix</h2><p class="u14 note">Le prix que vous avez vu en rayon ou sur le ticket de caisse.</p></div><button class="iconbtn" data-close aria-label="Fermer">${ic('x')}</button></header>
   <form class="form" id="prixForm">
     <label>Produit<select name="produit" required>${PRODUITS.map(p=>`<option value="${esc(p.id)}"${p.id===prodId?' selected':''}>${p.emoji} ${esc(p.nom)} (${esc(p.format)})</option>`).join('')}</select></label>
@@ -3177,6 +3225,8 @@ document.addEventListener('click',async e=>{
   else if(t.dataset.proevent){ proEventDialog(t.dataset.proevent); }
   else if(t.dataset.offer){ offerDialog(t.dataset.offer); }
   else if(t.dataset.prixform!==undefined){ prixDialog(t.dataset.prixform); }
+  else if(t.dataset.prixmode){ prixState.mode=t.dataset.prixmode==='ligne'?'ligne':'rayon'; prixState.site=''; refresh(); }
+  else if(t.dataset.prixsite!==undefined){ prixState.site=prixState.site===t.dataset.prixsite?'':t.dataset.prixsite; refresh(); }
   else if(t.dataset.prixens!==undefined){ prixState.ens=prixState.ens===t.dataset.prixens?'':t.dataset.prixens; refresh(); }
   else if(t.dataset.prixcat!==undefined){ prixState.cat=t.dataset.prixcat; document.querySelectorAll('[data-prixcat]').forEach(b=>b.setAttribute('aria-pressed',b===t)); drawPrixGrid(prixCom()); }
   else if(t.dataset.prixprod){ prixProdDialog(t.dataset.prixprod); }
