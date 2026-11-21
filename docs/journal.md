@@ -1,5 +1,13 @@
 # Bonszahé : journal de passation
 
+## Session du 21 novembre 2026 : synchronisation lecteur de catalogues (v59)
+
+- **Code GitHub** sur `claude/modest-clarke-d3ern5` : ajout des fichiers `site/catalogue-reader.js` et `site/catalogue-reader.css`, puis chargement dans `site/index.html` avec `?v=59` (commit `8d67d0d`). La branche déclenche le déploiement automatique Cloudflare Pages.
+- **Copie Wix Headless** `32761e4f-414e-47d0-9089-2d5676be0455` : synchronisée et republiée avec les cinq fichiers GitHub (`index.html`, `app-favorites-v2.js`, `styles-favorites-v2.css`, `catalogue-reader.js`, `catalogue-reader.css`). Lecture Wix confirmée des références Carrefour et Diam ; autres fichiers conservés.
+- **Catalogues** : Carrefour Mayotte jusqu'au 29/11/2026 inclus (11 pages en images WebP) ; Diam Loisirs Mayotte jusqu'au 02/01/2027 inclus (84 pages avec PDF intégré). Les deux sont dans la collection Wix `Catalogues`.
+- **Contrôles** : validité syntaxique du lecteur ; références et dates présentes ; la page publique `https://bonszahe.com/catalogues` est accessible à l'extraction Exa. Le rendu interactif final sur le domaine Cloudflare n'a pas pu être testé en navigateur dans cette session ; à vérifier sur mobile et ordinateur.
+- **Point de vigilance** : les futures modifications du lecteur doivent être publiées d'abord dans GitHub/Cloudflare, puis sur Wix pour éviter un nouveau décalage.
+
 ## Session du 17 nov. 2026 : accueil et page Prix
 
 > Code en ligne : commit `8a66fbb`, version `?v=55`. Copie Wix identique (empreintes vérifiées avant et après). Maquettes validées : https://claude.ai/artifact/Q3JUR4fnjta9giSwWeyvbB
