@@ -224,3 +224,6 @@ Le 31 octobre, une autre session avait publié sa propre version (bloc « Offres
 - Correction : le podium des relevés de prix s'appelle maintenant `.relpodium`, et le sélecteur « Ce format / Tous formats » `.fmtseg`. Les onglets du site retrouvent leur ancien aspect.
 - Publié et vérifié sur bonszahe.com (v=57, classement en grille) et sur la copie Wix (empreintes app 53df999281531815, index f7d8e8805565524a, css 5dcffa8ba64ebc71).
 - **Règle :** avant d'ajouter une classe CSS, vérifier qu'elle n'existe pas déjà dans `styles-favorites-v2.css` et `app-favorites-v2.js`.
+
+## 21 nov. 2026 : événements
+- **21 nov.** : 14 événements ajoutés dans `Evenements` (21 nov. → 5 déc.), vérifiés sur bonszahe.com/evenements. La recherche automatique (`trig_01DHEMxv4sutBpyvT12uhGVb`) lit désormais en priorité **mayotte-agenda.yt** (pages /agenda puis fiches) et **sortiramayotte.fr** (JSON-LD de l'accueil, heures en UTC +3). L'accès réseau à tous les domaines est ouvert.
